@@ -312,20 +312,20 @@ class GuiManager {
 
         ; Precision Diagram (Mouse and leader lines)
         if FileExist(diagramPath) {
-            g.Add("Picture", "x280 y140 w820 h490 +BackgroundTrans", diagramPath)
+            g.Add("Picture", "x280 y140 w860 h500 +BackgroundTrans", diagramPath)
         }
 
         ; Callout pill badges placed at the ends of the leader lines (Synced with OMM F13-F21)
         callouts := [
-            { id: "TiltLeft",     name: "Tilt Left  [F17]",      x: 295, y: 165 },
-            { id: "G8",           name: "G8 (DPI Up)  [F20]",    x: 295, y: 240 },
-            { id: "G7",           name: "G7 (DPI Down)  [F21]",  x: 295, y: 300 },
-            { id: "DpiShift",     name: "DPI Shift  [F15]",      x: 295, y: 375 },
-            { id: "Forward",      name: "G5 (Forward)  [F16]",   x: 295, y: 445 },
-            { id: "Back",         name: "G4 (Back)  [F14]",      x: 295, y: 515 },
-            { id: "TiltRight",    name: "Tilt Right  [F18]",     x: 825, y: 165 },
-            { id: "Middle",       name: "Middle Click  [F13]",   x: 825, y: 235 },
-            { id: "ProfileCycle", name: "G9 (Profile)  [F19]",   x: 825, y: 305 }
+            { id: "TiltLeft",     name: "Tilt Left  [F17]",      x: 305, y: 179 },
+            { id: "G8",           name: "G8 (DPI Up)  [F20]",    x: 305, y: 244 },
+            { id: "G7",           name: "G7 (DPI Down)  [F21]",  x: 305, y: 304 },
+            { id: "DpiShift",     name: "DPI Shift  [F15]",      x: 305, y: 374 },
+            { id: "Forward",      name: "G5 (Forward)  [F16]",   x: 305, y: 444 },
+            { id: "Back",         name: "G4 (Back)  [F14]",      x: 305, y: 514 },
+            { id: "TiltRight",    name: "Tilt Right  [F18]",     x: 930, y: 179 },
+            { id: "Middle",       name: "Middle Click  [F13]",   x: 930, y: 244 },
+            { id: "ProfileCycle", name: "G9 (Profile)  [F19]",   x: 930, y: 309 }
         ]
 
         for b in callouts {
@@ -405,24 +405,24 @@ class GuiManager {
         this.OMMStatusText := g.Add("Text", "x30 y175 w1050 Center", "Ready. Click any button below to inject into OMM.")
 
         if FileExist(diagramPath) {
-            g.Add("Picture", "x280 y200 w820 h490 +BackgroundTrans", diagramPath)
+            g.Add("Picture", "x280 y200 w860 h500 +BackgroundTrans", diagramPath)
         }
 
         ; Injectors mapped 1:1 to OMM buttons 3 to 11
         injectors := [
-            { key: "F17", label: "Inject F17 (Tilt L)",    x: 295, y: 225 },
-            { key: "F20", label: "Inject F20 (G8 Up)",     x: 295, y: 300 },
-            { key: "F21", label: "Inject F21 (G7 Down)",   x: 295, y: 360 },
-            { key: "F15", label: "Inject F15 (DPI Shift)", x: 295, y: 435 },
-            { key: "F16", label: "Inject F16 (G5 Fwd)",    x: 295, y: 505 },
-            { key: "F14", label: "Inject F14 (G4 Back)",   x: 295, y: 575 },
-            { key: "F18", label: "Inject F18 (Tilt R)",    x: 825, y: 225 },
-            { key: "F13", label: "Inject F13 (Middle)",    x: 825, y: 295 },
-            { key: "F19", label: "Inject F19 (G9)",        x: 825, y: 365 }
+            { key: "F17", label: "Inject F17 (Tilt L)",    x: 305, y: 233 },
+            { key: "F20", label: "Inject F20 (G8 Up)",     x: 305, y: 298 },
+            { key: "F21", label: "Inject F21 (G7 Down)",   x: 305, y: 358 },
+            { key: "F15", label: "Inject F15 (DPI Shift)", x: 305, y: 428 },
+            { key: "F16", label: "Inject F16 (G5 Fwd)",    x: 305, y: 498 },
+            { key: "F14", label: "Inject F14 (G4 Back)",   x: 305, y: 568 },
+            { key: "F18", label: "Inject F18 (Tilt R)",    x: 930, y: 233 },
+            { key: "F13", label: "Inject F13 (Middle)",    x: 930, y: 298 },
+            { key: "F19", label: "Inject F19 (G9)",        x: 930, y: 363 }
         ]
 
         for k in injectors {
-            btn := g.Add("Button", "x" . k.x . " y" . k.y . " w145 h38", k.label)
+            btn := g.Add("Button", "x" . k.x . " y" . k.y . " w145 h34", k.label)
             btn.TargetKey := k.key
             btn.OnEvent("Click", (ctrl, *) => OMMHelper.StartCountdown(ctrl.TargetKey, GuiManager.OMMStatusText))
         }
