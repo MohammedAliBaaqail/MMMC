@@ -13,6 +13,17 @@ class GuiManager {
     static GShiftStatusText := ""
     static RapidFireStatusText := ""
     static OMMStatusText := ""
+    static IsAlwaysOnTop := true
+    static ChkAlwaysOnTop := ""
+    
+    ; View Layer Control ("Normal", "GShift", or "GShift2")
+    static CurrentViewLayer := "Normal"
+    static LblDefault1 := ""
+    static PicToggle1 := ""
+    static LblBShift1 := ""
+    static LblDefault2 := ""
+    static PicToggle2 := ""
+    static LblBShift2 := ""
     
     ; Selected Button for assignment
     static SelectedButtonId := "G8"
@@ -23,6 +34,7 @@ class GuiManager {
     ; Sidebar Controls
     static SearchEdit := ""
     static CommandListView := ""
+    static CollapsedCategories := Map()
 
     ; Live Monitor Controls
     static MonitorCards := Map()
@@ -42,6 +54,8 @@ class GuiManager {
     static RecCapturedLabel := ""
     static RecActiveCombo := []
     static RecKeysDown := Map()
+    static RecBtnRecordSingle := ""
+    static RecIsRecordingSingle := false
     static RecDdlSingleMode := ""
     static RecEdtSingleInt := ""
     static RecTxtSingleExplain := ""
@@ -76,54 +90,65 @@ class GuiManager {
     static EditCustomCmd := ""
     static EditGShiftPresetDrop := ""
 
+    static Categories := [
+        { Key: "Editing",    Title: "EDITING" },
+        { Key: "Navigation", Title: "NAVIGATION & TABS" },
+        { Key: "Windows",    Title: "WINDOWS & SYSTEM" },
+        { Key: "Media",      Title: "MEDIA & AUDIO" },
+        { Key: "Device",     Title: "DEVICE & B-SHIFT" }
+    ]
+
     ; Complete Command Catalog for Sidebar (Category, Display Name, Type, Command, Label)
     static CommandCatalog := [
         ; --- Editing ---
-        { Cat: "Editing", Name: "Undo",                  Type: "Send", Cmd: "^z",            Label: "Undo (Ctrl+Z)" },
-        { Cat: "Editing", Name: "Redo",                  Type: "Send", Cmd: "^y",            Label: "Redo (Ctrl+Y)" },
-        { Cat: "Editing", Name: "Copy",                  Type: "Send", Cmd: "^c",            Label: "Copy (Ctrl+C)" },
-        { Cat: "Editing", Name: "Paste",                 Type: "Send", Cmd: "^v",            Label: "Paste (Ctrl+V)" },
-        { Cat: "Editing", Name: "Cut",                   Type: "Send", Cmd: "^x",            Label: "Cut (Ctrl+X)" },
-        { Cat: "Editing", Name: "Save",                  Type: "Send", Cmd: "^s",            Label: "Save (Ctrl+S)" },
-        { Cat: "Editing", Name: "Select All",            Type: "Send", Cmd: "^a",            Label: "Select All" },
-        { Cat: "Editing", Name: "Find",                  Type: "Send", Cmd: "^f",            Label: "Find (Ctrl+F)" },
-        { Cat: "Editing", Name: "Duplicate Line",        Type: "Send", Cmd: "!+{Down}",      Label: "Duplicate Line" },
-        { Cat: "Editing", Name: "Delete Line",           Type: "Send", Cmd: "^+k",           Label: "Delete Line" },
+        { Cat: "Editing", Name: "Undo",                  Type: "Send", Cmd: "^z",            Label: "Undo",          Key: "Ctrl + Z" },
+        { Cat: "Editing", Name: "Redo",                  Type: "Send", Cmd: "^y",            Label: "Redo",          Key: "Ctrl + Y" },
+        { Cat: "Editing", Name: "Copy",                  Type: "Send", Cmd: "^c",            Label: "Copy",          Key: "Ctrl + C" },
+        { Cat: "Editing", Name: "Paste",                 Type: "Send", Cmd: "^v",            Label: "Paste",         Key: "Ctrl + V" },
+        { Cat: "Editing", Name: "Cut",                   Type: "Send", Cmd: "^x",            Label: "Cut",           Key: "Ctrl + X" },
+        { Cat: "Editing", Name: "Save",                  Type: "Send", Cmd: "^s",            Label: "Save",          Key: "Ctrl + S" },
+        { Cat: "Editing", Name: "Select All",            Type: "Send", Cmd: "^a",            Label: "Select All",    Key: "Ctrl + A" },
+        { Cat: "Editing", Name: "Find",                  Type: "Send", Cmd: "^f",            Label: "Find",          Key: "Ctrl + F" },
+        { Cat: "Editing", Name: "Duplicate Line",        Type: "Send", Cmd: "!+{Down}",      Label: "Duplicate Line", Key: "Alt+Shift+Down" },
+        { Cat: "Editing", Name: "Delete Line",           Type: "Send", Cmd: "^+k",           Label: "Delete Line",   Key: "Ctrl+Shift+K" },
         
-        { Cat: "Navigation", Name: "Middle Click",       Type: "Send", Cmd: "{MButton}",     Label: "Middle Click" },
-        { Cat: "Navigation", Name: "Previous Tab",       Type: "Send", Cmd: "^+{Tab}",       Label: "Prev Tab" },
-        { Cat: "Navigation", Name: "Next Tab",           Type: "Send", Cmd: "^{Tab}",        Label: "Next Tab" },
-        { Cat: "Navigation", Name: "Close Tab",          Type: "Send", Cmd: "^w",            Label: "Close Tab" },
-        { Cat: "Navigation", Name: "New Tab",            Type: "Send", Cmd: "^t",            Label: "New Tab" },
-        { Cat: "Navigation", Name: "Reopen Closed Tab",  Type: "Send", Cmd: "^+t",           Label: "Reopen Tab" },
-        { Cat: "Navigation", Name: "Browser Back",       Type: "Send", Cmd: "!{Left}",       Label: "Browser Back" },
-        { Cat: "Navigation", Name: "Browser Forward",    Type: "Send", Cmd: "!{Right}",      Label: "Browser Forward" },
-        { Cat: "Navigation", Name: "Refresh Page",       Type: "Send", Cmd: "{F5}",          Label: "Refresh (F5)" },
+        { Cat: "Navigation", Name: "Middle Click",       Type: "Send", Cmd: "{MButton}",     Label: "Middle Click",  Key: "Mouse 3" },
+        { Cat: "Navigation", Name: "Previous Tab",       Type: "Send", Cmd: "^+{Tab}",       Label: "Prev Tab",      Key: "Ctrl+Shift+Tab" },
+        { Cat: "Navigation", Name: "Next Tab",           Type: "Send", Cmd: "^{Tab}",        Label: "Next Tab",      Key: "Ctrl + Tab" },
+        { Cat: "Navigation", Name: "Close Tab",          Type: "Send", Cmd: "^w",            Label: "Close Tab",     Key: "Ctrl + W" },
+        { Cat: "Navigation", Name: "New Tab",            Type: "Send", Cmd: "^t",            Label: "New Tab",       Key: "Ctrl + T" },
+        { Cat: "Navigation", Name: "Reopen Closed Tab",  Type: "Send", Cmd: "^+t",           Label: "Reopen Tab",    Key: "Ctrl+Shift+T" },
+        { Cat: "Navigation", Name: "Browser Back",       Type: "Send", Cmd: "!{Left}",       Label: "Browser Back",  Key: "Alt + Left" },
+        { Cat: "Navigation", Name: "Browser Forward",    Type: "Send", Cmd: "!{Right}",      Label: "Browser Fwd",   Key: "Alt + Right" },
+        { Cat: "Navigation", Name: "Refresh Page",       Type: "Send", Cmd: "{F5}",          Label: "Refresh",       Key: "F5" },
         
         ; --- System & Windows ---
-        { Cat: "System", Name: "Windows Task View",      Type: "Send", Cmd: "#{Tab}",        Label: "Task View" },
-        { Cat: "System", Name: "Show Desktop",           Type: "Send", Cmd: "#d",            Label: "Show Desktop" },
-        { Cat: "System", Name: "Snap Window Left",       Type: "Send", Cmd: "#{Left}",       Label: "Snap Left" },
-        { Cat: "System", Name: "Snap Window Right",      Type: "Send", Cmd: "#{Right}",      Label: "Snap Right" },
-        { Cat: "System", Name: "Maximize Window",        Type: "Send", Cmd: "#{Up}",         Label: "Maximize Win" },
-        { Cat: "System", Name: "Minimize Window",        Type: "Send", Cmd: "#{Down}",       Label: "Minimize Win" },
-        { Cat: "System", Name: "Snipping Tool",          Type: "Send", Cmd: "#+s",           Label: "Screenshot" },
-        { Cat: "System", Name: "File Explorer",          Type: "Send", Cmd: "#e",            Label: "Explorer" },
-        { Cat: "System", Name: "Run Dialog",             Type: "Send", Cmd: "#r",            Label: "Run (Win+R)" },
+        { Cat: "Windows", Name: "Switch Between Apps",   Type: "Send", Cmd: "!{Tab}",        Label: "Switch Apps",   Key: "Alt + Tab" },
+        { Cat: "Windows", Name: "Windows Task View",      Type: "Send", Cmd: "#{Tab}",        Label: "Task View",     Key: "Win + Tab" },
+        { Cat: "Windows", Name: "Show Desktop",           Type: "Send", Cmd: "#d",            Label: "Desktop",       Key: "Win + D" },
+        { Cat: "Windows", Name: "Snap Window Left",       Type: "Send", Cmd: "#{Left}",       Label: "Snap Left",     Key: "Win + Left" },
+        { Cat: "Windows", Name: "Snap Window Right",      Type: "Send", Cmd: "#{Right}",      Label: "Snap Right",    Key: "Win + Right" },
+        { Cat: "Windows", Name: "Maximize Window",        Type: "Send", Cmd: "#{Up}",         Label: "Maximize",      Key: "Win + Up" },
+        { Cat: "Windows", Name: "Minimize Window",        Type: "Send", Cmd: "#{Down}",       Label: "Minimize",      Key: "Win + Down" },
+        { Cat: "Windows", Name: "Snipping Tool",          Type: "Send", Cmd: "#+s",           Label: "Screenshot",    Key: "Win+Shift+S" },
+        { Cat: "Windows", Name: "File Explorer",          Type: "Send", Cmd: "#e",            Label: "Explorer",      Key: "Win + E" },
+        { Cat: "Windows", Name: "Run Dialog",             Type: "Send", Cmd: "#r",            Label: "Run",           Key: "Win + R" },
 
         ; --- Media & Audio ---
-        { Cat: "Media", Name: "Volume Up",               Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up" },
-        { Cat: "Media", Name: "Volume Down",             Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down" },
-        { Cat: "Media", Name: "Mute Audio",              Type: "Send", Cmd: "{Volume_Mute}", Label: "Mute Audio" },
-        { Cat: "Media", Name: "Play / Pause",            Type: "Send", Cmd: "{Media_Play_Pause}", Label: "Play / Pause" },
-        { Cat: "Media", Name: "Next Track",              Type: "Send", Cmd: "{Media_Next}",  Label: "Next Track" },
-        { Cat: "Media", Name: "Previous Track",          Type: "Send", Cmd: "{Media_Prev}",  Label: "Previous Track" },
-        { Cat: "Media", Name: "Stop Media",              Type: "Send", Cmd: "{Media_Stop}",  Label: "Stop Media" },
+        { Cat: "Media", Name: "Volume Up",               Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up",     Key: "Vol Up" },
+        { Cat: "Media", Name: "Volume Down",             Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down", Key: "Vol Down" },
+        { Cat: "Media", Name: "Mute Audio",              Type: "Send", Cmd: "{Volume_Mute}", Label: "Mute",          Key: "Mute" },
+        { Cat: "Media", Name: "Play / Pause",            Type: "Send", Cmd: "{Media_Play_Pause}", Label: "Play/Pause", Key: "Play/Pause" },
+        { Cat: "Media", Name: "Next Track",              Type: "Send", Cmd: "{Media_Next}",  Label: "Next Track",    Key: "Next Track" },
+        { Cat: "Media", Name: "Previous Track",          Type: "Send", Cmd: "{Media_Prev}",  Label: "Previous Track", Key: "Prev Track" },
+        { Cat: "Media", Name: "Stop Media",              Type: "Send", Cmd: "{Media_Stop}",  Label: "Stop",          Key: "Stop" },
 
         ; --- Device & Special ---
-        { Cat: "Device", Name: "G-Shift Layer Modifier", Type: "Special", Cmd: "GShift",     Label: "G-Shift Layer" },
-        { Cat: "Device", Name: "Onboard Profile Cycle",  Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" },
-        { Cat: "Device", Name: "Toggle Rapid-Fire",      Type: "Special", Cmd: "ToggleRapidFire", Label: "Toggle Rapid Fire" }
+        { Cat: "Device", Name: "B-Shift Modifier",       Type: "Special", Cmd: "GShift",     Label: "B-Shift Layer",   Key: "⚡ B-Shift" },
+        { Cat: "Device", Name: "B-Shift 1 Modifier",     Type: "Special", Cmd: "GShift1",    Label: "B-Shift 1 Layer", Key: "⚡ B-Shift 1" },
+        { Cat: "Device", Name: "B-Shift 2 Modifier",     Type: "Special", Cmd: "GShift2",    Label: "B-Shift 2 Layer", Key: "⚡ B-Shift 2" },
+        { Cat: "Device", Name: "Onboard Profile Cycle",  Type: "Special", Cmd: "CycleProfile", Label: "Next Profile", Key: "Profile Cycle" },
+        { Cat: "Device", Name: "Toggle Rapid-Fire",      Type: "Special", Cmd: "ToggleRapidFire", Label: "Toggle Rapid Fire", Key: "Rapid Fire" }
     ]
 
     static Presets := Map(
@@ -157,7 +182,12 @@ class GuiManager {
         "Previous Track",                          { Type: "Send", Cmd: "{Media_Prev}", Label: "Previous Track" },
         "Cycle Next Profile",                      { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" },
         "Toggle Rapid-Fire",                       { Type: "Special", Cmd: "ToggleRapidFire", Label: "Toggle Rapid Fire" },
-        "G-Shift Layer Modifier",                  { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" },
+        "B-Shift Modifier",                        { Type: "Special", Cmd: "GShift", Label: "B-Shift Layer" },
+        "B-Shift 1 Modifier",                      { Type: "Special", Cmd: "GShift1", Label: "B-Shift 1 Layer" },
+        "B-Shift 2 Modifier",                      { Type: "Special", Cmd: "GShift2", Label: "B-Shift 2 Layer" },
+        "G-Shift 1 Modifier",                      { Type: "Special", Cmd: "GShift1", Label: "B-Shift 1 Layer" },
+        "G-Shift 2 Modifier",                      { Type: "Special", Cmd: "GShift2", Label: "B-Shift 2 Layer" },
+        "G-Shift Layer Modifier",                  { Type: "Special", Cmd: "GShift", Label: "B-Shift Layer" },
         "[Custom Key Combination]",                { Type: "Custom", Cmd: "", Label: "Custom Combo" },
         "[Raw AHK String / Macro]",                { Type: "Raw", Cmd: "", Label: "Raw Macro" }
     )
@@ -178,8 +208,12 @@ class GuiManager {
             return
         }
 
+        ; Hook ProfileEngine profile changes
+        ProfileEngine.OnProfileChanged := (p) => GuiManager.OnProfileChangedHandler(p)
+
         ; Create Main GUI (Wide G-HUB Studio Layout)
-        g := Gui("+AlwaysOnTop -MaximizeBox", "Logitech G502 X — Advanced Controller (LGS & G-HUB Studio)")
+        opt := this.IsAlwaysOnTop ? "+AlwaysOnTop -MaximizeBox" : "-AlwaysOnTop -MaximizeBox"
+        g := Gui(opt, "Logitech G502 X — Advanced Controller (LGS & G-HUB Studio)")
         g.BackColor := "181825"
         g.MarginX := 15
         g.MarginY := 15
@@ -187,14 +221,19 @@ class GuiManager {
 
         ; Header Row
         g.SetFont("s13 bold c89B4FA", "Segoe UI")
-        g.Add("Text", "x20 y14 w700", "LOGITECH G502 X  //  INTERACTIVE STUDIO")
+        g.Add("Text", "x20 y14 w650", "LOGITECH G502 X  //  INTERACTIVE STUDIO")
         
         g.SetFont("s9 norm cA6ADC8", "Segoe UI")
-        g.Add("Text", "x20 y36 w700", "Double-click any mouse button to record a key or combination. Use the left panel for presets and custom combos.")
+        g.Add("Text", "x20 y36 w650", "Double-click any mouse button to record a key or combination. Use the left panel for presets and custom combos.")
+
+        ; Always on Top Toggle in Header
+        g.SetFont("s9 bold cCDD6F4", "Segoe UI")
+        this.ChkAlwaysOnTop := g.Add("Checkbox", "x970 y20 w145 h24 " . (this.IsAlwaysOnTop ? "Checked" : ""), "📌 Always on Top")
+        this.ChkAlwaysOnTop.OnEvent("Click", (*) => this.ToggleAlwaysOnTop())
 
         ; Tab Control
         g.SetFont("s10 norm cCDD6F4", "Segoe UI")
-        tab := g.Add("Tab3", "x15 y60 w1110 h635", ["Live Monitor", "Profiles && Cheatsheet", "OMM Setup Assistant"])
+        tab := g.Add("Tab3", "x15 y60 w1110 h635", ["Live Monitor", "OMM Setup Assistant"])
 
         diagramPath := A_ScriptDir . "\assets\g502x_diagram.png"
 
@@ -214,19 +253,21 @@ class GuiManager {
         g.SetFont("s8 italic cA6ADC8", "Segoe UI")
         this.CurrentActionText := g.Add("Text", "x30 y138 w250 h18", "Action: Volume Up")
 
-        ; Search Bar with cue
+        ; Search Bar with cue banner
         g.SetFont("s9 norm c181825", "Segoe UI")
         this.SearchEdit := g.Add("Edit", "x30 y162 w250 h24", "")
+        DllCall("SendMessage", "Ptr", this.SearchEdit.Hwnd, "UInt", 0x1501, "Ptr", 1, "WStr", "🔍  Search for a command...", "Ptr")
         this.SearchEdit.OnEvent("Change", (*) => this.FilterCommandList())
 
-        ; Commands List (ListView)
+        ; Commands List (ListView with G-HUB style Subsections & pure shortcut column)
         g.SetFont("s9 norm cCDD6F4", "Segoe UI")
         this.CommandListView := g.Add("ListView", "x30 y192 w250 h370 Background1E1E2E +Report -Hdr +LV0x10000", ["Category", "Action", "Key"])
-        this.CommandListView.ModifyCol(1, 0)   ; Hidden category col for sorting
-        this.CommandListView.ModifyCol(2, 140) ; Action name
-        this.CommandListView.ModifyCol(3, 95)  ; Shortcut / detail
+        this.CommandListView.ModifyCol(1, 0)         ; Hidden category col for sorting & section detection
+        this.CommandListView.ModifyCol(2, 142)       ; Action / Section header name
+        this.CommandListView.ModifyCol(3, "Right 86") ; Pure shortcut / key (right-aligned)
         this.CommandListView.OnEvent("ItemSelect", (lv, item, selected) => this.OnSidebarItemSelected(lv, item, selected))
-        this.CommandListView.OnEvent("DoubleClick", (*) => this.ApplySidebarAction())
+        this.CommandListView.OnEvent("Click", (lv, row) => this.OnSidebarClick(lv, row))
+        this.CommandListView.OnEvent("DoubleClick", (lv, row) => this.OnSidebarDoubleClick(lv, row))
 
         ; Populate Command List
         this.PopulateCommandList("")
@@ -252,10 +293,10 @@ class GuiManager {
         g.SetFont("s9 norm c181825", "Segoe UI")
         this.ProfileDropdown := g.Add("DropDownList", "ys-2 w140", ProfileEngine.Profiles)
         this.ProfileDropdown.Choose(ProfileEngine.CurrentProfile)
-        this.ProfileDropdown.OnEvent("Change", (ctrl, *) => ProfileEngine.SetProfile(ctrl.Text))
+        this.ProfileDropdown.OnEvent("Change", (ctrl, *) => this.OnProfileDropdownChanged(ctrl.Text))
 
         g.SetFont("s10 bold c89B4FA", "Segoe UI")
-        g.Add("Text", "ys+2 x+18", "G-Shift:")
+        g.Add("Text", "ys+2 x+18", "B-Shift:")
         g.SetFont("s10 bold cF38BA8", "Segoe UI")
         this.GShiftStatusText := g.Add("Text", "ys+2 x+6 w75", "INACTIVE")
 
@@ -314,72 +355,41 @@ class GuiManager {
             this.MonitorSubtitles[b.id] := btnSub
         }
 
-        ; G-Shift Quick Guide Box (Right Column)
-        g.SetFont("s9 bold c89B4FA", "Segoe UI")
-        g.Add("Text", "x980 y165 w135 Center", "G-SHIFT CHORDS")
-        g.SetFont("s8 norm cA6ADC8", "Segoe UI")
-        g.Add("Text", "x980 y190 w135 h195 Background1E1E2E +Border", 
-            " Hold DPI Shift (F15):`n`n"
-            . " • Wheel = Vol Knob`n"
-            . " • Middle = Close Tab`n"
-            . " • Tilt L/R = Snap Win`n"
-            . " • G8 = Maximize Win`n"
-            . " • G7 = Minimize Win`n"
-            . " • G5 = Close Tab`n"
-            . " • G4 = Reopen Tab"
-        )
+        ; (Static G-Shift Chords box removed per user request)
 
-        ; Highlight initial default selected button
+        ; --- G-HUB Style B-Shift Layer Toggle Switches (Bottom of Diagram) ---
+        ; Switch 1
+        g.SetFont("s10 bold cFFFFFF", "Segoe UI")
+        this.LblDefault1 := g.Add("Text", "x520 y642 w75 h26 0x202", "DEFAULT")
+        this.LblDefault1.OnEvent("Click", (*) => this.SwitchViewLayer("Normal"))
+
+        this.PicToggle1 := g.Add("Picture", "x600 y643 w46 h24 +BackgroundTrans", A_ScriptDir . "\assets\toggle_off.png")
+        this.PicToggle1.OnEvent("Click", (*) => this.ToggleSwitch(1))
+
+        g.SetFont("s10 bold c6C7086", "Segoe UI")
+        this.LblBShift1 := g.Add("Text", "x654 y642 w220 h26 0x200", "B-SHIFT")
+        this.LblBShift1.OnEvent("Click", (*) => this.SwitchViewLayer("GShift"))
+
+        ; Switch 2 (Shown when a 2nd B-Shift button is mapped)
+        g.SetFont("s10 bold cFFFFFF", "Segoe UI")
+        this.LblDefault2 := g.Add("Text", "x700 y642 w75 h26 0x202", "DEFAULT")
+        this.LblDefault2.OnEvent("Click", (*) => this.SwitchViewLayer("Normal"))
+
+        this.PicToggle2 := g.Add("Picture", "x780 y643 w46 h24 +BackgroundTrans", A_ScriptDir . "\assets\toggle_off.png")
+        this.PicToggle2.OnEvent("Click", (*) => this.ToggleSwitch(2))
+
+        g.SetFont("s10 bold c6C7086", "Segoe UI")
+        this.LblBShift2 := g.Add("Text", "x834 y642 w170 h26 0x200", "B-SHIFT 2")
+        this.LblBShift2.OnEvent("Click", (*) => this.SwitchViewLayer("GShift2"))
+
+        ; Highlight initial default selected button and initialize layer switches
         this.SelectButton("G8", "G8 (DPI Up) [F20]")
+        this.UpdateLayerSwitches()
 
         ; ========================================================
-        ; TAB 2: Profiles & Cheatsheet
+        ; TAB 2: OMM Setup Assistant (Precision Key Injector)
         ; ========================================================
         tab.UseTab(2)
-
-        g.SetFont("s9 norm cCDD6F4", "Segoe UI")
-        cheatsheet := 
-            "1. DESKTOP PROFILE:`n"
-            . "   • Middle Click (F13): Default Middle Click | G-Shift: Close Tab (Ctrl+W)`n"
-            . "   • G4 Back (F14) / G5 Forward (F16): Browser Back / Forward`n"
-            . "   • DPI Shift (F15): Tap: Windows Task View (Win+Tab) | Hold: G-Shift Layer`n"
-            . "   • Tilt Left (F17) / Right (F18): Prev / Next Browser Tab`n"
-            . "   • G9 Profile (F19): Cycle Profiles`n"
-            . "   • G8 (F20) / G7 (F21): Volume Up / Volume Down`n"
-            . "   • [G-Shift + Tilt]: Snap Window Left / Right (Win+Left/Right)`n"
-            . "   • [G-Shift + G8/G7]: Maximize / Minimize Window`n"
-            . "   • [G-Shift + G5/G4]: Close Tab (Ctrl+W) / Reopen Tab (Ctrl+Shift+T)`n"
-            . "   • [G-Shift + Wheel]: Fast Volume Control`n`n"
-            . "2. PRODUCTIVITY & CODE PROFILE:`n"
-            . "   • Middle Click (F13): Middle Click | G-Shift: Close Editor Tab (Ctrl+W)`n"
-            . "   • G4 Back (F14) / G5 Forward (F16): Undo (Ctrl+Z) / Redo (Ctrl+Y)`n"
-            . "   • DPI Shift (F15): VS Code Command Palette (Ctrl+Shift+P)`n"
-            . "   • Tilt Left (F17) / Right (F18): Navigate Back / Forward Cursor History`n"
-            . "   • G9 Profile (F19): Cycle Profiles`n"
-            . "   • G8 (F20) / G7 (F21): Duplicate Line Down / Delete Line`n"
-            . "   • [G-Shift + G5/G4]: Format Document (Shift+Alt+F) / Save (Ctrl+S)`n`n"
-            . "3. GAMING & TURBO PROFILE:`n"
-            . "   • Middle Click (F13): Middle Click / Ping / Secondary Attack`n"
-            . "   • G4 Back (F14) / G5 Forward (F16): Reload (R) / Grenade (G)`n"
-            . "   • DPI Shift (F15): Hold for Sniper Steady Aim | Tap for Melee (V)`n"
-            . "   • Tilt Left (F17) / Right (F18): Weapon Slot 1 / Weapon Slot 2`n"
-            . "   • G9 Profile (F19): Cycle Profiles`n"
-            . "   • G8 (F20): Toggle Rapid-Fire Turbo Clicker (20 CPS)`n"
-            . "   • G7 (F21): Quick Ping / Tactical (Z)`n`n"
-            . "4. MEDIA & STREAMING PROFILE:`n"
-            . "   • Middle Click (F13): Play / Pause Toggle`n"
-            . "   • G4 Back (F14) / G5 Forward (F16): Fast Rewind / Forward 10s`n"
-            . "   • DPI Shift (F15): Play / Pause`n"
-            . "   • Tilt Left (F17) / Right (F18): Previous / Next Track`n"
-            . "   • G9 Profile (F19): Cycle Profiles`n"
-            . "   • G8 (F20) / G7 (F21): Volume Up / Down`n"
-
-        g.Add("Edit", "x30 y95 w1050 h520 ReadOnly -VScroll -HScroll Background1E1E2E cCDD6F4", cheatsheet)
-
-        ; ========================================================
-        ; TAB 3: OMM Setup Assistant (Precision Key Injector)
-        ; ========================================================
-        tab.UseTab(3)
 
         g.SetFont("s9 norm cCDD6F4", "Segoe UI")
         g.Add("Text", "x30 y95 w1050", 
@@ -430,6 +440,7 @@ class GuiManager {
         ; Hook into profile engine events
         ProfileEngine.OnProfileChanged := (profileName) => this.UpdateProfileDisplay(profileName)
         ProfileEngine.OnButtonStateChanged := (btnName, isPressed) => this.FlashButton(btnName, isPressed)
+        ProfileEngine.OnShiftStateChanged := (layerNum, isActive) => this.UpdateLiveShiftIndicator(layerNum, isActive)
 
         g.OnEvent("Close", (*) => g.Hide())
         g.Show("w1145 h748")
@@ -451,6 +462,231 @@ class GuiManager {
         }
     }
 
+    static ToggleAlwaysOnTop() {
+        this.IsAlwaysOnTop := !this.IsAlwaysOnTop
+        if (this.MainGui != "" && WinExist(this.MainGui.Hwnd)) {
+            WinSetAlwaysOnTop(this.IsAlwaysOnTop ? 1 : 0, this.MainGui.Hwnd)
+            if (this.ChkAlwaysOnTop != "")
+                this.ChkAlwaysOnTop.Value := this.IsAlwaysOnTop ? 1 : 0
+        }
+        try {
+            if (this.IsAlwaysOnTop)
+                A_TrayMenu.Check("Always on Top")
+            else
+                A_TrayMenu.Uncheck("Always on Top")
+        }
+        try {
+            IniWrite(this.IsAlwaysOnTop ? "1" : "0", A_ScriptDir . "\settings.ini", "General", "AlwaysOnTop")
+        }
+        OSD.Show("Always on Top", this.IsAlwaysOnTop ? "Enabled (Pinned)" : "Disabled (Unpinned)")
+    }
+
+    ; ========================================================
+    ; G-HUB STYLE LAYER SWITCHING & MULTI-SHIFT MANAGEMENT
+    ; ========================================================
+    static ToggleSwitch(switchNum) {
+        if (switchNum = 1) {
+            target := (this.CurrentViewLayer = "GShift" || this.CurrentViewLayer = "GShift1") ? "Normal" : "GShift"
+            this.SwitchViewLayer(target)
+        } else if (switchNum = 2) {
+            target := (this.CurrentViewLayer = "GShift2") ? "Normal" : "GShift2"
+            this.SwitchViewLayer(target)
+        }
+    }
+
+    static SwitchViewLayer(newLayer) {
+        this.CurrentViewLayer := newLayer
+        this.UpdateLayerButtonsVisual()
+        this.RefreshAllButtonCards()
+        if (this.SelectedButtonId != "") {
+            lbl := ProfileEngine.GetButtonLabel(ProfileEngine.CurrentProfile, this.SelectedButtonId, this.CurrentViewLayer)
+            shiftBtns := ProfileEngine.GetShiftButtons()
+            s1Id := (shiftBtns.Length >= 1) ? shiftBtns[1].Id : ""
+            s2Id := (shiftBtns.Length >= 2) ? shiftBtns[2].Id : ""
+            if ((this.CurrentViewLayer = "GShift" || this.CurrentViewLayer = "GShift1") && this.SelectedButtonId = s1Id) {
+                lbl := "⚡ B-SHIFT 1 TRIGGER"
+            } else if (this.CurrentViewLayer = "GShift2" && this.SelectedButtonId = s2Id) {
+                lbl := "⚡ B-SHIFT 2 TRIGGER"
+            }
+            if (this.CurrentActionText != "")
+                this.CurrentActionText.Value := "Action: " . lbl
+        }
+        OSD.Show("Active Layer", this.GetLayerDisplayName(newLayer))
+        SoundBeep(950, 60)
+    }
+
+    static GetLayerDisplayName(layer) {
+        switch layer {
+            case "GShift", "GShift1": return "B-Shift 1"
+            case "GShift2":           return "B-Shift 2"
+            default:                  return "DEFAULT"
+        }
+    }
+
+    static UpdateLayerButtonsVisual() {
+        if (this.PicToggle1 = "" || this.MainGui = "" || !WinExist(this.MainGui.Hwnd))
+            return
+
+        isNorm := (this.CurrentViewLayer = "Normal")
+        isS1   := (this.CurrentViewLayer = "GShift" || this.CurrentViewLayer = "GShift1")
+        isS2   := (this.CurrentViewLayer = "GShift2")
+
+        offPic := A_ScriptDir . "\assets\toggle_off.png"
+        onPic  := A_ScriptDir . "\assets\toggle_on.png"
+
+        ; Switch 1 visual
+        if (this.PicToggle1 != "") {
+            this.PicToggle1.Value := isS1 ? onPic : offPic
+        }
+        if (this.LblDefault1 != "") {
+            this.LblDefault1.SetFont(isNorm ? "s10 bold cFFFFFF" : "s10 bold c6C7086")
+        }
+        if (this.LblBShift1 != "") {
+            this.LblBShift1.SetFont(isS1 ? "s10 bold c89B4FA" : "s10 bold c6C7086")
+        }
+
+        ; Switch 2 visual
+        if (this.PicToggle2 != "") {
+            this.PicToggle2.Value := isS2 ? onPic : offPic
+        }
+        if (this.LblDefault2 != "") {
+            this.LblDefault2.SetFont(isNorm ? "s10 bold cFFFFFF" : "s10 bold c6C7086")
+        }
+        if (this.LblBShift2 != "") {
+            this.LblBShift2.SetFont(isS2 ? "s10 bold cFAB387" : "s10 bold c6C7086")
+        }
+    }
+
+    static UpdateLayerSwitches() {
+        if (this.PicToggle1 = "" || this.MainGui = "" || !WinExist(this.MainGui.Hwnd))
+            return
+
+        shiftBtns := ProfileEngine.GetShiftButtons()
+        numShifts := shiftBtns.Length
+
+        if (numShifts = 0) {
+            ; Hide all shift switches if no shift button is used in this profile
+            if (this.LblDefault1 != "") this.LblDefault1.Visible := false
+            if (this.PicToggle1 != "")  this.PicToggle1.Visible := false
+            if (this.LblBShift1 != "")  this.LblBShift1.Visible := false
+            if (this.LblDefault2 != "") this.LblDefault2.Visible := false
+            if (this.PicToggle2 != "")  this.PicToggle2.Visible := false
+            if (this.LblBShift2 != "")  this.LblBShift2.Visible := false
+
+            if (this.CurrentViewLayer != "Normal")
+                this.SwitchViewLayer("Normal")
+            return
+        }
+
+        s1Name := this.GetButtonDisplayName(shiftBtns[1].Id)
+
+        if (numShifts = 1) {
+            ; Exactly 1 shift button exists: Center Switch 1 and hide Switch 2
+            if (this.LblDefault1 != "") {
+                this.LblDefault1.Move(520, 642, 75, 26)
+                this.LblDefault1.Visible := true
+            }
+            if (this.PicToggle1 != "") {
+                this.PicToggle1.Move(600, 643, 46, 24)
+                this.PicToggle1.Visible := true
+            }
+            if (this.LblBShift1 != "") {
+                this.LblBShift1.Move(654, 642, 220, 26)
+                this.LblBShift1.Value := "B-SHIFT (" . s1Name . ")"
+                this.LblBShift1.Visible := true
+            }
+
+            if (this.LblDefault2 != "") this.LblDefault2.Visible := false
+            if (this.PicToggle2 != "")  this.PicToggle2.Visible := false
+            if (this.LblBShift2 != "")  this.LblBShift2.Visible := false
+
+            if (this.CurrentViewLayer = "GShift2")
+                this.SwitchViewLayer("GShift")
+        } else if (numShifts >= 2) {
+            ; Two shift buttons exist: Show both Switch 1 and Switch 2 side by side
+            s2Name := this.GetButtonDisplayName(shiftBtns[2].Id)
+            if (this.LblDefault1 != "") {
+                this.LblDefault1.Move(380, 642, 75, 26)
+                this.LblDefault1.Visible := true
+            }
+            if (this.PicToggle1 != "") {
+                this.PicToggle1.Move(460, 643, 46, 24)
+                this.PicToggle1.Visible := true
+            }
+            if (this.LblBShift1 != "") {
+                this.LblBShift1.Move(514, 642, 170, 26)
+                this.LblBShift1.Value := "B-SHIFT 1 (" . s1Name . ")"
+                this.LblBShift1.Visible := true
+            }
+
+            if (this.LblDefault2 != "") {
+                this.LblDefault2.Move(700, 642, 75, 26)
+                this.LblDefault2.Visible := true
+            }
+            if (this.PicToggle2 != "") {
+                this.PicToggle2.Move(780, 643, 46, 24)
+                this.PicToggle2.Visible := true
+            }
+            if (this.LblBShift2 != "") {
+                this.LblBShift2.Move(834, 642, 170, 26)
+                this.LblBShift2.Value := "B-SHIFT 2 (" . s2Name . ")"
+                this.LblBShift2.Visible := true
+            }
+        }
+
+        this.UpdateLayerButtonsVisual()
+    }
+
+    static RefreshAllButtonCards() {
+        currentProf := ProfileEngine.CurrentProfile
+        shiftBtns := ProfileEngine.GetShiftButtons()
+        s1Id := (shiftBtns.Length >= 1) ? shiftBtns[1].Id : ""
+        s2Id := (shiftBtns.Length >= 2) ? shiftBtns[2].Id : ""
+
+        for btnId, card in this.MonitorCards {
+            lbl := ProfileEngine.GetButtonLabel(currentProf, btnId, this.CurrentViewLayer)
+            isSelected := (btnId = this.SelectedButtonId)
+
+            if ((this.CurrentViewLayer = "GShift" || this.CurrentViewLayer = "GShift1") && btnId = s1Id) {
+                card.Value := "⚡ SHIFT 1 TRIGGER"
+                card.SetFont("bold cFAB387")
+            } else if (this.CurrentViewLayer = "GShift2" && btnId = s2Id) {
+                card.Value := "⚡ SHIFT 2 TRIGGER"
+                card.SetFont("bold cFAB387")
+            } else {
+                card.Value := lbl
+                card.SetFont(isSelected ? "bold c89B4FA" : "bold cCDD6F4")
+            }
+        }
+    }
+
+    static GetButtonDisplayName(btnId) {
+        switch btnId {
+            case "TiltLeft":     return "Tilt Left"
+            case "TiltRight":    return "Tilt Right"
+            case "Middle":       return "Middle"
+            case "G8":           return "G8"
+            case "G7":           return "G7"
+            case "DpiShift":     return "DPI Shift"
+            case "Forward":      return "G5"
+            case "Back":         return "G4"
+            case "ProfileCycle": return "G9"
+            default:             return btnId
+        }
+    }
+
+    static UpdateLiveShiftIndicator(layerNum, isActive) {
+        if (this.GShiftStatusText = "" || this.MainGui = "" || !WinExist(this.MainGui.Hwnd))
+            return
+        if (isActive) {
+            this.GShiftStatusText.SetFont("c" . (layerNum = 1 ? "89B4FA" : "FAB387"))
+            this.GShiftStatusText.Value := "B-SHIFT " . layerNum
+        } else {
+            this.GShiftStatusText.SetFont("c" . "F38BA8")
+            this.GShiftStatusText.Value := "INACTIVE"
+        }
+    }
+
     ; ========================================================
     ; SELECTION & SIDEBAR LOGIC
     ; ========================================================
@@ -469,7 +705,16 @@ class GuiManager {
         }
 
         currentProf := ProfileEngine.CurrentProfile
-        currentAction := ProfileEngine.GetButtonLabel(currentProf, btnId)
+        currentAction := ProfileEngine.GetButtonLabel(currentProf, btnId, this.CurrentViewLayer)
+
+        shiftBtns := ProfileEngine.GetShiftButtons()
+        s1Id := (shiftBtns.Length >= 1) ? shiftBtns[1].Id : ""
+        s2Id := (shiftBtns.Length >= 2) ? shiftBtns[2].Id : ""
+        if ((this.CurrentViewLayer = "GShift" || this.CurrentViewLayer = "GShift1") && btnId = s1Id) {
+            currentAction := "⚡ B-SHIFT 1 TRIGGER"
+        } else if (this.CurrentViewLayer = "GShift2" && btnId = s2Id) {
+            currentAction := "⚡ B-SHIFT 2 TRIGGER"
+        }
 
         if (this.TargetLabelText != "") {
             this.TargetLabelText.Value := "TARGET: " . btnName
@@ -483,9 +728,33 @@ class GuiManager {
         this.CommandListView.Delete()
         filterLower := StrLower(Trim(filterText))
 
-        for cmd in this.CommandCatalog {
-            if (filterLower = "" || InStr(StrLower(cmd.Name), filterLower) || InStr(StrLower(cmd.Cat), filterLower) || InStr(StrLower(cmd.Label), filterLower)) {
-                this.CommandListView.Add("", cmd.Cat, cmd.Name, cmd.Label)
+        for cat in this.Categories {
+            ; Find matching items for this category
+            matchingItems := []
+            for cmd in this.CommandCatalog {
+                if (cmd.Cat != cat.Key)
+                    continue
+                if (filterLower = "" || InStr(StrLower(cmd.Name), filterLower) || InStr(StrLower(cmd.Key), filterLower) || InStr(StrLower(cat.Title), filterLower)) {
+                    matchingItems.Push(cmd)
+                }
+            }
+
+            if (matchingItems.Length = 0)
+                continue
+
+            ; Determine if collapsed (when actively filtering, auto-expand to reveal results)
+            isCollapsed := (filterLower = "") && this.CollapsedCategories.Get(cat.Key, false)
+            icon := isCollapsed ? "▶  " : "▼  "
+            chevron := isCollapsed ? "v" : "^"
+
+            ; Add category header row
+            this.CommandListView.Add("", "__SECTION__:" . cat.Key, icon . cat.Title, chevron)
+
+            ; If not collapsed, add commands indented
+            if (!isCollapsed) {
+                for cmd in matchingItems {
+                    this.CommandListView.Add("", cmd.Cat, "  " . cmd.Name, cmd.Key)
+                }
             }
         }
     }
@@ -497,7 +766,30 @@ class GuiManager {
     static OnSidebarItemSelected(lv, item, selected) {
         if (!selected)
             return
-        ; Single-click selects; user can click "Map" or double click to apply
+    }
+
+    static OnSidebarClick(lv, row) {
+        if (row <= 0)
+            return
+        cat := lv.GetText(row, 1)
+        if (InStr(cat, "__SECTION__:")) {
+            secKey := SubStr(cat, 13)
+            this.CollapsedCategories[secKey] := !this.CollapsedCategories.Get(secKey, false)
+            this.PopulateCommandList(this.SearchEdit.Value)
+        }
+    }
+
+    static OnSidebarDoubleClick(lv, row) {
+        if (row <= 0)
+            return
+        cat := lv.GetText(row, 1)
+        if (InStr(cat, "__SECTION__:")) {
+            secKey := SubStr(cat, 13)
+            this.CollapsedCategories[secKey] := !this.CollapsedCategories.Get(secKey, false)
+            this.PopulateCommandList(this.SearchEdit.Value)
+            return
+        }
+        this.ApplySidebarAction()
     }
 
     static ApplySidebarAction() {
@@ -507,7 +799,16 @@ class GuiManager {
             return
         }
 
-        cmdName := this.CommandListView.GetText(row, 2)
+        cat := this.CommandListView.GetText(row, 1)
+        if (InStr(cat, "__SECTION__:")) {
+            ; Clicked on category header: toggle collapse/expand
+            secKey := SubStr(cat, 13)
+            this.CollapsedCategories[secKey] := !this.CollapsedCategories.Get(secKey, false)
+            this.PopulateCommandList(this.SearchEdit.Value)
+            return
+        }
+
+        cmdName := Trim(this.CommandListView.GetText(row, 2))
         btnId := this.SelectedButtonId
         currentProf := ProfileEngine.CurrentProfile
 
@@ -523,24 +824,71 @@ class GuiManager {
         if (targetCmdObj = "")
             return
 
-        normalObj := { Type: targetCmdObj.Type, Cmd: targetCmdObj.Cmd, Label: targetCmdObj.Label }
+        isShiftModifier := (targetCmdObj.Type = "Special" && (targetCmdObj.Cmd = "GShift" || targetCmdObj.Cmd = "GShift1" || targetCmdObj.Cmd = "GShift2"))
+
+        existingShifts := ProfileEngine.GetShiftButtons(currentProf)
+        s1Id := (existingShifts.Length >= 1) ? existingShifts[1].Id : ""
+        s2Id := (existingShifts.Length >= 2) ? existingShifts[2].Id : ""
+
+        ; Guard: Do not allow assigning regular actions to the active layer's trigger button
+        if (!isShiftModifier) {
+            if ((this.CurrentViewLayer = "GShift" || this.CurrentViewLayer = "GShift1") && btnId = s1Id) {
+                OSD.Show("Shift Trigger Button", "Cannot reassign B-Shift 1 trigger while inside B-Shift 1 layer.`nSwitch to DEFAULT layer first.")
+                SoundBeep(600, 100)
+                return
+            }
+            if (this.CurrentViewLayer = "GShift2" && btnId = s2Id) {
+                OSD.Show("Shift Trigger Button", "Cannot reassign B-Shift 2 trigger while inside B-Shift 2 layer.`nSwitch to DEFAULT layer first.")
+                SoundBeep(600, 100)
+                return
+            }
+        }
+
+        ; If assigning a B-Shift modifier: enforce max of 2 shift buttons!
+        if (isShiftModifier) {
+            otherShiftsCount := 0
+            hasShift1 := false
+            hasShift2 := false
+            for s in existingShifts {
+                if (s.Id != btnId) {
+                    otherShiftsCount++
+                    if (s.Type = "GShift1" || s.Type = "GShift")
+                        hasShift1 := true
+                    if (s.Type = "GShift2")
+                        hasShift2 := true
+                }
+            }
+
+            if (otherShiftsCount >= 2) {
+                OSD.Show("Shift Limit Reached", "Max 2 B-Shift buttons allowed! Reassign an existing shift button first.")
+                SoundBeep(600, 120)
+                return
+            }
+
+            ; Auto-determine slot (Shift 1 vs Shift 2)
+            if (targetCmdObj.Cmd = "GShift2" || (targetCmdObj.Cmd != "GShift1" && hasShift1)) {
+                targetCmdObj := { Type: "Special", Cmd: "GShift2", Label: "B-Shift 2 Layer" }
+            } else {
+                targetCmdObj := { Type: "Special", Cmd: "GShift1", Label: "B-Shift 1 Layer" }
+            }
+        }
+
+        actionObj := { Type: targetCmdObj.Type, Cmd: targetCmdObj.Cmd, Label: targetCmdObj.Label }
         
-        ; Keep current GShift mapping
-        currMap := ProfileEngine.GetButtonMapping(currentProf, btnId)
-        gshiftObj := currMap.GShift
+        ; Save into target layer (Shift modifiers always bind to Normal)
+        targetLayer := isShiftModifier ? "Normal" : this.CurrentViewLayer
+        ProfileEngine.SaveButtonLayer(currentProf, btnId, targetLayer, actionObj)
 
-        ; Save & Apply
-        ProfileEngine.SaveMapping(currentProf, btnId, normalObj, gshiftObj)
+        ; Refresh UI, layer switches, and button cards
+        this.UpdateLayerSwitches()
+        this.RefreshAllButtonCards()
 
-        ; Update GUI badge
-        if (this.MonitorActions.Has(btnId)) {
-            this.MonitorActions[btnId].Value := normalObj.Label
-        }
         if (this.CurrentActionText != "") {
-            this.CurrentActionText.Value := "Action: " . normalObj.Label
+            this.CurrentActionText.Value := "Action: " . actionObj.Label
         }
 
-        OSD.Show("Mapped: " . this.SelectedButtonName, "-> " . normalObj.Label)
+        layerDisp := this.GetLayerDisplayName(targetLayer)
+        OSD.Show("Mapped (" . layerDisp . "): " . this.SelectedButtonName, "-> " . actionObj.Label)
         SoundBeep(1100, 80)
     }
 
@@ -549,16 +897,15 @@ class GuiManager {
         currentProf := ProfileEngine.CurrentProfile
         ProfileEngine.ResetMappingToDefault(currentProf, btnId)
 
-        newLabel := ProfileEngine.GetButtonLabel(currentProf, btnId)
-        if (this.MonitorActions.Has(btnId)) {
-            this.MonitorActions[btnId].Value := newLabel
-        }
+        this.UpdateLayerSwitches()
+        this.RefreshAllButtonCards()
+
+        newLabel := ProfileEngine.GetButtonLabel(currentProf, btnId, this.CurrentViewLayer)
         if (this.CurrentActionText != "") {
             this.CurrentActionText.Value := "Action: " . newLabel
         }
 
         OSD.Show("Reset to Default", btnId)
-        SoundBeep(800, 80)
     }
 
     ; ========================================================
@@ -568,6 +915,20 @@ class GuiManager {
     ; BUTTON STUDIO MODAL (Single / Combo & G-HUB Macro Recorder)
     ; ========================================================
     static StartKeystrokeRecording(btnId, btnDisplayName) {
+        shiftBtns := ProfileEngine.GetShiftButtons()
+        s1Id := (shiftBtns.Length >= 1) ? shiftBtns[1].Id : ""
+        s2Id := (shiftBtns.Length >= 2) ? shiftBtns[2].Id : ""
+        if ((this.CurrentViewLayer = "GShift" || this.CurrentViewLayer = "GShift1") && btnId = s1Id) {
+            OSD.Show("Shift Trigger Button", "This button is the physical trigger for B-Shift 1.`nSwitch to DEFAULT layer to edit it.")
+            SoundBeep(600, 100)
+            return
+        }
+        if (this.CurrentViewLayer = "GShift2" && btnId = s2Id) {
+            OSD.Show("Shift Trigger Button", "This button is the physical trigger for B-Shift 2.`nSwitch to DEFAULT layer to edit it.")
+            SoundBeep(600, 100)
+            return
+        }
+
         ; Stop any ongoing recorder or editor
         this.StopKeystrokeRecording(false)
         if (this.EditorGui != "") {
@@ -583,7 +944,7 @@ class GuiManager {
         this.RecMacroLastTime := 0
 
         currMap := ProfileEngine.GetButtonMapping(ProfileEngine.CurrentProfile, btnId)
-        norm := currMap.Normal
+        norm := (this.CurrentViewLayer = "GShift2") ? currMap.GShift2 : ((this.CurrentViewLayer = "GShift" || this.CurrentViewLayer = "GShift1") ? currMap.GShift : currMap.Normal)
 
         ; Create Studio modal window
         rg := Gui("+AlwaysOnTop -MaximizeBox +Owner" . this.MainGui.Hwnd, "Button Studio — " . btnDisplayName)
@@ -596,8 +957,9 @@ class GuiManager {
         rg.SetFont("s11 bold c89B4FA", "Segoe UI")
         rg.Add("Text", "x25 y15 w590 Center", "LOGITECH G502 X — BUTTON STUDIO")
 
+        layerName := this.GetLayerDisplayName(this.CurrentViewLayer)
         rg.SetFont("s9 bold cCDD6F4", "Segoe UI")
-        rg.Add("Text", "x25 y38 w590 Center", "Target: " . btnDisplayName . "  •  Profile: " . ProfileEngine.CurrentProfile)
+        rg.Add("Text", "x25 y38 w590 Center", "Target: " . btnDisplayName . "  •  Profile: " . ProfileEngine.CurrentProfile . "  •  Layer: " . layerName)
 
         ; Dual Mode Tabs
         rg.SetFont("s9 bold cCDD6F4", "Segoe UI")
@@ -627,11 +989,13 @@ class GuiManager {
         rg.Add("Text", "x45 y252 w550 Center", "Press any key or combination (e.g. Q, Enter, Q + H, Ctrl + C, Shift + G + Enter).")
 
         rg.SetFont("s9 bold cCDD6F4", "Segoe UI")
-        btnSingleReRecord := rg.Add("Button", "x180 y280 w130 h30", "🔄 Re-record Key")
-        btnSingleClear    := rg.Add("Button", "x330 y280 w130 h30", "🗑 Clear Key")
+        this.RecBtnRecordSingle := rg.Add("Button", "x75 y280 w150 h32", "● Record Key")
+        btnSingleClear          := rg.Add("Button", "x240 y280 w130 h32", "🗑 Clear Key")
+        btnSetBShift            := rg.Add("Button", "x385 y280 w170 h32", "⚡ Assign B-Shift")
 
-        btnSingleReRecord.OnEvent("Click", (*) => this.ClearSingleKey())
+        this.RecBtnRecordSingle.OnEvent("Click", (*) => this.ToggleSingleRecording())
         btnSingleClear.OnEvent("Click", (*) => this.ClearSingleKey())
+        btnSetBShift.OnEvent("Click", (*) => this.AssignBShiftFromStudio())
         this.RecDdlSingleMode.OnEvent("Change", (*) => this.UpdateSingleModeExplain())
 
         ; ========================================================
@@ -736,11 +1100,17 @@ class GuiManager {
                 this.RecCapturedLabel := norm.Label
                 this.RecPreviewText.SetFont("c" . "A6E3A1")
                 this.RecPreviewText.Value := "✔  " . norm.Label
+                this.RecIsRecordingSingle := false
+                if (this.RecBtnRecordSingle != "") {
+                    this.RecBtnRecordSingle.Text := "● Record Key"
+                }
+            } else {
+                ; Empty mapping - auto start listening once so user can immediately press their key
+                this.StartSingleRecording()
             }
             this.RecDdlSingleMode.Choose(this.PlayTypeToIndex(norm.HasOwnProp("PlayType") ? norm.PlayType : "NoRepeat"))
             this.RecEdtSingleInt.Value := String(norm.HasOwnProp("RepeatInterval") ? norm.RepeatInterval : 50)
             this.UpdateSingleModeExplain()
-            this.StartSingleKeyListening()
         }
 
         rg.Show("w640 h570")
@@ -770,7 +1140,9 @@ class GuiManager {
     static OnStudioTabChanged(tabIndex) {
         if (tabIndex = 1) {
             this.StopMacroRecordingHook()
-            this.StartSingleKeyListening()
+            if (this.RecIsRecordingSingle) {
+                this.StartSingleKeyListening()
+            }
         } else {
             this.StopSingleKeyListening()
         }
@@ -817,16 +1189,59 @@ class GuiManager {
         SoundBeep(850, 50)
     }
 
+    static ToggleSingleRecording() {
+        if (this.RecIsRecordingSingle) {
+            this.StopSingleRecording()
+        } else {
+            this.StartSingleRecording()
+        }
+    }
+
+    static StartSingleRecording() {
+        this.RecIsRecordingSingle := true
+        if (this.RecBtnRecordSingle != "") {
+            this.RecBtnRecordSingle.Text := "■ Stop Recording"
+        }
+        if (this.RecPreviewText != "") {
+            this.RecPreviewText.SetFont("c" . "89B4FA")
+            this.RecPreviewText.Value := "[ Press Any Key or Combination... ]"
+        }
+        this.StartSingleKeyListening()
+        SoundBeep(900, 60)
+    }
+
+    static StopSingleRecording() {
+        this.StopSingleKeyListening()
+        this.RecIsRecordingSingle := false
+        if (this.RecBtnRecordSingle != "") {
+            this.RecBtnRecordSingle.Text := "● Record Key"
+        }
+        if (this.RecPreviewText != "") {
+            if (this.RecCapturedLabel != "") {
+                this.RecPreviewText.SetFont("c" . "A6E3A1")
+                this.RecPreviewText.Value := "✔  " . this.RecCapturedLabel
+            } else {
+                this.RecPreviewText.SetFont("c" . "89B4FA")
+                this.RecPreviewText.Value := "[ Click 'Record Key' to Begin ]"
+            }
+        }
+    }
+
     static ClearSingleKey() {
+        this.StopSingleKeyListening()
+        this.RecIsRecordingSingle := false
         this.RecCapturedCmd := ""
         this.RecCapturedLabel := ""
         this.RecActiveCombo := []
         this.RecKeysDown.Clear()
+        if (this.RecBtnRecordSingle != "") {
+            this.RecBtnRecordSingle.Text := "● Record Key"
+        }
         if (this.RecPreviewText != "") {
             this.RecPreviewText.SetFont("c" . "89B4FA")
-            this.RecPreviewText.Value := "[ Press Any Key or Combination ]"
+            this.RecPreviewText.Value := "[ Click 'Record Key' to Begin ]"
         }
-        this.StartSingleKeyListening()
+        SoundBeep(650, 70)
     }
 
     static StartSingleKeyListening() {
@@ -923,6 +1338,13 @@ class GuiManager {
                 this.RecPreviewText.Value := "✔  " . res.Label
             }
             SoundBeep(1100, 70)
+
+            ; Close the recording immediately after capturing the button/chord!
+            this.StopSingleKeyListening()
+            this.RecIsRecordingSingle := false
+            if (this.RecBtnRecordSingle != "") {
+                this.RecBtnRecordSingle.Text := "● Record Key"
+            }
         }
     }
 
@@ -1006,9 +1428,14 @@ class GuiManager {
 
             ih := InputHook("V")
             ih.KeyOpt("{All}", "N")
+            ; Suppress keys that activate GUI buttons or alter dialog focus in the Button Studio window
+            ih.KeyOpt("{Enter}{NumpadEnter}{Space}{Tab}{Escape}", "+S")
             ih.OnKeyDown := (hook, vk, sc) => this.OnMacroKeyDown(vk, sc)
+            ih.OnKeyUp   := (hook, vk, sc) => this.OnMacroKeyUp(vk, sc)
             this.RecMacroHook := ih
             ih.Start()
+
+            try this.RecLvMacro.Focus()
 
             OSD.Show("Recording Macro (" . this.RecActivePhase . ")", "Press keys on keyboard. Click Stop when done.")
             SoundBeep(1200, 100)
@@ -1061,27 +1488,23 @@ class GuiManager {
         this.RecMacroActiveKeys[kName] := tNow
 
         this.AddMacroStep(this.RecActivePhase, "Down", kName, del)
-
-        fn := () => this.CheckMacroKeyRelease(kName, fn)
-        SetTimer(fn, 15)
     }
 
-    static CheckMacroKeyRelease(kName, fn) {
-        if (!this.RecMacroActiveKeys.Has(kName)) {
-            SetTimer(fn, 0)
+    static OnMacroKeyUp(vk, sc) {
+        if (!this.RecIsRecordingMacro || this.RecorderGui = "" || !WinExist(this.RecorderGui.Hwnd))
             return
-        }
 
-        if (!GetKeyState(kName, "P")) {
-            tNow := A_TickCount
-            tDown := this.RecMacroActiveKeys[kName]
-            del := this.RecChkRealDelays.Value ? Max(10, tNow - tDown) : Integer(this.RecEdtDefDelay.Value)
-            this.RecMacroLastTime := tNow
-            this.RecMacroActiveKeys.Delete(kName)
-            SetTimer(fn, 0)
+        kName := GetKeyName(Format("vk{:02x}sc{:03x}", vk, sc))
+        if (kName = "" || !this.RecMacroActiveKeys.Has(kName))
+            return
 
-            this.AddMacroStep(this.RecActivePhase, "Up", kName, del)
-        }
+        tNow := A_TickCount
+        tDown := this.RecMacroActiveKeys[kName]
+        del := this.RecChkRealDelays.Value ? Max(10, tNow - tDown) : Integer(this.RecEdtDefDelay.Value)
+        this.RecMacroLastTime := tNow
+        this.RecMacroActiveKeys.Delete(kName)
+
+        this.AddMacroStep(this.RecActivePhase, "Up", kName, del)
     }
 
     static AddMacroStep(phase, action, key, delay) {
@@ -1181,7 +1604,6 @@ class GuiManager {
     static SaveStudioMapping() {
         btnId := this.RecTargetId
         currentProf := ProfileEngine.CurrentProfile
-        currMap := ProfileEngine.GetButtonMapping(currentProf, btnId)
 
         activeTab := this.RecTabs.Value
 
@@ -1193,15 +1615,15 @@ class GuiManager {
             }
             playType := this.DisplayToPlayType(this.RecDdlSingleMode.Text)
             intVal := IsInteger(this.RecEdtSingleInt.Value) ? Integer(this.RecEdtSingleInt.Value) : 50
-            normalObj := {
+            actionObj := {
                 Type: "Send",
                 Cmd: this.RecCapturedCmd,
                 Label: this.RecCapturedLabel,
                 PlayType: playType,
                 RepeatInterval: intVal
             }
-            ProfileEngine.SaveMapping(currentProf, btnId, normalObj, currMap.GShift)
-            label := normalObj.Label
+            ProfileEngine.SaveButtonLayer(currentProf, btnId, this.CurrentViewLayer, actionObj)
+            label := actionObj.Label
         } else {
             ; Save Macro Recorder
             playType := this.DisplayToPlayType(this.RecDdlMacroMode.Text)
@@ -1214,7 +1636,7 @@ class GuiManager {
                     return
                 }
                 label := "Seq Macro (" . tot . " steps)"
-                normalObj := {
+                actionObj := {
                     Type: "Macro",
                     Cmd: "Sequence",
                     Label: label,
@@ -1231,7 +1653,7 @@ class GuiManager {
                     return
                 }
                 label := "Macro: " . playType . " (" . this.RecStepsPress.Length . " steps)"
-                normalObj := {
+                actionObj := {
                     Type: "Macro",
                     Cmd: "Macro",
                     Label: label,
@@ -1240,18 +1662,19 @@ class GuiManager {
                     Steps: this.RecStepsPress
                 }
             }
-            ProfileEngine.SaveMapping(currentProf, btnId, normalObj, currMap.GShift)
+            ProfileEngine.SaveButtonLayer(currentProf, btnId, this.CurrentViewLayer, actionObj)
         }
 
-        ; Update badge and sidebar
-        if (this.MonitorActions.Has(btnId)) {
-            this.MonitorActions[btnId].Value := label
-        }
+        ; Refresh layer switches and callout cards
+        this.UpdateLayerSwitches()
+        this.RefreshAllButtonCards()
+
         if (this.CurrentActionText != "") {
             this.CurrentActionText.Value := "Action: " . label
         }
 
-        OSD.Show("Mapping Saved", this.RecTargetName . " -> " . label)
+        layerDisp := this.GetLayerDisplayName(this.CurrentViewLayer)
+        OSD.Show("Mapping Saved (" . layerDisp . ")", this.RecTargetName . " -> " . label)
         SoundBeep(1200, 100)
         this.StopKeystrokeRecording(true)
     }
@@ -1270,6 +1693,8 @@ class GuiManager {
         ; Null out all control references to avoid "control is destroyed" errors
         this.RecTabs := ""
         this.RecPreviewText := ""
+        this.RecBtnRecordSingle := ""
+        this.RecIsRecordingSingle := false
         this.RecDdlSingleMode := ""
         this.RecEdtSingleInt := ""
         this.RecTxtSingleExplain := ""
@@ -1289,6 +1714,59 @@ class GuiManager {
         }
         this.RecTargetId := ""
         this.RecTargetName := ""
+    }
+
+    static AssignBShiftFromStudio() {
+        btnId := this.RecTargetId
+        currentProf := ProfileEngine.CurrentProfile
+        existingShifts := ProfileEngine.GetShiftButtons(currentProf)
+        otherShiftsCount := 0
+        hasShift1 := false
+        for s in existingShifts {
+            if (s.Id != btnId) {
+                otherShiftsCount++
+                if (s.Type = "GShift1" || s.Type = "GShift")
+                    hasShift1 := true
+            }
+        }
+        if (otherShiftsCount >= 2) {
+            OSD.Show("Shift Limit Reached", "Max 2 B-Shift buttons allowed! Reassign an existing shift button first.")
+            SoundBeep(600, 120)
+            return
+        }
+        shiftCmd := (hasShift1) ? "GShift2" : "GShift1"
+        shiftLabel := (hasShift1) ? "B-Shift 2 Layer" : "B-Shift 1 Layer"
+        actionObj := { Type: "Special", Cmd: shiftCmd, Label: shiftLabel }
+        ProfileEngine.SaveButtonLayer(currentProf, btnId, "Normal", actionObj)
+
+        this.StopKeystrokeRecording(false)
+        if (this.RecorderGui != "") {
+            this.RecorderGui.Destroy()
+            this.RecorderGui := ""
+        }
+        this.UpdateLayerSwitches()
+        this.RefreshAllButtonCards()
+        if (this.CurrentActionText != "")
+            this.CurrentActionText.Value := "Action: " . shiftLabel
+        OSD.Show("Assigned B-Shift", this.RecTargetName . " -> " . shiftLabel)
+        SoundBeep(1100, 80)
+    }
+
+    static OnProfileDropdownChanged(p) {
+        ProfileEngine.SetProfile(p)
+        this.UpdateLayerSwitches()
+        this.RefreshAllButtonCards()
+        this.SelectButton(this.SelectedButtonId, this.SelectedButtonName)
+    }
+
+    static OnProfileChangedHandler(p) {
+        if (this.MainGui = "" || !WinExist(this.MainGui.Hwnd))
+            return
+        if (this.ProfileDropdown != "")
+            this.ProfileDropdown.Choose(p)
+        this.UpdateLayerSwitches()
+        this.RefreshAllButtonCards()
+        this.SelectButton(this.SelectedButtonId, this.SelectedButtonName)
     }
 
     static IsRecording() {
@@ -1494,11 +1972,10 @@ class GuiManager {
         }
 
         ProfileEngine.SaveMapping(currentProf, btnId, normalObj, gshiftObj)
+        this.UpdateLayerSwitches()
+        this.RefreshAllButtonCards()
 
-        if (this.MonitorActions.Has(btnId)) {
-            this.MonitorActions[btnId].Value := normalObj.Label
-        }
-        if (btnId = this.SelectedButtonId && this.CurrentActionText != "") {
+        if (this.CurrentActionText != "") {
             this.CurrentActionText.Value := "Action: " . normalObj.Label
         }
 
@@ -1516,11 +1993,11 @@ class GuiManager {
         currentProf := ProfileEngine.CurrentProfile
         ProfileEngine.ResetMappingToDefault(currentProf, btnId)
 
-        newLabel := ProfileEngine.GetButtonLabel(currentProf, btnId)
-        if (this.MonitorActions.Has(btnId)) {
-            this.MonitorActions[btnId].Value := newLabel
-        }
-        if (btnId = this.SelectedButtonId && this.CurrentActionText != "") {
+        this.UpdateLayerSwitches()
+        this.RefreshAllButtonCards()
+
+        newLabel := ProfileEngine.GetButtonLabel(currentProf, btnId, this.CurrentViewLayer)
+        if (this.CurrentActionText != "") {
             this.CurrentActionText.Value := "Action: " . newLabel
         }
 
@@ -1538,12 +2015,20 @@ class GuiManager {
             this.ProfileDropdown.Choose(profileName)
         }
 
-        for btnId, ctrl in this.MonitorActions {
-            ctrl.Value := ProfileEngine.GetButtonLabel(profileName, btnId)
-        }
+        this.UpdateLayerSwitches()
+        this.RefreshAllButtonCards()
 
         if (this.CurrentActionText != "") {
-            this.CurrentActionText.Value := "Action: " . ProfileEngine.GetButtonLabel(profileName, this.SelectedButtonId)
+            lbl := ProfileEngine.GetButtonLabel(profileName, this.SelectedButtonId, this.CurrentViewLayer)
+            shiftBtns := ProfileEngine.GetShiftButtons()
+            s1Id := (shiftBtns.Length >= 1) ? shiftBtns[1].Id : ""
+            s2Id := (shiftBtns.Length >= 2) ? shiftBtns[2].Id : ""
+            if ((this.CurrentViewLayer = "GShift" || this.CurrentViewLayer = "GShift1") && this.SelectedButtonId = s1Id) {
+                lbl := "⚡ SHIFT 1 TRIGGER"
+            } else if (this.CurrentViewLayer = "GShift2" && this.SelectedButtonId = s2Id) {
+                lbl := "⚡ SHIFT 2 TRIGGER"
+            }
+            this.CurrentActionText.Value := "Action: " . lbl
         }
 
         if (this.RapidFireStatusText != "") {

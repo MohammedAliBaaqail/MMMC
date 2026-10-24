@@ -41,6 +41,9 @@ ProfileEngine.Init(ConfigFile)
 InitialProfile := IniRead(ConfigFile, "General", "DefaultProfile", "Desktop")
 ProfileEngine.SetProfile(InitialProfile)
 
+AlwaysOnTopPref := IniRead(ConfigFile, "General", "AlwaysOnTop", "1")
+GuiManager.IsAlwaysOnTop := (AlwaysOnTopPref = "1")
+
 ; Setup System Tray Menu
 SetupTrayMenu()
 
@@ -56,6 +59,9 @@ SetupTrayMenu() {
     tray.Delete() ; Clear default items
     
     tray.Add("Open Control Center", (*) => GuiManager.Show())
+    tray.Add("Always on Top", (*) => GuiManager.ToggleAlwaysOnTop())
+    if (GuiManager.IsAlwaysOnTop)
+        tray.Check("Always on Top")
     tray.Add() ; Separator
 
     ; Profile Submenu

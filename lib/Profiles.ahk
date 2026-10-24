@@ -9,8 +9,13 @@ class ProfileEngine {
     static Profiles := ["Desktop", "Productivity", "Gaming", "Media"]
     static CurrentProfile := "Desktop"
     static IsGShiftActive := false
-    static ChordTriggered := false
-    static DpiShiftPressTime := 0
+    static IsGShift1Active := false
+    static IsGShift2Active := false
+    static Shift1PressTime := 0
+    static Shift2PressTime := 0
+    static Shift1ChordTriggered := false
+    static Shift2ChordTriggered := false
+    static OnShiftStateChanged := ""
     static RapidFireEnabled := false
     static RapidFireActive := false
     static RapidFireInterval := 50 ; ms (~20 CPS)
@@ -112,6 +117,17 @@ class ProfileEngine {
                 gsSeqHoldStr  := IniRead(this.ConfigPath, section, "GShift_SeqHold", "")
                 gsSeqRelStr   := IniRead(this.ConfigPath, section, "GShift_SeqRelease", "")
 
+                ; Load GShift2
+                gs2Type   := IniRead(this.ConfigPath, section, "GShift2_Type", def.Normal.Type)
+                gs2Cmd    := IniRead(this.ConfigPath, section, "GShift2_Cmd", def.Normal.Cmd)
+                gs2Lbl    := IniRead(this.ConfigPath, section, "GShift2_Label", def.Normal.Label)
+                gs2Play   := IniRead(this.ConfigPath, section, "GShift2_PlayType", "NoRepeat")
+                gs2Int    := Integer(IniRead(this.ConfigPath, section, "GShift2_RepeatInterval", "50"))
+                gs2StepsStr    := IniRead(this.ConfigPath, section, "GShift2_Steps", "")
+                gs2SeqPressStr := IniRead(this.ConfigPath, section, "GShift2_SeqPress", "")
+                gs2SeqHoldStr  := IniRead(this.ConfigPath, section, "GShift2_SeqHold", "")
+                gs2SeqRelStr   := IniRead(this.ConfigPath, section, "GShift2_SeqRelease", "")
+
                 this.ActiveMappings[profile][btnId] := {
                     Normal: {
                         Type: normType, Cmd: normCmd, Label: normLbl,
@@ -128,58 +144,60 @@ class ProfileEngine {
                         SeqPress: this.DeserializeSteps(gsSeqPressStr),
                         SeqHold: this.DeserializeSteps(gsSeqHoldStr),
                         SeqRelease: this.DeserializeSteps(gsSeqRelStr)
+                    },
+                    GShift2: {
+                        Type: gs2Type, Cmd: gs2Cmd, Label: gs2Lbl,
+                        PlayType: gs2Play, RepeatInterval: gs2Int,
+                        Steps: this.DeserializeSteps(gs2StepsStr),
+                        SeqPress: this.DeserializeSteps(gs2SeqPressStr),
+                        SeqHold: this.DeserializeSteps(gs2SeqHoldStr),
+                        SeqRelease: this.DeserializeSteps(gs2SeqRelStr)
                     }
                 }
             }
         }
     }
 
-    static SaveMapping(profile, btnId, normalObj, gshiftObj) {
+    static SaveButtonLayer(profile, btnId, layer, actionObj) {
         if (!this.ActiveMappings.Has(profile))
             this.ActiveMappings[profile] := Map()
 
-        this.ActiveMappings[profile][btnId] := {
-            Normal: normalObj,
-            GShift: gshiftObj
-        }
+        mapping := this.GetButtonMapping(profile, btnId)
+        if (layer = "GShift2")
+            mapping.GShift2 := actionObj
+        else if (layer = "GShift" || layer = "GShift1")
+            mapping.GShift := actionObj
+        else
+            mapping.Normal := actionObj
+
+        this.ActiveMappings[profile][btnId] := mapping
 
         if (this.ConfigPath != "") {
+            prefix := (layer = "GShift2") ? "GShift2_" : ((layer = "GShift" || layer = "GShift1") ? "GShift_" : "Normal_")
             section := "Mapping_" . profile . "_" . btnId
-            
-            ; Save Normal
-            IniWrite(normalObj.Type, this.ConfigPath, section, "Normal_Type")
-            IniWrite(normalObj.Cmd, this.ConfigPath, section, "Normal_Cmd")
-            IniWrite(normalObj.Label, this.ConfigPath, section, "Normal_Label")
-            playType := normalObj.HasOwnProp("PlayType") ? normalObj.PlayType : "NoRepeat"
-            interval := normalObj.HasOwnProp("RepeatInterval") ? normalObj.RepeatInterval : 50
-            IniWrite(playType, this.ConfigPath, section, "Normal_PlayType")
-            IniWrite(interval, this.ConfigPath, section, "Normal_RepeatInterval")
-            stepsStr := normalObj.HasOwnProp("Steps") ? this.SerializeSteps(normalObj.Steps) : ""
-            IniWrite(stepsStr, this.ConfigPath, section, "Normal_Steps")
-            seqPressStr := normalObj.HasOwnProp("SeqPress") ? this.SerializeSteps(normalObj.SeqPress) : ""
-            IniWrite(seqPressStr, this.ConfigPath, section, "Normal_SeqPress")
-            seqHoldStr := normalObj.HasOwnProp("SeqHold") ? this.SerializeSteps(normalObj.SeqHold) : ""
-            IniWrite(seqHoldStr, this.ConfigPath, section, "Normal_SeqHold")
-            seqRelStr := normalObj.HasOwnProp("SeqRelease") ? this.SerializeSteps(normalObj.SeqRelease) : ""
-            IniWrite(seqRelStr, this.ConfigPath, section, "Normal_SeqRelease")
-
-            ; Save GShift
-            IniWrite(gshiftObj.Type, this.ConfigPath, section, "GShift_Type")
-            IniWrite(gshiftObj.Cmd, this.ConfigPath, section, "GShift_Cmd")
-            IniWrite(gshiftObj.Label, this.ConfigPath, section, "GShift_Label")
-            gsPlay := gshiftObj.HasOwnProp("PlayType") ? gshiftObj.PlayType : "NoRepeat"
-            gsInt  := gshiftObj.HasOwnProp("RepeatInterval") ? gshiftObj.RepeatInterval : 50
-            IniWrite(gsPlay, this.ConfigPath, section, "GShift_PlayType")
-            IniWrite(gsInt, this.ConfigPath, section, "GShift_RepeatInterval")
-            gsStepsStr := gshiftObj.HasOwnProp("Steps") ? this.SerializeSteps(gshiftObj.Steps) : ""
-            IniWrite(gsStepsStr, this.ConfigPath, section, "GShift_Steps")
-            gsSeqPressStr := gshiftObj.HasOwnProp("SeqPress") ? this.SerializeSteps(gshiftObj.SeqPress) : ""
-            IniWrite(gsSeqPressStr, this.ConfigPath, section, "GShift_SeqPress")
-            gsSeqHoldStr := gshiftObj.HasOwnProp("SeqHold") ? this.SerializeSteps(gshiftObj.SeqHold) : ""
-            IniWrite(gsSeqHoldStr, this.ConfigPath, section, "GShift_SeqHold")
-            gsSeqRelStr := gshiftObj.HasOwnProp("SeqRelease") ? this.SerializeSteps(gshiftObj.SeqRelease) : ""
-            IniWrite(gsSeqRelStr, this.ConfigPath, section, "GShift_SeqRelease")
+            IniWrite(actionObj.Type, this.ConfigPath, section, prefix . "Type")
+            IniWrite(actionObj.Cmd, this.ConfigPath, section, prefix . "Cmd")
+            IniWrite(actionObj.Label, this.ConfigPath, section, prefix . "Label")
+            playType := actionObj.HasOwnProp("PlayType") ? actionObj.PlayType : "NoRepeat"
+            interval := actionObj.HasOwnProp("RepeatInterval") ? actionObj.RepeatInterval : 50
+            IniWrite(playType, this.ConfigPath, section, prefix . "PlayType")
+            IniWrite(interval, this.ConfigPath, section, prefix . "RepeatInterval")
+            stepsStr := actionObj.HasOwnProp("Steps") ? this.SerializeSteps(actionObj.Steps) : ""
+            IniWrite(stepsStr, this.ConfigPath, section, prefix . "Steps")
+            seqPressStr := actionObj.HasOwnProp("SeqPress") ? this.SerializeSteps(actionObj.SeqPress) : ""
+            IniWrite(seqPressStr, this.ConfigPath, section, prefix . "SeqPress")
+            seqHoldStr := actionObj.HasOwnProp("SeqHold") ? this.SerializeSteps(actionObj.SeqHold) : ""
+            IniWrite(seqHoldStr, this.ConfigPath, section, prefix . "SeqHold")
+            seqRelStr := actionObj.HasOwnProp("SeqRelease") ? this.SerializeSteps(actionObj.SeqRelease) : ""
+            IniWrite(seqRelStr, this.ConfigPath, section, prefix . "SeqRelease")
         }
+    }
+
+    static SaveMapping(profile, btnId, normalObj, gshiftObj, gshift2Obj := "") {
+        this.SaveButtonLayer(profile, btnId, "Normal", normalObj)
+        this.SaveButtonLayer(profile, btnId, "GShift", gshiftObj)
+        if (IsObject(gshift2Obj))
+            this.SaveButtonLayer(profile, btnId, "GShift2", gshift2Obj)
     }
 
     static SerializeSteps(stepArr) {
@@ -223,17 +241,50 @@ class ProfileEngine {
 
     static GetButtonMapping(profile, btnId) {
         if (this.ActiveMappings.Has(profile) && this.ActiveMappings[profile].Has(btnId)) {
-            return this.ActiveMappings[profile][btnId]
+            m := this.ActiveMappings[profile][btnId]
+            if (!m.HasOwnProp("GShift2"))
+                m.GShift2 := m.Normal.Clone()
+            return m
         }
         if (this.DefaultMappings.Has(profile) && this.DefaultMappings[profile].Has(btnId)) {
-            return this.DefaultMappings[profile][btnId]
+            def := this.DefaultMappings[profile][btnId]
+            return {
+                Normal: def.Normal,
+                GShift: def.GShift,
+                GShift2: def.HasOwnProp("GShift2") ? def.GShift2 : def.Normal
+            }
         }
-        return { Normal: { Type: "Send", Cmd: "", Label: "None", PlayType: "NoRepeat", RepeatInterval: 50 }, GShift: { Type: "Send", Cmd: "", Label: "None", PlayType: "NoRepeat", RepeatInterval: 50 } }
+        none := { Type: "Send", Cmd: "", Label: "None", PlayType: "NoRepeat", RepeatInterval: 50 }
+        return { Normal: none, GShift: none, GShift2: none }
     }
 
-    static GetButtonLabel(profile, btnId) {
+    static GetButtonLabel(profile, btnId, layer := "Normal") {
         mapping := this.GetButtonMapping(profile, btnId)
+        if (layer = "GShift2" && mapping.HasOwnProp("GShift2") && mapping.GShift2.Label != "")
+            return mapping.GShift2.Label
+        if ((layer = "GShift" || layer = "GShift1") && mapping.HasOwnProp("GShift") && mapping.GShift.Label != "")
+            return mapping.GShift.Label
         return mapping.Normal.Label
+    }
+
+    static GetShiftButtons(profile := "") {
+        if (profile = "")
+            profile := this.CurrentProfile
+        shiftBtns := []
+        if (!this.ActiveMappings.Has(profile))
+            return shiftBtns
+            
+        for btnId, mapping in this.ActiveMappings[profile] {
+            norm := mapping.Normal
+            if (norm.Type = "Special") {
+                if (norm.Cmd = "GShift" || norm.Cmd = "GShift1") {
+                    shiftBtns.Push({ Id: btnId, Type: "GShift1", Label: "B-Shift 1" })
+                } else if (norm.Cmd = "GShift2") {
+                    shiftBtns.Push({ Id: btnId, Type: "GShift2", Label: "B-Shift 2" })
+                }
+            }
+        }
+        return shiftBtns
     }
 
     ; Switch to a specific profile
@@ -294,18 +345,76 @@ class ProfileEngine {
 
     ; Dynamic execution engine
     static DispatchButton(btnId, isDown) {
-        if (this.IsGShiftActive) {
+        mapping := this.GetButtonMapping(this.CurrentProfile, btnId)
+        normCmd := mapping.Normal.Cmd
+        normType := mapping.Normal.Type
+
+        ; Check if this button is assigned as a Shift layer modifier
+        if (normType = "Special" && (normCmd = "GShift" || normCmd = "GShift1")) {
+            this.HandleShift1Modifier(btnId, isDown)
+            return
+        }
+        if (normType = "Special" && normCmd = "GShift2") {
+            this.HandleShift2Modifier(btnId, isDown)
+            return
+        }
+
+        ; If not a shift modifier, execute based on currently held shift layer
+        layer := "Normal"
+        if (this.IsGShift2Active) {
+            layer := "GShift2"
             if (isDown)
-                this.ChordTriggered := true
-            this.ExecuteButtonEvent(btnId, true, isDown)
+                this.Shift2ChordTriggered := true
+        } else if (this.IsGShift1Active) {
+            layer := "GShift"
+            if (isDown)
+                this.Shift1ChordTriggered := true
+        }
+
+        this.ExecuteButtonEvent(btnId, layer, isDown)
+    }
+
+    static HandleShift1Modifier(btnId, isDown) {
+        if (isDown) {
+            this.IsGShift1Active := true
+            this.IsGShiftActive := true
+            this.Shift1ChordTriggered := false
+            this.Shift1PressTime := A_TickCount
+            this.NotifyShift(1, true)
         } else {
-            this.ExecuteButtonEvent(btnId, false, isDown)
+            this.IsGShift1Active := false
+            this.IsGShiftActive := this.IsGShift2Active
+            this.NotifyShift(1, false)
+            elapsed := A_TickCount - this.Shift1PressTime
+            if (elapsed < 280 && !this.Shift1ChordTriggered) {
+                this.ExecuteDpiShiftTap()
+            }
         }
     }
 
-    static ExecuteButtonEvent(btnId, isGShift, isDown) {
+    static HandleShift2Modifier(btnId, isDown) {
+        if (isDown) {
+            this.IsGShift2Active := true
+            this.IsGShiftActive := true
+            this.Shift2ChordTriggered := false
+            this.Shift2PressTime := A_TickCount
+            this.NotifyShift(2, true)
+        } else {
+            this.IsGShift2Active := false
+            this.IsGShiftActive := this.IsGShift1Active
+            this.NotifyShift(2, false)
+        }
+    }
+
+    static NotifyShift(layerNum, isActive) {
+        fn := this.OnShiftStateChanged
+        if (fn)
+            fn(layerNum, isActive)
+    }
+
+    static ExecuteButtonEvent(btnId, layer, isDown) {
         mapping := this.GetButtonMapping(this.CurrentProfile, btnId)
-        act := isGShift ? mapping.GShift : mapping.Normal
+        act := (layer = "GShift2") ? mapping.GShift2 : ((layer = "GShift" || layer = "GShift1") ? mapping.GShift : mapping.Normal)
         playType := act.HasOwnProp("PlayType") ? act.PlayType : "NoRepeat"
 
         if (isDown) {
@@ -456,21 +565,8 @@ class ProfileEngine {
 
     ; Button 5: G-Shift / Sniper Thumb Button (DPI Shift) -> F15
     static HandleF15_DpiShift(isDown) {
-        if (isDown) {
-            this.NotifyButton("DpiShift", true)
-            this.IsGShiftActive := true
-            this.ChordTriggered := false
-            this.DpiShiftPressTime := A_TickCount
-        } else {
-            this.NotifyButton("DpiShift", false)
-            this.IsGShiftActive := false
-            elapsed := A_TickCount - this.DpiShiftPressTime
-
-            ; If released quickly without triggering any chord, execute Tap action!
-            if (elapsed < 280 && !this.ChordTriggered) {
-                this.ExecuteDpiShiftTap()
-            }
-        }
+        this.NotifyButton("DpiShift", isDown)
+        this.DispatchButton("DpiShift", isDown)
     }
 
     static ExecuteDpiShiftTap() {
@@ -507,8 +603,7 @@ class ProfileEngine {
     ; Button 9: Cycle Profiles (G9) -> F19
     static HandleF19_ProfileCycle(isDown) {
         this.NotifyButton("ProfileCycle", isDown)
-        if (isDown)
-            this.ExecuteActionOnce({ Type: "Special", Cmd: "CycleProfile" })
+        this.DispatchButton("ProfileCycle", isDown)
     }
 
     ; Button 10: Next DPI (G8 / DPI Up) -> F20

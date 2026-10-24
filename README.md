@@ -63,7 +63,7 @@ Download [Logitech Onboard Memory Manager](https://support.logi.com/hc/en-us/art
 
 ## 📁 File Structure
 - `G502X_Manager.ahk` — Main script, hardware hotkeys, tray menu, conditional chords.
-- `lib/GuiManager.ahk` — Dark-themed control center, live button monitor, cheatsheet.
+- `lib/GuiManager.ahk` — Dark-themed control center, interactive button studio, live monitor.
 - `lib/Profiles.ahk` — Logic engine for Desktop, Productivity, Gaming, and Media profiles.
 - `lib/OMMHelper.ahk` — Virtual key injection tool for OMM setup.
 - `lib/OSD.ahk` — Sleek, transparent on-screen display HUD notifications.
