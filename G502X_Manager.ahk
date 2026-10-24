@@ -135,14 +135,13 @@ SaveAndExit() {
 #HotIf
 
 ; ========================================================
-; G-SHIFT CONDITIONAL CHORDS (#HotIf)
-; Active only while DPI Shift (F17) is physically held down
+; SCROLL WHEEL INTERCEPT (No F-Key Required)
+; Dispatches based on active profile & B-Shift layer
 ; ========================================================
-#HotIf ProfileEngine.IsGShiftActive
+#HotIf !GuiManager.IsRecording()
 
-; Scroll Wheel transforms into Volume / Fine Control knob
-*WheelUp::ProfileEngine.HandleWheel("Up")
-*WheelDown::ProfileEngine.HandleWheel("Down")
+*WheelUp::ProfileEngine.DispatchWheel("Up")
+*WheelDown::ProfileEngine.DispatchWheel("Down")
 
 #HotIf
 

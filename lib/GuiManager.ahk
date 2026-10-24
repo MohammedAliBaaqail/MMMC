@@ -163,6 +163,10 @@ class GuiManager {
         { Cat: "Media", Name: "Stop Media",              Type: "Send", Cmd: "{Media_Stop}",  Label: "Stop",          Key: "Stop" },
 
         ; --- Device & Special ---
+        { Cat: "Navigation", Name: "Zoom In (Ctrl+Scroll)", Key: "Ctrl+WheelUp", Type: "Send", Cmd: "^{WheelUp}", Label: "Zoom In" },
+        { Cat: "Navigation", Name: "Zoom Out (Ctrl+Scroll)", Key: "Ctrl+WheelDn", Type: "Send", Cmd: "^{WheelDown}", Label: "Zoom Out" },
+        { Cat: "Device", Name: "Default Scroll Up", Key: "WheelUp", Type: "Default", Cmd: "{WheelUp}", Label: "Default Scroll Up" },
+        { Cat: "Device", Name: "Default Scroll Down", Key: "WheelDown", Type: "Default", Cmd: "{WheelDown}", Label: "Default Scroll Down" },
         { Cat: "Device", Name: "B-Shift Modifier",       Type: "Special", Cmd: "GShift",     Label: "B-Shift Layer",   Key: "⚡ B-Shift" },
         { Cat: "Device", Name: "B-Shift 1 Modifier",     Type: "Special", Cmd: "GShift1",    Label: "B-Shift 1 Layer", Key: "⚡ B-Shift 1" },
         { Cat: "Device", Name: "B-Shift 2 Modifier",     Type: "Special", Cmd: "GShift2",    Label: "B-Shift 2 Layer", Key: "⚡ B-Shift 2" },
@@ -349,7 +353,9 @@ class GuiManager {
             { id: "Back",         name: "G4 (Back)  [F14]",      x: 305, y: 514 },
             { id: "TiltRight",    name: "Tilt Right  [F18]",     x: 930, y: 179 },
             { id: "Middle",       name: "Middle Click  [F13]",   x: 930, y: 244 },
-            { id: "ProfileCycle", name: "G9 (Profile)  [F19]",   x: 930, y: 309 }
+            { id: "ProfileCycle", name: "G9 (Profile)  [F19]",   x: 930, y: 309 },
+            { id: "WheelUp",      name: "Wheel Up  [Scroll]",    x: 930, y: 374 },
+            { id: "WheelDown",    name: "Wheel Down  [Scroll]",  x: 930, y: 444 }
         ]
 
         for b in callouts {
@@ -525,11 +531,11 @@ class GuiManager {
             . "3. Fine-tune with Arrow keys (◄ ▲ ▼ ►) or Nudge buttons.`n"
             . "4. Click 'Preview Lines' to view live leader lines, and 'Save & Apply' when finished.")
 
-        ; Button Order for selector
-        order := ["TiltLeft", "Middle", "TiltRight", "G8", "G7", "DpiShift", "Forward", "Back", "ProfileCycle"]
+        ; Button Order for selector (all 11 buttons including Scroll Wheel)
+        order := ["TiltLeft", "Middle", "TiltRight", "G8", "G7", "DpiShift", "Forward", "Back", "ProfileCycle", "WheelUp", "WheelDown"]
 
         ; Selector buttons bar
-        bx := 20, by := 88, bw := 105, bh := 32
+        bx := 20, by := 88, bw := 85, bh := 32
         this.CalibratorSelectorBtns := Map()
         for id in order {
             info := this.CalibratorPoints[id]
@@ -711,7 +717,9 @@ class GuiManager {
             "DpiShift",     { name: "DPI Shift [F15]",      ax: 170, ay: 245, tx: 270, ty: 264, tag: "DPI" },
             "Forward",      { name: "G5 (Forward) [F16]",   ax: 170, ay: 315, tx: 308, ty: 248, tag: "G5" },
             "Back",         { name: "G4 (Back) [F14]",      ax: 170, ay: 385, tx: 352, ty: 272, tag: "G4" },
-            "ProfileCycle", { name: "G9 (Profile) [F19]",   ax: 650, ay: 180, tx: 426, ty: 92,  tag: "G9" }
+            "ProfileCycle", { name: "G9 (Profile) [F19]",   ax: 650, ay: 180, tx: 426, ty: 92,  tag: "G9" },
+            "WheelUp",      { name: "Wheel Up [Scroll]",    ax: 650, ay: 245, tx: 355, ty: 32,  tag: "W-UP" },
+            "WheelDown",    { name: "Wheel Down [Scroll]",  ax: 650, ay: 315, tx: 355, ty: 56,  tag: "W-DN" }
         )
 
         this.CalibratorPoints := Map()
@@ -783,7 +791,9 @@ class GuiManager {
             "DpiShift",     { tx: 270, ty: 264 },
             "Forward",      { tx: 308, ty: 248 },
             "Back",         { tx: 352, ty: 272 },
-            "ProfileCycle", { tx: 426, ty: 92 }
+            "ProfileCycle", { tx: 426, ty: 92 },
+            "WheelUp",      { tx: 355, ty: 32 },
+            "WheelDown",    { tx: 355, ty: 56 }
         )
 
         for id, def in defaults {
@@ -1419,7 +1429,6 @@ class GuiManager {
         this.RecCapturedLabel := ""
 
         if (norm.Type = "Macro") {
-            tabs.Value := 2
             this.RecDdlMacroMode.Choose(this.PlayTypeToIndex(norm.HasOwnProp("PlayType") ? norm.PlayType : "NoRepeat"))
             this.RecEdtDefDelay.Value := String(norm.HasOwnProp("RepeatInterval") ? norm.RepeatInterval : 50)
             if (norm.HasOwnProp("SeqPress") && norm.SeqPress.Length > 0)
@@ -1433,25 +1442,19 @@ class GuiManager {
 
             this.RefreshMacroListView()
             this.UpdateMacroModeExplain()
-        } else {
-            tabs.Value := 1
-            if (norm.Cmd != "") {
-                this.RecCapturedCmd := norm.Cmd
-                this.RecCapturedLabel := norm.Label
-                this.RecPreviewText.SetFont("c" . "A6E3A1")
-                this.RecPreviewText.Value := "✔  " . norm.Label
-                this.RecIsRecordingSingle := false
-                if (this.RecBtnRecordSingle != "") {
-                    this.RecBtnRecordSingle.Text := "● Record Key"
-                }
-            } else {
-                ; Empty mapping - auto start listening once so user can immediately press their key
-                this.StartSingleRecording()
-            }
-            this.RecDdlSingleMode.Choose(this.PlayTypeToIndex(norm.HasOwnProp("PlayType") ? norm.PlayType : "NoRepeat"))
-            this.RecEdtSingleInt.Value := String(norm.HasOwnProp("RepeatInterval") ? norm.RepeatInterval : 50)
-            this.UpdateSingleModeExplain()
         }
+
+        tabs.Value := 1
+        if (norm.Cmd != "") {
+            this.RecCapturedCmd := norm.Cmd
+            this.RecCapturedLabel := norm.Label
+        }
+        this.RecDdlSingleMode.Choose(this.PlayTypeToIndex(norm.HasOwnProp("PlayType") ? norm.PlayType : "NoRepeat"))
+        this.RecEdtSingleInt.Value := String(norm.HasOwnProp("RepeatInterval") ? norm.RepeatInterval : 50)
+        this.UpdateSingleModeExplain()
+
+        ; Start recording immediately upon double-clicking the button!
+        this.StartSingleRecording()
 
         rg.Show("w640 h570")
         try this.RecPreviewText.Focus()
@@ -2441,7 +2444,9 @@ class GuiManager {
             "DpiShift",     { name: "DPI Shift [F15]",      tx: 270, ty: 264 },
             "Forward",      { name: "G5 (Forward) [F16]",   tx: 308, ty: 248 },
             "Back",         { name: "G4 (Back) [F14]",      tx: 352, ty: 272 },
-            "ProfileCycle", { name: "G9 (Profile) [F19]",   tx: 426, ty: 92 }
+            "ProfileCycle", { name: "G9 (Profile) [F19]",   tx: 426, ty: 92 },
+            "WheelUp",      { name: "Wheel Up [Scroll]",    tx: 355, ty: 32 },
+            "WheelDown",    { name: "Wheel Down [Scroll]",  tx: 355, ty: 56 }
         )
 
         iniPath := A_ScriptDir . "\settings.ini"

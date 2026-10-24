@@ -41,7 +41,9 @@ class ProfileEngine {
             "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "G-Shift / Task View" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
             "Forward",      { Normal: { Type: "Send", Cmd: "!{Right}", Label: "Browser Forward" }, GShift: { Type: "Send", Cmd: "^w", Label: "Close Tab" } },
             "Back",         { Normal: { Type: "Send", Cmd: "!{Left}", Label: "Browser Back" }, GShift: { Type: "Send", Cmd: "^+t", Label: "Reopen Tab" } },
-            "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } }
+            "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } },
+            "WheelUp",      { Normal: { Type: "Default", Cmd: "{WheelUp}", Label: "Default Scroll Up" }, GShift: { Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up" } },
+            "WheelDown",    { Normal: { Type: "Default", Cmd: "{WheelDown}", Label: "Default Scroll Down" }, GShift: { Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down" } }
         ),
         "Productivity", Map(
             "TiltLeft",     { Normal: { Type: "Send", Cmd: "!{Left}", Label: "Cursor History Back" }, GShift: { Type: "Send", Cmd: "^{PgUp}", Label: "Prev Editor Tab" } },
@@ -52,7 +54,9 @@ class ProfileEngine {
             "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "G-Shift / Command Pal" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
             "Forward",      { Normal: { Type: "Send", Cmd: "^y", Label: "Redo (Ctrl+Y)" }, GShift: { Type: "Send", Cmd: "+!f", Label: "Format Document" } },
             "Back",         { Normal: { Type: "Send", Cmd: "^z", Label: "Undo (Ctrl+Z)" }, GShift: { Type: "Send", Cmd: "^s", Label: "Save (Ctrl+S)" } },
-            "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } }
+            "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } },
+            "WheelUp",      { Normal: { Type: "Default", Cmd: "{WheelUp}", Label: "Default Scroll Up" }, GShift: { Type: "Send", Cmd: "^{WheelUp}", Label: "Zoom In" } },
+            "WheelDown",    { Normal: { Type: "Default", Cmd: "{WheelDown}", Label: "Default Scroll Down" }, GShift: { Type: "Send", Cmd: "^{WheelDown}", Label: "Zoom Out" } }
         ),
         "Gaming", Map(
             "TiltLeft",     { Normal: { Type: "Send", Cmd: "1", Label: "Weapon Slot 1" }, GShift: { Type: "Send", Cmd: "1", Label: "Weapon Slot 1" } },
@@ -63,7 +67,9 @@ class ProfileEngine {
             "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "Sniper Aim / Melee" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
             "Forward",      { Normal: { Type: "Send", Cmd: "g", Label: "Grenade (G)" }, GShift: { Type: "Send", Cmd: "g", Label: "Grenade (G)" } },
             "Back",         { Normal: { Type: "Send", Cmd: "r", Label: "Reload (R)" }, GShift: { Type: "Send", Cmd: "r", Label: "Reload (R)" } },
-            "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } }
+            "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } },
+            "WheelUp",      { Normal: { Type: "Default", Cmd: "{WheelUp}", Label: "Default Scroll Up" }, GShift: { Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up" } },
+            "WheelDown",    { Normal: { Type: "Default", Cmd: "{WheelDown}", Label: "Default Scroll Down" }, GShift: { Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down" } }
         ),
         "Media", Map(
             "TiltLeft",     { Normal: { Type: "Send", Cmd: "{Media_Prev}", Label: "Previous Track" }, GShift: { Type: "Send", Cmd: "{Media_Prev}", Label: "Previous Track" } },
@@ -74,7 +80,9 @@ class ProfileEngine {
             "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "G-Shift / Play-Pause" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
             "Forward",      { Normal: { Type: "Send", Cmd: "{Right}", Label: "Seek Forward 10s" }, GShift: { Type: "Send", Cmd: "{Right 2}", Label: "Seek Forward 20s" } },
             "Back",         { Normal: { Type: "Send", Cmd: "{Left}", Label: "Seek Back 10s" }, GShift: { Type: "Send", Cmd: "{Left 2}", Label: "Seek Back 20s" } },
-            "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } }
+            "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } },
+            "WheelUp",      { Normal: { Type: "Default", Cmd: "{WheelUp}", Label: "Default Scroll Up" }, GShift: { Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up" } },
+            "WheelDown",    { Normal: { Type: "Default", Cmd: "{WheelDown}", Label: "Default Scroll Down" }, GShift: { Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down" } }
         )
     )
 
@@ -618,17 +626,44 @@ class ProfileEngine {
         this.DispatchButton("G7", isDown)
     }
 
-    ; Scroll Wheel G-Shift Chording (Volume / Zoom knob)
-    static HandleWheel(direction) {
-        if (!this.IsGShiftActive)
-            return false
+    ; Native Scroll Wheel Mapping & Dispatch (No F-key required)
+    static DispatchWheel(direction) {
+        btnId := (direction = "Up") ? "WheelUp" : "WheelDown"
 
-        this.ChordTriggered := true
-        if (direction = "Up") {
-            Send("{Volume_Up 2}")
-        } else {
-            Send("{Volume_Down 2}")
+        ; Determine active layer
+        layer := "Normal"
+        if (this.IsGShift2Active) {
+            layer := "GShift2"
+            this.Shift2ChordTriggered := true
+        } else if (this.IsGShift1Active || this.IsGShiftActive) {
+            layer := "GShift"
+            this.Shift1ChordTriggered := true
         }
+
+        mapping := this.GetButtonMapping(this.CurrentProfile, btnId)
+        act := (layer = "GShift2") ? mapping.GShift2 : ((layer = "GShift" || layer = "GShift1") ? mapping.GShift : mapping.Normal)
+
+        ; Notify GUI for visual feedback
+        this.NotifyButton(btnId, true)
+        SetTimer(() => this.NotifyButton(btnId, false), -150)
+
+        ; If action is Default (or empty or standard wheel), pass-through natively!
+        if (act.Type = "Default" || (act.Type = "Send" && (act.Cmd = "{WheelUp}" || act.Cmd = "{WheelDown}"))) {
+            if (direction = "Up") {
+                Send("{Blind}{WheelUp}")
+            } else {
+                Send("{Blind}{WheelDown}")
+            }
+            return
+        }
+
+        ; Otherwise execute custom mapped action
+        this.ExecuteActionOnce(act)
+    }
+
+    ; Scroll Wheel G-Shift Chording (Legacy delegate)
+    static HandleWheel(direction) {
+        this.DispatchWheel(direction)
         return true
     }
 

@@ -84,7 +84,9 @@ $buttons = @(
     # Right side (Top to Bottom)
     @{ Id = "TiltRight";    Anchor = @{ X = 650; Y = 50 };  DefTarget = @{ X = 374; Y = 64 } },
     @{ Id = "Middle";       Anchor = @{ X = 650; Y = 115 }; DefTarget = @{ X = 355; Y = 58 } },
-    @{ Id = "ProfileCycle"; Anchor = @{ X = 650; Y = 180 }; DefTarget = @{ X = 426; Y = 92 } }
+    @{ Id = "ProfileCycle"; Anchor = @{ X = 650; Y = 180 }; DefTarget = @{ X = 426; Y = 92 } },
+    @{ Id = "WheelUp";      Anchor = @{ X = 650; Y = 245 }; DefTarget = @{ X = 355; Y = 32 } },
+    @{ Id = "WheelDown";    Anchor = @{ X = 650; Y = 315 }; DefTarget = @{ X = 355; Y = 56 } }
 )
 
 # Leader line styling: Catppuccin / G-HUB Soft Blue #89B4FA
