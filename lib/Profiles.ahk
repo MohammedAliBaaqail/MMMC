@@ -16,6 +16,11 @@ class ProfileEngine {
     static RapidFireInterval := 50 ; ms (~20 CPS)
     static ConfigPath := ""
 
+    ; Macro execution states
+    static ActiveHoldTimers := Map()
+    static ActiveToggleTimers := Map()
+    static ActiveSequences := Map()
+
     ; Callback for GUI updates
     static OnProfileChanged := ""
     static OnButtonStateChanged := ""
@@ -89,15 +94,41 @@ class ProfileEngine {
                 normType := IniRead(this.ConfigPath, section, "Normal_Type", def.Normal.Type)
                 normCmd  := IniRead(this.ConfigPath, section, "Normal_Cmd", def.Normal.Cmd)
                 normLbl  := IniRead(this.ConfigPath, section, "Normal_Label", def.Normal.Label)
+                normPlay := IniRead(this.ConfigPath, section, "Normal_PlayType", "NoRepeat")
+                normInt  := Integer(IniRead(this.ConfigPath, section, "Normal_RepeatInterval", "50"))
+                normStepsStr    := IniRead(this.ConfigPath, section, "Normal_Steps", "")
+                normSeqPressStr := IniRead(this.ConfigPath, section, "Normal_SeqPress", "")
+                normSeqHoldStr  := IniRead(this.ConfigPath, section, "Normal_SeqHold", "")
+                normSeqRelStr   := IniRead(this.ConfigPath, section, "Normal_SeqRelease", "")
 
                 ; Load GShift
                 gsType   := IniRead(this.ConfigPath, section, "GShift_Type", def.GShift.Type)
                 gsCmd    := IniRead(this.ConfigPath, section, "GShift_Cmd", def.GShift.Cmd)
                 gsLbl    := IniRead(this.ConfigPath, section, "GShift_Label", def.GShift.Label)
+                gsPlay   := IniRead(this.ConfigPath, section, "GShift_PlayType", "NoRepeat")
+                gsInt    := Integer(IniRead(this.ConfigPath, section, "GShift_RepeatInterval", "50"))
+                gsStepsStr    := IniRead(this.ConfigPath, section, "GShift_Steps", "")
+                gsSeqPressStr := IniRead(this.ConfigPath, section, "GShift_SeqPress", "")
+                gsSeqHoldStr  := IniRead(this.ConfigPath, section, "GShift_SeqHold", "")
+                gsSeqRelStr   := IniRead(this.ConfigPath, section, "GShift_SeqRelease", "")
 
                 this.ActiveMappings[profile][btnId] := {
-                    Normal: { Type: normType, Cmd: normCmd, Label: normLbl },
-                    GShift: { Type: gsType, Cmd: gsCmd, Label: gsLbl }
+                    Normal: {
+                        Type: normType, Cmd: normCmd, Label: normLbl,
+                        PlayType: normPlay, RepeatInterval: normInt,
+                        Steps: this.DeserializeSteps(normStepsStr),
+                        SeqPress: this.DeserializeSteps(normSeqPressStr),
+                        SeqHold: this.DeserializeSteps(normSeqHoldStr),
+                        SeqRelease: this.DeserializeSteps(normSeqRelStr)
+                    },
+                    GShift: {
+                        Type: gsType, Cmd: gsCmd, Label: gsLbl,
+                        PlayType: gsPlay, RepeatInterval: gsInt,
+                        Steps: this.DeserializeSteps(gsStepsStr),
+                        SeqPress: this.DeserializeSteps(gsSeqPressStr),
+                        SeqHold: this.DeserializeSteps(gsSeqHoldStr),
+                        SeqRelease: this.DeserializeSteps(gsSeqRelStr)
+                    }
                 }
             }
         }
@@ -114,14 +145,73 @@ class ProfileEngine {
 
         if (this.ConfigPath != "") {
             section := "Mapping_" . profile . "_" . btnId
+            
+            ; Save Normal
             IniWrite(normalObj.Type, this.ConfigPath, section, "Normal_Type")
             IniWrite(normalObj.Cmd, this.ConfigPath, section, "Normal_Cmd")
             IniWrite(normalObj.Label, this.ConfigPath, section, "Normal_Label")
+            playType := normalObj.HasOwnProp("PlayType") ? normalObj.PlayType : "NoRepeat"
+            interval := normalObj.HasOwnProp("RepeatInterval") ? normalObj.RepeatInterval : 50
+            IniWrite(playType, this.ConfigPath, section, "Normal_PlayType")
+            IniWrite(interval, this.ConfigPath, section, "Normal_RepeatInterval")
+            stepsStr := normalObj.HasOwnProp("Steps") ? this.SerializeSteps(normalObj.Steps) : ""
+            IniWrite(stepsStr, this.ConfigPath, section, "Normal_Steps")
+            seqPressStr := normalObj.HasOwnProp("SeqPress") ? this.SerializeSteps(normalObj.SeqPress) : ""
+            IniWrite(seqPressStr, this.ConfigPath, section, "Normal_SeqPress")
+            seqHoldStr := normalObj.HasOwnProp("SeqHold") ? this.SerializeSteps(normalObj.SeqHold) : ""
+            IniWrite(seqHoldStr, this.ConfigPath, section, "Normal_SeqHold")
+            seqRelStr := normalObj.HasOwnProp("SeqRelease") ? this.SerializeSteps(normalObj.SeqRelease) : ""
+            IniWrite(seqRelStr, this.ConfigPath, section, "Normal_SeqRelease")
 
+            ; Save GShift
             IniWrite(gshiftObj.Type, this.ConfigPath, section, "GShift_Type")
             IniWrite(gshiftObj.Cmd, this.ConfigPath, section, "GShift_Cmd")
             IniWrite(gshiftObj.Label, this.ConfigPath, section, "GShift_Label")
+            gsPlay := gshiftObj.HasOwnProp("PlayType") ? gshiftObj.PlayType : "NoRepeat"
+            gsInt  := gshiftObj.HasOwnProp("RepeatInterval") ? gshiftObj.RepeatInterval : 50
+            IniWrite(gsPlay, this.ConfigPath, section, "GShift_PlayType")
+            IniWrite(gsInt, this.ConfigPath, section, "GShift_RepeatInterval")
+            gsStepsStr := gshiftObj.HasOwnProp("Steps") ? this.SerializeSteps(gshiftObj.Steps) : ""
+            IniWrite(gsStepsStr, this.ConfigPath, section, "GShift_Steps")
+            gsSeqPressStr := gshiftObj.HasOwnProp("SeqPress") ? this.SerializeSteps(gshiftObj.SeqPress) : ""
+            IniWrite(gsSeqPressStr, this.ConfigPath, section, "GShift_SeqPress")
+            gsSeqHoldStr := gshiftObj.HasOwnProp("SeqHold") ? this.SerializeSteps(gshiftObj.SeqHold) : ""
+            IniWrite(gsSeqHoldStr, this.ConfigPath, section, "GShift_SeqHold")
+            gsSeqRelStr := gshiftObj.HasOwnProp("SeqRelease") ? this.SerializeSteps(gshiftObj.SeqRelease) : ""
+            IniWrite(gsSeqRelStr, this.ConfigPath, section, "GShift_SeqRelease")
         }
+    }
+
+    static SerializeSteps(stepArr) {
+        if (!IsObject(stepArr) || stepArr.Length = 0)
+            return ""
+        str := ""
+        for i, s in stepArr {
+            actChar := (s.Action = "Down") ? "D" : "U"
+            del := s.HasOwnProp("Delay") ? s.Delay : 50
+            part := actChar . ":" . s.Key . ":" . del
+            str .= (i = 1 ? "" : "|") . part
+        }
+        return str
+    }
+
+    static DeserializeSteps(stepStr) {
+        steps := []
+        if (stepStr = "")
+            return steps
+        parts := StrSplit(stepStr, "|")
+        for p in parts {
+            if (p = "")
+                continue
+            items := StrSplit(p, ":")
+            if (items.Length >= 2) {
+                act := (items[1] = "D") ? "Down" : "Up"
+                k := items[2]
+                del := (items.Length >= 3 && IsInteger(items[3])) ? Integer(items[3]) : 50
+                steps.Push({ Action: act, Key: k, Delay: del })
+            }
+        }
+        return steps
     }
 
     static ResetMappingToDefault(profile, btnId) {
@@ -138,7 +228,7 @@ class ProfileEngine {
         if (this.DefaultMappings.Has(profile) && this.DefaultMappings[profile].Has(btnId)) {
             return this.DefaultMappings[profile][btnId]
         }
-        return { Normal: { Type: "Send", Cmd: "", Label: "None" }, GShift: { Type: "Send", Cmd: "", Label: "None" } }
+        return { Normal: { Type: "Send", Cmd: "", Label: "None", PlayType: "NoRepeat", RepeatInterval: 50 }, GShift: { Type: "Send", Cmd: "", Label: "None", PlayType: "NoRepeat", RepeatInterval: 50 } }
     }
 
     static GetButtonLabel(profile, btnId) {
@@ -150,6 +240,7 @@ class ProfileEngine {
     static SetProfile(profileName) {
         for p in this.Profiles {
             if (p = profileName) {
+                this.StopAllRunningMacros()
                 this.CurrentProfile := p
                 OSD.Show("Profile: " . p, this.GetProfileDescription(p))
                 fn := this.OnProfileChanged
@@ -174,6 +265,23 @@ class ProfileEngine {
         SoundBeep(900, 80)
     }
 
+    static StopAllRunningMacros() {
+        for btnId, fn in this.ActiveHoldTimers {
+            SetTimer(fn, 0)
+        }
+        this.ActiveHoldTimers.Clear()
+
+        for btnId, fn in this.ActiveToggleTimers {
+            SetTimer(fn, 0)
+        }
+        this.ActiveToggleTimers.Clear()
+
+        for btnId, seq in this.ActiveSequences {
+            SetTimer(seq.fn, 0)
+        }
+        this.ActiveSequences.Clear()
+    }
+
     static GetProfileDescription(p) {
         switch p {
             case "Desktop": return "Tabs, Media, Snap Windows & G-Shift"
@@ -185,12 +293,58 @@ class ProfileEngine {
     }
 
     ; Dynamic execution engine
-    static ExecuteAction(btnId, isGShift) {
+    static DispatchButton(btnId, isDown) {
+        if (this.IsGShiftActive) {
+            if (isDown)
+                this.ChordTriggered := true
+            this.ExecuteButtonEvent(btnId, true, isDown)
+        } else {
+            this.ExecuteButtonEvent(btnId, false, isDown)
+        }
+    }
+
+    static ExecuteButtonEvent(btnId, isGShift, isDown) {
         mapping := this.GetButtonMapping(this.CurrentProfile, btnId)
         act := isGShift ? mapping.GShift : mapping.Normal
+        playType := act.HasOwnProp("PlayType") ? act.PlayType : "NoRepeat"
 
+        if (isDown) {
+            ; If toggle is active on this button, second press stops it!
+            if (this.ActiveToggleTimers.Has(btnId)) {
+                this.StopToggle(btnId)
+                return
+            }
+
+            switch playType {
+                case "NoRepeat", "No Repeat":
+                    this.ExecuteActionOnce(act)
+                case "RepeatWhileHolding", "Repeat While Holding":
+                    this.StartHold(btnId, act)
+                case "Toggle":
+                    this.StartToggle(btnId, act)
+                case "Sequence":
+                    this.StartSequence(btnId, act)
+                default:
+                    this.ExecuteActionOnce(act)
+            }
+        } else {
+            ; Button released!
+            if (this.ActiveHoldTimers.Has(btnId)) {
+                this.StopHold(btnId)
+            }
+            if (this.ActiveSequences.Has(btnId)) {
+                this.FinishSequence(btnId, act)
+            }
+        }
+    }
+
+    static ExecuteActionOnce(act) {
         if (act.Type = "Send" && act.Cmd != "") {
             Send(act.Cmd)
+        } else if (act.Type = "Macro") {
+            if (act.HasOwnProp("Steps") && act.Steps.Length > 0) {
+                this.PlaySteps(act.Steps)
+            }
         } else if (act.Type = "Special") {
             if (act.Cmd = "CycleProfile") {
                 this.CycleProfile()
@@ -202,35 +356,102 @@ class ProfileEngine {
         }
     }
 
+    static PlaySteps(steps) {
+        if (!IsObject(steps) || steps.Length = 0)
+            return
+        for step in steps {
+            k := step.Key
+            if (step.Action = "Down") {
+                SendEvent("{" . k . " down}")
+            } else if (step.Action = "Up") {
+                SendEvent("{" . k . " up}")
+            }
+            if (step.HasOwnProp("Delay") && step.Delay > 0) {
+                Sleep(step.Delay)
+            }
+        }
+    }
+
+    static StartHold(btnId, act) {
+        this.StopHold(btnId)
+        this.ExecuteActionOnce(act)
+        interval := (act.HasOwnProp("RepeatInterval") && act.RepeatInterval > 0) ? act.RepeatInterval : 50
+        fn := () => ProfileEngine.ExecuteActionOnce(act)
+        this.ActiveHoldTimers[btnId] := fn
+        SetTimer(fn, interval)
+    }
+
+    static StopHold(btnId) {
+        if (this.ActiveHoldTimers.Has(btnId)) {
+            fn := this.ActiveHoldTimers[btnId]
+            SetTimer(fn, 0)
+            this.ActiveHoldTimers.Delete(btnId)
+        }
+    }
+
+    static StartToggle(btnId, act) {
+        this.StopToggle(btnId)
+        this.ExecuteActionOnce(act)
+        interval := (act.HasOwnProp("RepeatInterval") && act.RepeatInterval > 0) ? act.RepeatInterval : 50
+        fn := () => ProfileEngine.ExecuteActionOnce(act)
+        this.ActiveToggleTimers[btnId] := fn
+        SetTimer(fn, interval)
+        OSD.Show("Toggle: RUNNING", act.Label)
+        SoundBeep(1200, 60)
+    }
+
+    static StopToggle(btnId) {
+        if (this.ActiveToggleTimers.Has(btnId)) {
+            fn := this.ActiveToggleTimers[btnId]
+            SetTimer(fn, 0)
+            this.ActiveToggleTimers.Delete(btnId)
+            OSD.Show("Toggle: STOPPED", "Idle")
+            SoundBeep(700, 60)
+        }
+    }
+
+    static StartSequence(btnId, act) {
+        ; 1. Play ON PRESS steps once
+        if (act.HasOwnProp("SeqPress") && act.SeqPress.Length > 0) {
+            this.PlaySteps(act.SeqPress)
+        }
+
+        ; 2. Start WHILE HOLDING loop timer
+        if (act.HasOwnProp("SeqHold") && act.SeqHold.Length > 0) {
+            fn := () => ProfileEngine.PlaySteps(act.SeqHold)
+            this.ActiveSequences[btnId] := { fn: fn, act: act }
+            interval := (act.HasOwnProp("RepeatInterval") && act.RepeatInterval > 0) ? act.RepeatInterval : 50
+            SetTimer(fn, interval)
+        }
+    }
+
+    static FinishSequence(btnId, act) {
+        ; 1. Stop WHILE HOLDING loop
+        if (this.ActiveSequences.Has(btnId)) {
+            seqObj := this.ActiveSequences[btnId]
+            SetTimer(seqObj.fn, 0)
+            this.ActiveSequences.Delete(btnId)
+        }
+
+        ; 2. Play ON RELEASE steps once
+        if (act.HasOwnProp("SeqRelease") && act.SeqRelease.Length > 0) {
+            this.PlaySteps(act.SeqRelease)
+        }
+    }
+
     ; --- Button Event Handlers (F13 - F21) ---
     ; Matches Logitech Onboard Memory Manager (OMM) physical layout
 
     ; Button 3: Middle Click (Mouse 3) -> F13
     static HandleF13_Middle(isDown) {
-        if (!isDown)
-            return
-        this.NotifyButton("Middle", true)
-
-        if (this.IsGShiftActive) {
-            this.ChordTriggered := true
-            this.ExecuteAction("Middle", true)
-        } else {
-            this.ExecuteAction("Middle", false)
-        }
+        this.NotifyButton("Middle", isDown)
+        this.DispatchButton("Middle", isDown)
     }
 
     ; Button 4: Back Button Click (Mouse 4 / G4) -> F14
     static HandleF14_Back(isDown) {
-        if (!isDown)
-            return
-        this.NotifyButton("Back", true)
-
-        if (this.IsGShiftActive) {
-            this.ChordTriggered := true
-            this.ExecuteAction("Back", true)
-        } else {
-            this.ExecuteAction("Back", false)
-        }
+        this.NotifyButton("Back", isDown)
+        this.DispatchButton("Back", isDown)
     }
 
     ; Button 5: G-Shift / Sniper Thumb Button (DPI Shift) -> F15
@@ -247,7 +468,7 @@ class ProfileEngine {
 
             ; If released quickly without triggering any chord, execute Tap action!
             if (elapsed < 280 && !this.ChordTriggered) {
-                this.ExecuteAction("DpiShift", false)
+                this.ExecuteDpiShiftTap()
             }
         }
     }
@@ -267,80 +488,39 @@ class ProfileEngine {
 
     ; Button 6: Forward Button Click (Mouse 5 / G5) -> F16
     static HandleF16_Forward(isDown) {
-        if (!isDown)
-            return
-        this.NotifyButton("Forward", true)
-
-        if (this.IsGShiftActive) {
-            this.ChordTriggered := true
-            this.ExecuteAction("Forward", true)
-        } else {
-            this.ExecuteAction("Forward", false)
-        }
+        this.NotifyButton("Forward", isDown)
+        this.DispatchButton("Forward", isDown)
     }
 
     ; Button 7: Tilt Left -> F17
     static HandleF17_TiltLeft(isDown) {
-        if (!isDown)
-            return
-        this.NotifyButton("TiltLeft", true)
-
-        if (this.IsGShiftActive) {
-            this.ChordTriggered := true
-            this.ExecuteAction("TiltLeft", true)
-        } else {
-            this.ExecuteAction("TiltLeft", false)
-        }
+        this.NotifyButton("TiltLeft", isDown)
+        this.DispatchButton("TiltLeft", isDown)
     }
 
     ; Button 8: Tilt Right -> F18
     static HandleF18_TiltRight(isDown) {
-        if (!isDown)
-            return
-        this.NotifyButton("TiltRight", true)
-
-        if (this.IsGShiftActive) {
-            this.ChordTriggered := true
-            this.ExecuteAction("TiltRight", true)
-        } else {
-            this.ExecuteAction("TiltRight", false)
-        }
+        this.NotifyButton("TiltRight", isDown)
+        this.DispatchButton("TiltRight", isDown)
     }
 
     ; Button 9: Cycle Profiles (G9) -> F19
     static HandleF19_ProfileCycle(isDown) {
-        if (!isDown)
-            return
-        this.NotifyButton("ProfileCycle", true)
-        this.ExecuteAction("ProfileCycle", false)
+        this.NotifyButton("ProfileCycle", isDown)
+        if (isDown)
+            this.ExecuteActionOnce({ Type: "Special", Cmd: "CycleProfile" })
     }
 
     ; Button 10: Next DPI (G8 / DPI Up) -> F20
     static HandleF20_G8(isDown) {
-        if (!isDown)
-            return
-        this.NotifyButton("G8", true)
-
-        if (this.IsGShiftActive) {
-            this.ChordTriggered := true
-            this.ExecuteAction("G8", true)
-        } else {
-            this.ExecuteAction("G8", false)
-        }
+        this.NotifyButton("G8", isDown)
+        this.DispatchButton("G8", isDown)
     }
 
     ; Button 11: Previous DPI (G7 / DPI Down) -> F21
     static HandleF21_G7(isDown) {
-        if (!isDown)
-            return
-        this.NotifyButton("G7", true)
-
-        if (this.IsGShiftActive) {
-            this.ChordTriggered := true
-            this.ExecuteAction("G7", true)
-        } else {
-            this.ExecuteAction("G7", false)
-        }
+        this.NotifyButton("G7", isDown)
+        this.DispatchButton("G7", isDown)
     }
 
     ; Scroll Wheel G-Shift Chording (Volume / Zoom knob)

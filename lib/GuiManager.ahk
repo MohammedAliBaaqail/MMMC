@@ -27,6 +27,42 @@ class GuiManager {
     ; Live Monitor Controls
     static MonitorCards := Map()
     static MonitorActions := Map()
+    static MonitorSubtitles := Map()
+    static ShowButtonNames := false
+    static ToggleNamesBtn := ""
+
+    ; Keystroke Recorder Modal & Macro Studio Controls
+    static RecorderGui := ""
+    static RecTargetId := ""
+    static RecTargetName := ""
+    static RecTabs := ""
+    static RecPreviewText := ""
+    static RecorderHook := ""
+    static RecCapturedCmd := ""
+    static RecCapturedLabel := ""
+    static RecActiveCombo := []
+    static RecKeysDown := Map()
+    static RecDdlSingleMode := ""
+    static RecEdtSingleInt := ""
+    static RecTxtSingleExplain := ""
+    static RecMacroHook := ""
+    static RecIsRecordingMacro := false
+    static RecDdlMacroMode := ""
+    static RecTxtMacroExplain := ""
+    static RecActivePhase := "ON PRESS"
+    static RecBtnPhasePress := ""
+    static RecBtnPhaseHold := ""
+    static RecBtnPhaseRel := ""
+    static RecChkRealDelays := ""
+    static RecEdtDefDelay := ""
+    static RecBtnRecordMacro := ""
+    static RecLvMacro := ""
+    static RecTxtMacroSummary := ""
+    static RecStepsPress := []
+    static RecStepsHold := []
+    static RecStepsRelease := []
+    static RecMacroActiveKeys := Map()
+    static RecMacroLastTime := 0
 
     ; Modal Editor Controls
     static EditorGui := ""
@@ -154,7 +190,7 @@ class GuiManager {
         g.Add("Text", "x20 y14 w700", "LOGITECH G502 X  //  INTERACTIVE STUDIO")
         
         g.SetFont("s9 norm cA6ADC8", "Segoe UI")
-        g.Add("Text", "x20 y36 w700", "Click any button on the mouse to select it, then click any action on the left to map it immediately.")
+        g.Add("Text", "x20 y36 w700", "Double-click any mouse button to record a key or combination. Use the left panel for presets and custom combos.")
 
         ; Tab Control
         g.SetFont("s10 norm cCDD6F4", "Segoe UI")
@@ -228,6 +264,11 @@ class GuiManager {
         g.SetFont("s10 bold cA6ADC8", "Segoe UI")
         this.RapidFireStatusText := g.Add("Text", "ys+2 x+6 w70", "OFF")
 
+        ; Toggle switch on the top right to show / hide hardware button names
+        g.SetFont("s9 bold c89B4FA", "Segoe UI")
+        this.ToggleNamesBtn := g.Add("Button", "x940 y90 w170 h28", "Show Button Names: OFF")
+        this.ToggleNamesBtn.OnEvent("Click", (*) => this.ToggleNameVisibility())
+
         ; Precision Diagram (Mouse and leader lines)
         if FileExist(diagramPath) {
             g.Add("Picture", "x280 y140 w820 h490 +BackgroundTrans", diagramPath)
@@ -247,25 +288,30 @@ class GuiManager {
         ]
 
         for b in callouts {
+            actionText := ProfileEngine.GetButtonLabel(ProfileEngine.CurrentProfile, b.id)
+
+            ; Top framed box: Action / Command Name
             g.SetFont("s9 bold cCDD6F4", "Segoe UI")
-            card := g.Add("Text", "x" . b.x . " y" . b.y . " w145 h22 0x200 Background1E1E2E Center +Border", b.name)
+            card := g.Add("Text", "x" . b.x . " y" . b.y . " w145 h22 0x200 Background1E1E2E Center +Border", actionText)
             card.ButtonId := b.id
             card.ButtonName := b.name
             card.OnEvent("Click", (ctrl, *) => this.SelectButton(ctrl.ButtonId, ctrl.ButtonName))
-            card.OnEvent("DoubleClick", (ctrl, *) => this.OpenMappingEditor(ctrl.ButtonId, ctrl.ButtonName))
-            card.OnEvent("ContextMenu", (ctrl, *) => this.OpenMappingEditor(ctrl.ButtonId, ctrl.ButtonName))
+            card.OnEvent("DoubleClick", (ctrl, *) => this.StartKeystrokeRecording(ctrl.ButtonId, ctrl.ButtonName))
+            card.OnEvent("ContextMenu", (ctrl, *) => this.StartKeystrokeRecording(ctrl.ButtonId, ctrl.ButtonName))
 
+            ; Bottom subtitle: Hardware Button Identifier & F-Key (Hidden by default)
             g.SetFont("s8 italic c89B4FA", "Segoe UI")
-            actionText := ProfileEngine.GetButtonLabel(ProfileEngine.CurrentProfile, b.id)
-            actionCtrl := g.Add("Text", "x" . b.x . " y" . (b.y+22) . " w145 h18 Center Background1E1E2E", actionText)
-            actionCtrl.ButtonId := b.id
-            actionCtrl.ButtonName := b.name
-            actionCtrl.OnEvent("Click", (ctrl, *) => this.SelectButton(ctrl.ButtonId, ctrl.ButtonName))
-            actionCtrl.OnEvent("DoubleClick", (ctrl, *) => this.OpenMappingEditor(ctrl.ButtonId, ctrl.ButtonName))
-            actionCtrl.OnEvent("ContextMenu", (ctrl, *) => this.OpenMappingEditor(ctrl.ButtonId, ctrl.ButtonName))
+            btnSub := g.Add("Text", "x" . b.x . " y" . (b.y+22) . " w145 h18 Center Background1E1E2E", b.name)
+            btnSub.ButtonId := b.id
+            btnSub.ButtonName := b.name
+            btnSub.Visible := this.ShowButtonNames
+            btnSub.OnEvent("Click", (ctrl, *) => this.SelectButton(ctrl.ButtonId, ctrl.ButtonName))
+            btnSub.OnEvent("DoubleClick", (ctrl, *) => this.StartKeystrokeRecording(ctrl.ButtonId, ctrl.ButtonName))
+            btnSub.OnEvent("ContextMenu", (ctrl, *) => this.StartKeystrokeRecording(ctrl.ButtonId, ctrl.ButtonName))
 
             this.MonitorCards[b.id] := card
-            this.MonitorActions[b.id] := actionCtrl
+            this.MonitorActions[b.id] := card
+            this.MonitorSubtitles[b.id] := btnSub
         }
 
         ; G-Shift Quick Guide Box (Right Column)
@@ -389,6 +435,22 @@ class GuiManager {
         g.Show("w1145 h748")
     }
 
+    static ToggleNameVisibility() {
+        this.ShowButtonNames := !this.ShowButtonNames
+
+        for btnId, subCtrl in this.MonitorSubtitles {
+            subCtrl.Visible := this.ShowButtonNames
+        }
+
+        if (this.ToggleNamesBtn != "") {
+            if (this.ShowButtonNames) {
+                this.ToggleNamesBtn.Text := "Show Button Names: ON"
+            } else {
+                this.ToggleNamesBtn.Text := "Show Button Names: OFF"
+            }
+        }
+    }
+
     ; ========================================================
     ; SELECTION & SIDEBAR LOGIC
     ; ========================================================
@@ -500,7 +562,741 @@ class GuiManager {
     }
 
     ; ========================================================
-    ; MODAL COMMAND & COMBINATION BUILDER (Double-Click / Button)
+    ; MODAL KEYSTROKE & COMBINATION RECORDER (Double-Click)
+    ; ========================================================
+    ; ========================================================
+    ; BUTTON STUDIO MODAL (Single / Combo & G-HUB Macro Recorder)
+    ; ========================================================
+    static StartKeystrokeRecording(btnId, btnDisplayName) {
+        ; Stop any ongoing recorder or editor
+        this.StopKeystrokeRecording(false)
+        if (this.EditorGui != "") {
+            this.EditorGui.Destroy()
+            this.EditorGui := ""
+        }
+
+        this.RecTargetId := btnId
+        this.RecTargetName := btnDisplayName
+        this.RecIsRecordingMacro := false
+        this.RecActivePhase := "ON PRESS"
+        this.RecMacroActiveKeys.Clear()
+        this.RecMacroLastTime := 0
+
+        currMap := ProfileEngine.GetButtonMapping(ProfileEngine.CurrentProfile, btnId)
+        norm := currMap.Normal
+
+        ; Create Studio modal window
+        rg := Gui("+AlwaysOnTop -MaximizeBox +Owner" . this.MainGui.Hwnd, "Button Studio — " . btnDisplayName)
+        rg.BackColor := "181825"
+        rg.MarginX := 20
+        rg.MarginY := 18
+        this.RecorderGui := rg
+
+        ; Header
+        rg.SetFont("s11 bold c89B4FA", "Segoe UI")
+        rg.Add("Text", "x25 y15 w590 Center", "LOGITECH G502 X — BUTTON STUDIO")
+
+        rg.SetFont("s9 bold cCDD6F4", "Segoe UI")
+        rg.Add("Text", "x25 y38 w590 Center", "Target: " . btnDisplayName . "  •  Profile: " . ProfileEngine.CurrentProfile)
+
+        ; Dual Mode Tabs
+        rg.SetFont("s9 bold cCDD6F4", "Segoe UI")
+        tabs := rg.Add("Tab3", "x25 y62 w590 h445 Choose1 -Theme", ["  ⌨  Single / Keystroke Combination  ", "  🗂  Macro Recorder (G-HUB Style)  "])
+        this.RecTabs := tabs
+
+        ; ========================================================
+        ; TAB 1: SINGLE / COMBINATION OF BUTTONS
+        ; ========================================================
+        tabs.UseTab(1)
+
+        rg.SetFont("s9 bold cCDD6F4", "Segoe UI")
+        rg.Add("Text", "x45 y105 w240", "Playback Mode (How button is pressed):")
+        this.RecDdlSingleMode := rg.Add("DropDownList", "x45 y125 w250 Choose1", ["No Repeat", "Repeat While Holding", "Toggle", "Sequence"])
+        
+        lblSingleInt := rg.Add("Text", "x315 y105 w150 cCDD6F4", "Repeat Delay (ms):")
+        this.RecEdtSingleInt := rg.Add("Edit", "x315 y125 w90 Number", "50")
+
+        rg.SetFont("s8 italic cA6ADC8", "Segoe UI")
+        this.RecTxtSingleExplain := rg.Add("Text", "x45 y160 w550", "• Executes the keystroke once when the mouse button is pressed.")
+
+        ; Live keystroke preview box
+        rg.SetFont("s13 bold c89B4FA", "Segoe UI")
+        this.RecPreviewText := rg.Add("Text", "x45 y188 w550 h54 0x200 Center Background11111B +Border", "[ Press Any Key or Combination ]")
+
+        rg.SetFont("s8 norm cA6ADC8", "Segoe UI")
+        rg.Add("Text", "x45 y252 w550 Center", "Press any key or combination (e.g. Q, Enter, Q + H, Ctrl + C, Shift + G + Enter).")
+
+        rg.SetFont("s9 bold cCDD6F4", "Segoe UI")
+        btnSingleReRecord := rg.Add("Button", "x180 y280 w130 h30", "🔄 Re-record Key")
+        btnSingleClear    := rg.Add("Button", "x330 y280 w130 h30", "🗑 Clear Key")
+
+        btnSingleReRecord.OnEvent("Click", (*) => this.ClearSingleKey())
+        btnSingleClear.OnEvent("Click", (*) => this.ClearSingleKey())
+        this.RecDdlSingleMode.OnEvent("Change", (*) => this.UpdateSingleModeExplain())
+
+        ; ========================================================
+        ; TAB 2: G-HUB MACRO RECORDER
+        ; ========================================================
+        tabs.UseTab(2)
+
+        rg.SetFont("s9 bold cCDD6F4", "Segoe UI")
+        rg.Add("Text", "x45 y105 w240", "Macro Type (Playback Mode):")
+        this.RecDdlMacroMode := rg.Add("DropDownList", "x45 y125 w250 Choose1", ["No Repeat", "Repeat While Holding", "Toggle", "Sequence"])
+
+        rg.SetFont("s8 italic cA6ADC8", "Segoe UI")
+        this.RecTxtMacroExplain := rg.Add("Text", "x45 y158 w550", "• Standard macro. Plays the recorded sequence once.")
+
+        ; Sequence Target Phase Selector
+        rg.SetFont("s9 bold cFAB387", "Segoe UI")
+        rg.Add("Text", "x45 y182 w110", "Target Section:")
+        this.RecBtnPhasePress   := rg.Add("Button", "x160 y178 w125 h26", "ON PRESS")
+        this.RecBtnPhaseHold    := rg.Add("Button", "x295 y178 w140 h26", "WHILE HOLDING")
+        this.RecBtnPhaseRel     := rg.Add("Button", "x445 y178 w140 h26", "ON RELEASE")
+
+        this.RecBtnPhasePress.OnEvent("Click", (*) => this.SetMacroPhase("ON PRESS"))
+        this.RecBtnPhaseHold.OnEvent("Click", (*) => this.SetMacroPhase("WHILE HOLDING"))
+        this.RecBtnPhaseRel.OnEvent("Click", (*) => this.SetMacroPhase("ON RELEASE"))
+
+        ; Timing options
+        rg.SetFont("s9 norm cCDD6F4", "Segoe UI")
+        this.RecChkRealDelays := rg.Add("Checkbox", "x45 y213 w280", "Record delays from user input (real-time ms)")
+        rg.Add("Text", "x340 y214 w145 cA6ADC8", "Default delay (ms):")
+        this.RecEdtDefDelay := rg.Add("Edit", "x490 y211 w85 Number", "50")
+
+        ; Recording and macro action buttons
+        rg.SetFont("s9 bold cCDD6F4", "Segoe UI")
+        this.RecBtnRecordMacro := rg.Add("Button", "x45 y244 w145 h32", "● Start Recording")
+        btnClearSec   := rg.Add("Button", "x200 y244 w125 h32", "🗑 Clear Section")
+        btnClearAll   := rg.Add("Button", "x335 y244 w115 h32", "🗑 Clear All")
+        btnTestMacro  := rg.Add("Button", "x460 y244 w125 h32", "▶ Test Playback")
+
+        this.RecBtnRecordMacro.OnEvent("Click", (*) => this.ToggleMacroRecording())
+        btnClearSec.OnEvent("Click", (*) => this.ClearMacroSection())
+        btnClearAll.OnEvent("Click", (*) => this.ClearAllMacroSteps())
+        btnTestMacro.OnEvent("Click", (*) => this.TestMacroPlayback())
+        this.RecDdlMacroMode.OnEvent("Change", (*) => this.UpdateMacroModeExplain())
+
+        ; Recorded steps ListView
+        rg.SetFont("s9 norm cCDD6F4", "Segoe UI")
+        this.RecLvMacro := rg.Add("ListView", "x45 y284 w550 h180 Background11111B cCDD6F4 +Grid -Multi", ["#", "Section", "Event", "Key", "Delay (ms)"])
+        this.RecLvMacro.ModifyCol(1, 40)
+        this.RecLvMacro.ModifyCol(2, 120)
+        this.RecLvMacro.ModifyCol(3, 110)
+        this.RecLvMacro.ModifyCol(4, 150)
+        this.RecLvMacro.ModifyCol(5, 110)
+
+        ; Macro summary line
+        rg.SetFont("s9 bold cA6E3A1", "Segoe UI")
+        this.RecTxtMacroSummary := rg.Add("Text", "x45 y472 w550 h20", "Total Steps: 0  |  Press: 0  |  Hold: 0  |  Release: 0")
+
+        ; ========================================================
+        ; BOTTOM ACTION BAR (Universal Save & Cancel)
+        ; ========================================================
+        tabs.UseTab()
+
+        rg.SetFont("s10 bold c11111B", "Segoe UI")
+        btnSave := rg.Add("Button", "x160 y518 w190 h36", "✔ Save & Apply")
+        rg.SetFont("s10 bold cCDD6F4", "Segoe UI")
+        btnCancel := rg.Add("Button", "x370 y518 w130 h36", "Cancel (Esc)")
+
+        btnSave.OnEvent("Click", (*) => this.SaveStudioMapping())
+        btnCancel.OnEvent("Click", (*) => this.StopKeystrokeRecording(false))
+        rg.OnEvent("Close", (*) => this.StopKeystrokeRecording(false))
+
+        tabs.OnEvent("Change", (ctl, *) => this.OnStudioTabChanged(ctl.Value))
+
+        ; ========================================================
+        ; PRE-POPULATE DATA FROM CURRENT MAPPING
+        ; ========================================================
+        this.RecStepsPress := []
+        this.RecStepsHold := []
+        this.RecStepsRelease := []
+        this.RecCapturedCmd := ""
+        this.RecCapturedLabel := ""
+
+        if (norm.Type = "Macro") {
+            tabs.Value := 2
+            this.RecDdlMacroMode.Choose(this.PlayTypeToIndex(norm.HasOwnProp("PlayType") ? norm.PlayType : "NoRepeat"))
+            this.RecEdtDefDelay.Value := String(norm.HasOwnProp("RepeatInterval") ? norm.RepeatInterval : 50)
+            if (norm.HasOwnProp("SeqPress") && norm.SeqPress.Length > 0)
+                this.RecStepsPress := norm.SeqPress.Clone()
+            else if (norm.HasOwnProp("Steps") && norm.Steps.Length > 0)
+                this.RecStepsPress := norm.Steps.Clone()
+            if (norm.HasOwnProp("SeqHold") && norm.SeqHold.Length > 0)
+                this.RecStepsHold := norm.SeqHold.Clone()
+            if (norm.HasOwnProp("SeqRelease") && norm.SeqRelease.Length > 0)
+                this.RecStepsRelease := norm.SeqRelease.Clone()
+
+            this.RefreshMacroListView()
+            this.UpdateMacroModeExplain()
+        } else {
+            tabs.Value := 1
+            if (norm.Cmd != "") {
+                this.RecCapturedCmd := norm.Cmd
+                this.RecCapturedLabel := norm.Label
+                this.RecPreviewText.SetFont("c" . "A6E3A1")
+                this.RecPreviewText.Value := "✔  " . norm.Label
+            }
+            this.RecDdlSingleMode.Choose(this.PlayTypeToIndex(norm.HasOwnProp("PlayType") ? norm.PlayType : "NoRepeat"))
+            this.RecEdtSingleInt.Value := String(norm.HasOwnProp("RepeatInterval") ? norm.RepeatInterval : 50)
+            this.UpdateSingleModeExplain()
+            this.StartSingleKeyListening()
+        }
+
+        rg.Show("w640 h570")
+        try this.RecPreviewText.Focus()
+    }
+
+    static PlayTypeToIndex(pt) {
+        switch pt {
+            case "NoRepeat", "No Repeat": return 1
+            case "RepeatWhileHolding", "Repeat While Holding": return 2
+            case "Toggle": return 3
+            case "Sequence": return 4
+            default: return 1
+        }
+    }
+
+    static DisplayToPlayType(disp) {
+        switch disp {
+            case "No Repeat": return "NoRepeat"
+            case "Repeat While Holding": return "RepeatWhileHolding"
+            case "Toggle": return "Toggle"
+            case "Sequence": return "Sequence"
+            default: return "NoRepeat"
+        }
+    }
+
+    static OnStudioTabChanged(tabIndex) {
+        if (tabIndex = 1) {
+            this.StopMacroRecordingHook()
+            this.StartSingleKeyListening()
+        } else {
+            this.StopSingleKeyListening()
+        }
+    }
+
+    static UpdateSingleModeExplain() {
+        if (this.RecDdlSingleMode = "" || this.RecTxtSingleExplain = "" || this.RecorderGui = "" || !WinExist(this.RecorderGui.Hwnd))
+            return
+        try {
+            switch this.RecDdlSingleMode.Text {
+                case "No Repeat":
+                    this.RecTxtSingleExplain.Value := "• Executes once when the mouse button is pressed."
+                case "Repeat While Holding":
+                    this.RecTxtSingleExplain.Value := "• Repeats the keystroke continuously while the mouse button is held down."
+                case "Toggle":
+                    this.RecTxtSingleExplain.Value := "• Press once to start continuous repeating; press again to stop."
+                case "Sequence":
+                    this.RecTxtSingleExplain.Value := "• Standard sequence playback on mouse button press."
+            }
+        }
+    }
+
+    static UpdateMacroModeExplain() {
+        if (this.RecDdlMacroMode = "" || this.RecTxtMacroExplain = "" || this.RecorderGui = "" || !WinExist(this.RecorderGui.Hwnd))
+            return
+        try {
+            m := this.RecDdlMacroMode.Text
+            switch m {
+                case "No Repeat":
+                    this.RecTxtMacroExplain.Value := "• Standard macro. Plays the recorded sequence once."
+                case "Repeat While Holding":
+                    this.RecTxtMacroExplain.Value := "• Repeats the sequence continuously while mouse button is held down."
+                case "Toggle":
+                    this.RecTxtMacroExplain.Value := "• Press mouse button to start looping; press again to stop."
+                case "Sequence":
+                    this.RecTxtMacroExplain.Value := "• Executes 'On Press' once, loops 'While Holding' while held, executes 'On Release' on release."
+            }
+        }
+    }
+
+    static SetMacroPhase(phaseName) {
+        this.RecActivePhase := phaseName
+        OSD.Show("Macro Target Section", phaseName)
+        SoundBeep(850, 50)
+    }
+
+    static ClearSingleKey() {
+        this.RecCapturedCmd := ""
+        this.RecCapturedLabel := ""
+        this.RecActiveCombo := []
+        this.RecKeysDown.Clear()
+        if (this.RecPreviewText != "") {
+            this.RecPreviewText.SetFont("c" . "89B4FA")
+            this.RecPreviewText.Value := "[ Press Any Key or Combination ]"
+        }
+        this.StartSingleKeyListening()
+    }
+
+    static StartSingleKeyListening() {
+        if (this.RecorderHook != "") {
+            try this.RecorderHook.Stop()
+            this.RecorderHook := ""
+        }
+
+        this.RecActiveCombo := []
+        this.RecKeysDown.Clear()
+
+        ih := InputHook("V I0")
+        ih.KeyOpt("{All}", "N")
+        this.RecorderHook := ih
+
+        ih.OnKeyDown := (hook, vk, sc) => this.OnSingleKeyDown(vk, sc)
+        ih.OnKeyUp   := (hook, vk, sc) => this.OnSingleKeyUp(vk, sc)
+        ih.Start()
+    }
+
+    static StopSingleKeyListening() {
+        if (this.RecorderHook != "") {
+            try this.RecorderHook.Stop()
+            this.RecorderHook := ""
+        }
+        this.RecActiveCombo := []
+        this.RecKeysDown.Clear()
+    }
+
+    static NormalizeKeyName(vk, sc) {
+        kName := GetKeyName(Format("vk{:02x}sc{:03x}", vk, sc))
+        if (kName = "")
+            return ""
+
+        switch kName {
+            case "Control", "Ctrl", "LCtrl", "RCtrl": return "Ctrl"
+            case "Shift", "LShift", "RShift":         return "Shift"
+            case "Alt", "LAlt", "RAlt":               return "Alt"
+            case "LWin", "RWin":                     return "Win"
+        }
+
+        if (StrLen(kName) = 1)
+            return StrUpper(kName)
+
+        return kName
+    }
+
+    static OnSingleKeyDown(vk, sc) {
+        if (this.RecorderGui = "" || !WinExist(this.RecorderGui.Hwnd))
+            return
+
+        kName := this.NormalizeKeyName(vk, sc)
+        if (kName = "")
+            return
+
+        ; When all previous keys were released, start a fresh chord
+        if (this.RecKeysDown.Count = 0) {
+            this.RecActiveCombo := []
+        }
+
+        if (!this.RecKeysDown.Has(kName)) {
+            this.RecKeysDown[kName] := true
+            this.RecActiveCombo.Push(kName)
+        }
+
+        ; Live preview while holding down keys
+        if (this.RecPreviewText != "" && this.RecActiveCombo.Length > 0) {
+            liveTxt := ""
+            for i, k in this.RecActiveCombo {
+                liveTxt .= (i = 1 ? "" : " + ") . k
+            }
+            this.RecPreviewText.SetFont("c" . "89B4FA")
+            this.RecPreviewText.Value := liveTxt . " ..."
+        }
+    }
+
+    static OnSingleKeyUp(vk, sc) {
+        if (this.RecorderGui = "" || !WinExist(this.RecorderGui.Hwnd))
+            return
+
+        kName := this.NormalizeKeyName(vk, sc)
+        if (this.RecKeysDown.Has(kName)) {
+            this.RecKeysDown.Delete(kName)
+        }
+
+        ; When all keys in the chord are released, finalize the combination
+        if (this.RecKeysDown.Count = 0 && this.RecActiveCombo.Length > 0) {
+            res := this.FormatCombination(this.RecActiveCombo)
+            this.RecCapturedCmd := res.Cmd
+            this.RecCapturedLabel := res.Label
+
+            if (this.RecPreviewText != "") {
+                this.RecPreviewText.SetFont("c" . "A6E3A1")
+                this.RecPreviewText.Value := "✔  " . res.Label
+            }
+            SoundBeep(1100, 70)
+        }
+    }
+
+    static FormatCombination(comboList) {
+        if (!IsObject(comboList) || comboList.Length = 0)
+            return { Cmd: "", Label: "" }
+
+        label := ""
+        for i, k in comboList {
+            label .= (i = 1 ? "" : " + ") . k
+        }
+
+        if (comboList.Length = 1) {
+            k := comboList[1]
+            cmd := (StrLen(k) = 1) ? StrLower(k) : "{" . k . "}"
+            return { Cmd: cmd, Label: label }
+        }
+
+        isStandardModCombo := true
+        lastIdx := comboList.Length
+        for i, k in comboList {
+            if (i < lastIdx) {
+                if (k != "Ctrl" && k != "Shift" && k != "Alt" && k != "Win") {
+                    isStandardModCombo := false
+                    break
+                }
+            }
+        }
+
+        if (isStandardModCombo) {
+            prefix := ""
+            for i, k in comboList {
+                if (i < lastIdx) {
+                    switch k {
+                        case "Ctrl":  prefix .= "^"
+                        case "Shift": prefix .= "+"
+                        case "Alt":   prefix .= "!"
+                        case "Win":   prefix .= "#"
+                    }
+                }
+            }
+            lastK := comboList[lastIdx]
+            keyPart := (StrLen(lastK) = 1) ? StrLower(lastK) : "{" . lastK . "}"
+            return { Cmd: prefix . keyPart, Label: label }
+        }
+
+        downSeq := ""
+        upSeq := ""
+        for k in comboList {
+            kPart := (StrLen(k) = 1) ? StrLower(k) : k
+            downSeq .= "{" . kPart . " down}"
+        }
+        idx := comboList.Length
+        while (idx >= 1) {
+            k := comboList[idx]
+            kPart := (StrLen(k) = 1) ? StrLower(k) : k
+            upSeq .= "{" . kPart . " up}"
+            idx--
+        }
+        return { Cmd: downSeq . upSeq, Label: label }
+    }
+
+    ; ========================================================
+    ; TAB 2 MACRO RECORDER LOGIC
+    ; ========================================================
+    static ToggleMacroRecording() {
+        if (this.RecIsRecordingMacro) {
+            ; Stop Recording
+            this.StopMacroRecordingHook()
+            this.RecBtnRecordMacro.Text := "● Start Recording"
+            this.RecIsRecordingMacro := false
+            OSD.Show("Recording Stopped", "Macro captured successfully")
+            SoundBeep(800, 80)
+        } else {
+            ; Start Recording
+            this.StopSingleKeyListening()
+            this.RecIsRecordingMacro := true
+            this.RecBtnRecordMacro.Text := "■ Stop Recording"
+            this.RecMacroActiveKeys.Clear()
+            this.RecMacroLastTime := A_TickCount
+
+            ih := InputHook("V")
+            ih.KeyOpt("{All}", "N")
+            ih.OnKeyDown := (hook, vk, sc) => this.OnMacroKeyDown(vk, sc)
+            this.RecMacroHook := ih
+            ih.Start()
+
+            OSD.Show("Recording Macro (" . this.RecActivePhase . ")", "Press keys on keyboard. Click Stop when done.")
+            SoundBeep(1200, 100)
+        }
+    }
+
+    static StopMacroRecordingHook() {
+        if (this.RecMacroHook != "") {
+            try this.RecMacroHook.Stop()
+            this.RecMacroHook := ""
+        }
+        ; Resolve any still-held down keys if GUI is alive
+        if (this.RecorderGui != "" && WinExist(this.RecorderGui.Hwnd)) {
+            for kName, tDown in this.RecMacroActiveKeys {
+                del := 50
+                try {
+                    if (this.RecEdtDefDelay != "")
+                        del := Integer(this.RecEdtDefDelay.Value)
+                }
+                this.AddMacroStep(this.RecActivePhase, "Up", kName, del)
+            }
+            try {
+                if (this.RecBtnRecordMacro != "")
+                    this.RecBtnRecordMacro.Text := "● Start Recording"
+            }
+        }
+        this.RecMacroActiveKeys.Clear()
+        this.RecIsRecordingMacro := false
+    }
+
+    static OnMacroKeyDown(vk, sc) {
+        if (!this.RecIsRecordingMacro || this.RecorderGui = "" || !WinExist(this.RecorderGui.Hwnd))
+            return
+
+        kName := GetKeyName(Format("vk{:02x}sc{:03x}", vk, sc))
+        if (kName = "")
+            return
+
+        if (kName = "Escape") {
+            this.ToggleMacroRecording()
+            return
+        }
+
+        if (this.RecMacroActiveKeys.Has(kName))
+            return ; Ignore auto-repeat keydown
+
+        tNow := A_TickCount
+        del := (this.RecChkRealDelays.Value && this.RecMacroLastTime > 0) ? Max(10, tNow - this.RecMacroLastTime) : Integer(this.RecEdtDefDelay.Value)
+        this.RecMacroLastTime := tNow
+        this.RecMacroActiveKeys[kName] := tNow
+
+        this.AddMacroStep(this.RecActivePhase, "Down", kName, del)
+
+        fn := () => this.CheckMacroKeyRelease(kName, fn)
+        SetTimer(fn, 15)
+    }
+
+    static CheckMacroKeyRelease(kName, fn) {
+        if (!this.RecMacroActiveKeys.Has(kName)) {
+            SetTimer(fn, 0)
+            return
+        }
+
+        if (!GetKeyState(kName, "P")) {
+            tNow := A_TickCount
+            tDown := this.RecMacroActiveKeys[kName]
+            del := this.RecChkRealDelays.Value ? Max(10, tNow - tDown) : Integer(this.RecEdtDefDelay.Value)
+            this.RecMacroLastTime := tNow
+            this.RecMacroActiveKeys.Delete(kName)
+            SetTimer(fn, 0)
+
+            this.AddMacroStep(this.RecActivePhase, "Up", kName, del)
+        }
+    }
+
+    static AddMacroStep(phase, action, key, delay) {
+        stepObj := { Action: action, Key: key, Delay: delay }
+        switch phase {
+            case "ON PRESS":      this.RecStepsPress.Push(stepObj)
+            case "WHILE HOLDING": this.RecStepsHold.Push(stepObj)
+            case "ON RELEASE":    this.RecStepsRelease.Push(stepObj)
+        }
+
+        if (this.RecLvMacro != "" && this.RecorderGui != "" && WinExist(this.RecorderGui.Hwnd)) {
+            try {
+                row := this.RecLvMacro.GetCount() + 1
+                actionLbl := (action = "Down") ? "Key Down ▼" : "Key Up ▲"
+                this.RecLvMacro.Add("", row, phase, actionLbl, key, delay)
+                this.RecLvMacro.Modify(row, "Vis")
+            }
+        }
+
+        this.UpdateMacroSummary()
+    }
+
+    static RefreshMacroListView() {
+        if (this.RecLvMacro = "" || this.RecorderGui = "" || !WinExist(this.RecorderGui.Hwnd))
+            return
+        try {
+            this.RecLvMacro.Delete()
+            row := 1
+
+            for s in this.RecStepsPress {
+                this.RecLvMacro.Add("", row++, "ON PRESS", (s.Action = "Down" ? "Key Down ▼" : "Key Up ▲"), s.Key, s.Delay)
+            }
+            for s in this.RecStepsHold {
+                this.RecLvMacro.Add("", row++, "WHILE HOLDING", (s.Action = "Down" ? "Key Down ▼" : "Key Up ▲"), s.Key, s.Delay)
+            }
+            for s in this.RecStepsRelease {
+                this.RecLvMacro.Add("", row++, "ON RELEASE", (s.Action = "Down" ? "Key Down ▼" : "Key Up ▲"), s.Key, s.Delay)
+            }
+        }
+
+        this.UpdateMacroSummary()
+    }
+
+    static UpdateMacroSummary() {
+        if (this.RecTxtMacroSummary = "" || this.RecorderGui = "" || !WinExist(this.RecorderGui.Hwnd))
+            return
+        tot := this.RecStepsPress.Length + this.RecStepsHold.Length + this.RecStepsRelease.Length
+        try {
+            this.RecTxtMacroSummary.Value := "Total Steps: " . tot . "  |  Press: " . this.RecStepsPress.Length . "  |  Hold: " . this.RecStepsHold.Length . "  |  Release: " . this.RecStepsRelease.Length
+        }
+    }
+
+    static ClearMacroSection() {
+        switch this.RecActivePhase {
+            case "ON PRESS":      this.RecStepsPress := []
+            case "WHILE HOLDING": this.RecStepsHold := []
+            case "ON RELEASE":    this.RecStepsRelease := []
+        }
+        this.RefreshMacroListView()
+        OSD.Show("Cleared Section", this.RecActivePhase)
+        SoundBeep(650, 70)
+    }
+
+    static ClearAllMacroSteps() {
+        this.RecStepsPress := []
+        this.RecStepsHold := []
+        this.RecStepsRelease := []
+        this.RefreshMacroListView()
+        OSD.Show("Cleared All", "All macro phases emptied")
+        SoundBeep(600, 70)
+    }
+
+    static TestMacroPlayback() {
+        stepsToPlay := []
+        if (this.RecActivePhase = "ON PRESS" && this.RecStepsPress.Length > 0)
+            stepsToPlay := this.RecStepsPress
+        else if (this.RecActivePhase = "WHILE HOLDING" && this.RecStepsHold.Length > 0)
+            stepsToPlay := this.RecStepsHold
+        else if (this.RecActivePhase = "ON RELEASE" && this.RecStepsRelease.Length > 0)
+            stepsToPlay := this.RecStepsRelease
+        else if (this.RecStepsPress.Length > 0)
+            stepsToPlay := this.RecStepsPress
+
+        if (stepsToPlay.Length = 0) {
+            OSD.Show("Nothing to Play", "Record macro steps first")
+            return
+        }
+
+        OSD.Show("Testing Macro...", "Playing " . stepsToPlay.Length . " steps")
+        ProfileEngine.PlaySteps(stepsToPlay)
+        OSD.Show("Playback Finished", "Macro test complete")
+    }
+
+    ; ========================================================
+    ; UNIVERSAL SAVE AND CLOSE
+    ; ========================================================
+    static SaveStudioMapping() {
+        btnId := this.RecTargetId
+        currentProf := ProfileEngine.CurrentProfile
+        currMap := ProfileEngine.GetButtonMapping(currentProf, btnId)
+
+        activeTab := this.RecTabs.Value
+
+        if (activeTab = 1) {
+            ; Save Single / Combination
+            if (this.RecCapturedCmd = "") {
+                OSD.Show("No Key Recorded", "Please press a key or combo first")
+                return
+            }
+            playType := this.DisplayToPlayType(this.RecDdlSingleMode.Text)
+            intVal := IsInteger(this.RecEdtSingleInt.Value) ? Integer(this.RecEdtSingleInt.Value) : 50
+            normalObj := {
+                Type: "Send",
+                Cmd: this.RecCapturedCmd,
+                Label: this.RecCapturedLabel,
+                PlayType: playType,
+                RepeatInterval: intVal
+            }
+            ProfileEngine.SaveMapping(currentProf, btnId, normalObj, currMap.GShift)
+            label := normalObj.Label
+        } else {
+            ; Save Macro Recorder
+            playType := this.DisplayToPlayType(this.RecDdlMacroMode.Text)
+            defDelay := IsInteger(this.RecEdtDefDelay.Value) ? Integer(this.RecEdtDefDelay.Value) : 50
+
+            if (playType = "Sequence") {
+                tot := this.RecStepsPress.Length + this.RecStepsHold.Length + this.RecStepsRelease.Length
+                if (tot = 0) {
+                    OSD.Show("No Steps Recorded", "Record at least one key event")
+                    return
+                }
+                label := "Seq Macro (" . tot . " steps)"
+                normalObj := {
+                    Type: "Macro",
+                    Cmd: "Sequence",
+                    Label: label,
+                    PlayType: "Sequence",
+                    RepeatInterval: defDelay,
+                    SeqPress: this.RecStepsPress,
+                    SeqHold: this.RecStepsHold,
+                    SeqRelease: this.RecStepsRelease,
+                    Steps: this.RecStepsPress
+                }
+            } else {
+                if (this.RecStepsPress.Length = 0) {
+                    OSD.Show("No Steps Recorded", "Record at least one key event in ON PRESS")
+                    return
+                }
+                label := "Macro: " . playType . " (" . this.RecStepsPress.Length . " steps)"
+                normalObj := {
+                    Type: "Macro",
+                    Cmd: "Macro",
+                    Label: label,
+                    PlayType: playType,
+                    RepeatInterval: defDelay,
+                    Steps: this.RecStepsPress
+                }
+            }
+            ProfileEngine.SaveMapping(currentProf, btnId, normalObj, currMap.GShift)
+        }
+
+        ; Update badge and sidebar
+        if (this.MonitorActions.Has(btnId)) {
+            this.MonitorActions[btnId].Value := label
+        }
+        if (this.CurrentActionText != "") {
+            this.CurrentActionText.Value := "Action: " . label
+        }
+
+        OSD.Show("Mapping Saved", this.RecTargetName . " -> " . label)
+        SoundBeep(1200, 100)
+        this.StopKeystrokeRecording(true)
+    }
+
+    static StopKeystrokeRecording(wasMapped := false) {
+        this.StopSingleKeyListening()
+        this.StopMacroRecordingHook()
+
+        if (this.RecorderGui != "") {
+            try {
+                this.RecorderGui.Destroy()
+            }
+            this.RecorderGui := ""
+        }
+
+        ; Null out all control references to avoid "control is destroyed" errors
+        this.RecTabs := ""
+        this.RecPreviewText := ""
+        this.RecDdlSingleMode := ""
+        this.RecEdtSingleInt := ""
+        this.RecTxtSingleExplain := ""
+        this.RecDdlMacroMode := ""
+        this.RecTxtMacroExplain := ""
+        this.RecBtnPhasePress := ""
+        this.RecBtnPhaseHold := ""
+        this.RecBtnPhaseRel := ""
+        this.RecChkRealDelays := ""
+        this.RecEdtDefDelay := ""
+        this.RecBtnRecordMacro := ""
+        this.RecLvMacro := ""
+        this.RecTxtMacroSummary := ""
+
+        if (!wasMapped && this.RecTargetName != "") {
+            OSD.Show("Studio Closed", "No changes applied")
+        }
+        this.RecTargetId := ""
+        this.RecTargetName := ""
+    }
+
+    static IsRecording() {
+        return (this.RecorderGui != "" && WinExist(this.RecorderGui.Hwnd))
+    }
+
+    ; ========================================================
+    ; MODAL COMMAND & COMBINATION BUILDER (Left Sidebar Button)
     ; ========================================================
     static OpenMappingEditor(btnId, btnDisplayName) {
         if (this.EditorGui != "") {

@@ -86,13 +86,17 @@ SaveAndExit() {
 ; ========================================================
 ; HARDWARE INTERCEPT HOTKEYS (F13 - F21)
 ; Synchronized 1:1 with Logitech Onboard Memory Manager
+; Active whenever keystroke recording modal is NOT open
 ; ========================================================
+#HotIf !GuiManager.IsRecording()
 
 ; Button 3: Middle Click (Mouse 3) -> F13
 *F13::ProfileEngine.HandleF13_Middle(true)
+*F13 Up::ProfileEngine.HandleF13_Middle(false)
 
 ; Button 4: Back Button Click (Mouse 4 / G4) -> F14
 *F14::ProfileEngine.HandleF14_Back(true)
+*F14 Up::ProfileEngine.HandleF14_Back(false)
 
 ; Button 5: G-Shift / Sniper Thumb Button (DPI Shift) -> F15
 *F15::ProfileEngine.HandleF15_DpiShift(true)
@@ -100,21 +104,29 @@ SaveAndExit() {
 
 ; Button 6: Forward Button Click (Mouse 5 / G5) -> F16
 *F16::ProfileEngine.HandleF16_Forward(true)
+*F16 Up::ProfileEngine.HandleF16_Forward(false)
 
 ; Button 7: Tilt Left -> F17
 *F17::ProfileEngine.HandleF17_TiltLeft(true)
+*F17 Up::ProfileEngine.HandleF17_TiltLeft(false)
 
 ; Button 8: Tilt Right -> F18
 *F18::ProfileEngine.HandleF18_TiltRight(true)
+*F18 Up::ProfileEngine.HandleF18_TiltRight(false)
 
 ; Button 9: Cycle Profiles (G9) -> F19
 *F19::ProfileEngine.HandleF19_ProfileCycle(true)
+*F19 Up::ProfileEngine.HandleF19_ProfileCycle(false)
 
 ; Button 10: Next DPI (G8 / DPI Up) -> F20
 *F20::ProfileEngine.HandleF20_G8(true)
+*F20 Up::ProfileEngine.HandleF20_G8(false)
 
 ; Button 11: Previous DPI (G7 / DPI Down) -> F21
 *F21::ProfileEngine.HandleF21_G7(true)
+*F21 Up::ProfileEngine.HandleF21_G7(false)
+
+#HotIf
 
 ; ========================================================
 ; G-SHIFT CONDITIONAL CHORDS (#HotIf)

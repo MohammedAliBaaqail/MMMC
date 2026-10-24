@@ -1,1 +1,0 @@
-SUCCESS: Middle button registered and selected cleanly
