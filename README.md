@@ -7,28 +7,29 @@ A lightweight, zero-bloat alternative to Logitech G-HUB combining **Logitech Onb
 ## ⚡ The Architecture: Why This Setup?
 
 1. **Zero Background Bloat**: No 500MB G-HUB services running in the background. Logitech OMM is run **once** to flash the onboard hardware memory of your G502 X, then closed forever.
-2. **Infinite Flexibility**: AHK v2 intercepts the mouse's virtual keys (`F13`–`F20`), enabling:
+2. **Infinite Flexibility**: AHK v2 intercepts the mouse's virtual keys (`F13`–`F21`), enabling:
    - **G-Shift Layering**: Holding the thumb DPI-Shift button unlocks a secondary function for every button and the scroll wheel.
    - **Tap vs. Hold**: Tap the DPI-Shift button to trigger an instant action (e.g., Task View or Command Palette) without wasting the button.
    - **Multi-Profile System**: Switch between Desktop, Productivity (VS Code / Office), Gaming (Rapid-Fire / Sniping), and Media profiles.
    - **Live Hardware Monitor**: Visual GUI dashboard that lights up when you press any mouse button.
-   - **OMM Pairing Assistant**: Solves the issue where physical keyboards cannot type `F13`–`F20` into OMM.
+   - **OMM Pairing Assistant**: Solves the issue where physical keyboards cannot type `F13`–`F21` into OMM.
 
 ---
 
 ## 🖱️ Hardware Button Mapping (OMM to AHK)
 
-| G502 X Physical Button | OMM Keystroke | AHK Virtual Key | Default Action (Desktop) | G-Shift Action (Hold DPI Shift) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Wheel Tilt Left** | `F13` | `*F13` | Previous Browser Tab (`Ctrl+Shift+Tab`) | Snap Window Left (`Win+Left`) |
-| **Wheel Tilt Right** | `F14` | `*F14` | Next Browser Tab (`Ctrl+Tab`) | Snap Window Right (`Win+Right`) |
-| **G8 (DPI Up / Index Top)** | `F15` | `*F15` | Volume Up | Maximize Window (`Win+Up`) |
-| **G7 (DPI Down / Index Bottom)** | `F16` | `*F16` | Volume Down | Minimize Window (`Win+Down`) |
-| **DPI Shift (Sniper Thumb)** | `F17` | `*F17` | **Hold:** G-Shift Layer / **Tap:** Task View (`Win+Tab`) | Layer Modifier |
-| **G5 (Forward Thumb)** | `F18` | `*F18` | Browser Forward (`Alt+Right`) | Close Active Tab (`Ctrl+W`) |
-| **G4 (Back Thumb)** | `F19` | `*F19` | Browser Back (`Alt+Left`) | Reopen Closed Tab (`Ctrl+Shift+T`) |
-| **G9 (Profile Button)** | `F20` | `*F20` | Cycle Profile (Desktop → Productivity → Gaming → Media) | Cycle Profile |
-| **Scroll Wheel Up / Down** | Standard | `*WheelUp/Down` | Normal Scrolling | **Fine Volume Control** (when G-Shift held) |
+| OMM # | G502 X Button | OMM Keystroke | AHK Virtual Key | Default Action (Desktop) | G-Shift Action (Hold DPI Shift) |
+| :---: | :--- | :---: | :---: | :--- | :--- |
+| **3** | **Middle Click (Mouse 3)** | `F13` | `*F13` | Default Middle Click (`{MButton}`) | Close Active Tab (`Ctrl+W`) |
+| **4** | **Back Button (Mouse 4 / G4)**| `F14` | `*F14` | Browser Back (`Alt+Left`) | Reopen Closed Tab (`Ctrl+Shift+T`) |
+| **5** | **G-Shift / Sniper (DPI Shift)**| `F15` | `*F15` | **Hold:** G-Shift Layer / **Tap:** Task View (`Win+Tab`) | Layer Modifier |
+| **6** | **Forward Button (Mouse 5 / G5)**| `F16` | `*F16` | Browser Forward (`Alt+Right`) | Close Active Tab (`Ctrl+W`) |
+| **7** | **Tilt Left** | `F17` | `*F17` | Previous Browser Tab (`Ctrl+Shift+Tab`) | Snap Window Left (`Win+Left`) |
+| **8** | **Tilt Right** | `F18` | `*F18` | Next Browser Tab (`Ctrl+Tab`) | Snap Window Right (`Win+Right`) |
+| **9** | **Cycle Profiles (G9)** | `F19` | `*F19` | Cycle Profile (Desktop → Productivity → Gaming → Media) | Cycle Profile |
+| **10**| **Next DPI (G8 / DPI Up)** | `F20` | `*F20` | Volume Up | Maximize Window (`Win+Up`) |
+| **11**| **Previous DPI (G7 / DPI Down)**| `F21` | `*F21` | Volume Down | Minimize Window (`Win+Down`) |
+| — | **Scroll Wheel Up / Down** | Standard | `*WheelUp/Down`| Normal Scrolling | **Fine Volume Control** (when G-Shift held) |
 
 ---
 

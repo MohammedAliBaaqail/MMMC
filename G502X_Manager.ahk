@@ -2,20 +2,26 @@
 #SingleInstance Force
 #MaxThreadsPerHotkey 2
 Persistent(true)
+OnError(LogError)
+LogError(thrown, mode) {
+    FileAppend("Error: " . thrown.Message . "`nFile: " . thrown.File . "`nLine: " . thrown.Line . "`n", A_ScriptDir . "\error.log")
+}
 
 /**
  * LOGITECH G502 X — ADVANCED AHK v2 CONTROLLER
  * Integrates Logitech Onboard Memory Manager (OMM) with AHK v2.
  * 
  * Hardware buttons mapped via OMM:
- *   - Tilt Left    -> F13
- *   - Tilt Right   -> F14
- *   - G8 (DPI Up)  -> F15
- *   - G7 (DPI Dn)  -> F16
- *   - DPI Shift    -> F17 (G-Shift Layer & Tap macro)
- *   - G5 (Forward) -> F18
- *   - G4 (Back)    -> F19
- *   - G9 (Profile) -> F20
+ * Hardware buttons mapped via OMM (Buttons 3 to 11):
+ *   - Button 3: Middle Click (Mouse 3)             -> F13
+ *   - Button 4: Back Button Click (Mouse 4 / G4)   -> F14
+ *   - Button 5: G-Shift / Sniper (DPI Shift)       -> F15 (G-Shift Layer & Tap macro)
+ *   - Button 6: Forward Button Click (Mouse 5 / G5)-> F16
+ *   - Button 7: Tilt Left                          -> F17
+ *   - Button 8: Tilt Right                         -> F18
+ *   - Button 9: Cycle Profiles (G9)                -> F19
+ *   - Button 10: Next DPI (G8 / DPI Up)            -> F20
+ *   - Button 11: Previous DPI (G7 / DPI Down)      -> F21
  */
 
 ; Include modular libraries
@@ -78,33 +84,37 @@ SaveAndExit() {
 }
 
 ; ========================================================
-; HARDWARE INTERCEPT HOTKEYS (F13 - F20)
+; HARDWARE INTERCEPT HOTKEYS (F13 - F21)
+; Synchronized 1:1 with Logitech Onboard Memory Manager
 ; ========================================================
 
-; F13 - Wheel Tilt Left
-*F13::ProfileEngine.HandleF13_TiltLeft(true)
+; Button 3: Middle Click (Mouse 3) -> F13
+*F13::ProfileEngine.HandleF13_Middle(true)
 
-; F14 - Wheel Tilt Right
-*F14::ProfileEngine.HandleF14_TiltRight(true)
+; Button 4: Back Button Click (Mouse 4 / G4) -> F14
+*F14::ProfileEngine.HandleF14_Back(true)
 
-; F15 - G8 / DPI Up (Index Finger Front)
-*F15::ProfileEngine.HandleF15_G8(true)
+; Button 5: G-Shift / Sniper Thumb Button (DPI Shift) -> F15
+*F15::ProfileEngine.HandleF15_DpiShift(true)
+*F15 Up::ProfileEngine.HandleF15_DpiShift(false)
 
-; F16 - G7 / DPI Down (Index Finger Rear)
-*F16::ProfileEngine.HandleF16_G7(true)
+; Button 6: Forward Button Click (Mouse 5 / G5) -> F16
+*F16::ProfileEngine.HandleF16_Forward(true)
 
-; F17 - DPI Shift / Sniper Thumb Button (G-Shift modifier layer + Tap action)
-*F17::ProfileEngine.HandleF17_DpiShift(true)
-*F17 Up::ProfileEngine.HandleF17_DpiShift(false)
+; Button 7: Tilt Left -> F17
+*F17::ProfileEngine.HandleF17_TiltLeft(true)
 
-; F18 - G5 / Forward (Thumb Front)
-*F18::ProfileEngine.HandleF18_Forward(true)
+; Button 8: Tilt Right -> F18
+*F18::ProfileEngine.HandleF18_TiltRight(true)
 
-; F19 - G4 / Back (Thumb Rear)
-*F19::ProfileEngine.HandleF19_Back(true)
+; Button 9: Cycle Profiles (G9) -> F19
+*F19::ProfileEngine.HandleF19_ProfileCycle(true)
 
-; F20 - G9 / Profile Cycle Button
-*F20::ProfileEngine.HandleF20_ProfileCycle(true)
+; Button 10: Next DPI (G8 / DPI Up) -> F20
+*F20::ProfileEngine.HandleF20_G8(true)
+
+; Button 11: Previous DPI (G7 / DPI Down) -> F21
+*F21::ProfileEngine.HandleF21_G7(true)
 
 ; ========================================================
 ; G-SHIFT CONDITIONAL CHORDS (#HotIf)

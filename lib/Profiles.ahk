@@ -25,6 +25,7 @@ class ProfileEngine {
         "Desktop", Map(
             "TiltLeft",     { Normal: { Type: "Send", Cmd: "^+{Tab}", Label: "Prev Browser Tab" }, GShift: { Type: "Send", Cmd: "#{Left}", Label: "Snap Win Left" } },
             "TiltRight",    { Normal: { Type: "Send", Cmd: "^{Tab}", Label: "Next Browser Tab" }, GShift: { Type: "Send", Cmd: "#{Right}", Label: "Snap Win Right" } },
+            "Middle",       { Normal: { Type: "Send", Cmd: "{MButton}", Label: "Middle Click" }, GShift: { Type: "Send", Cmd: "^w", Label: "Close Tab" } },
             "G8",           { Normal: { Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up" }, GShift: { Type: "Send", Cmd: "#{Up}", Label: "Maximize Win" } },
             "G7",           { Normal: { Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down" }, GShift: { Type: "Send", Cmd: "#{Down}", Label: "Minimize Win" } },
             "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "G-Shift / Task View" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
@@ -35,6 +36,7 @@ class ProfileEngine {
         "Productivity", Map(
             "TiltLeft",     { Normal: { Type: "Send", Cmd: "!{Left}", Label: "Cursor History Back" }, GShift: { Type: "Send", Cmd: "^{PgUp}", Label: "Prev Editor Tab" } },
             "TiltRight",    { Normal: { Type: "Send", Cmd: "!{Right}", Label: "Cursor History Fwd" }, GShift: { Type: "Send", Cmd: "^{PgDn}", Label: "Next Editor Tab" } },
+            "Middle",       { Normal: { Type: "Send", Cmd: "{MButton}", Label: "Middle Click" }, GShift: { Type: "Send", Cmd: "^w", Label: "Close Tab" } },
             "G8",           { Normal: { Type: "Send", Cmd: "!+{Down}", Label: "Duplicate Line" }, GShift: { Type: "Send", Cmd: "^d", Label: "Select Next Word" } },
             "G7",           { Normal: { Type: "Send", Cmd: "^+k", Label: "Delete Line" }, GShift: { Type: "Send", Cmd: "^/", Label: "Toggle Comment" } },
             "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "G-Shift / Command Pal" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
@@ -45,6 +47,7 @@ class ProfileEngine {
         "Gaming", Map(
             "TiltLeft",     { Normal: { Type: "Send", Cmd: "1", Label: "Weapon Slot 1" }, GShift: { Type: "Send", Cmd: "1", Label: "Weapon Slot 1" } },
             "TiltRight",    { Normal: { Type: "Send", Cmd: "2", Label: "Weapon Slot 2" }, GShift: { Type: "Send", Cmd: "2", Label: "Weapon Slot 2" } },
+            "Middle",       { Normal: { Type: "Send", Cmd: "{MButton}", Label: "Middle Click" }, GShift: { Type: "Send", Cmd: "{MButton}", Label: "Middle Click" } },
             "G8",           { Normal: { Type: "Special", Cmd: "ToggleRapidFire", Label: "Toggle Rapid Fire" }, GShift: { Type: "Special", Cmd: "ToggleRapidFire", Label: "Toggle Rapid Fire" } },
             "G7",           { Normal: { Type: "Send", Cmd: "z", Label: "Quick Ping (Z)" }, GShift: { Type: "Send", Cmd: "z", Label: "Quick Ping (Z)" } },
             "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "Sniper Aim / Melee" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
@@ -55,6 +58,7 @@ class ProfileEngine {
         "Media", Map(
             "TiltLeft",     { Normal: { Type: "Send", Cmd: "{Media_Prev}", Label: "Previous Track" }, GShift: { Type: "Send", Cmd: "{Media_Prev}", Label: "Previous Track" } },
             "TiltRight",    { Normal: { Type: "Send", Cmd: "{Media_Next}", Label: "Next Track" }, GShift: { Type: "Send", Cmd: "{Media_Next}", Label: "Next Track" } },
+            "Middle",       { Normal: { Type: "Send", Cmd: "{MButton}", Label: "Middle Click" }, GShift: { Type: "Send", Cmd: "{Media_Play_Pause}", Label: "Play / Pause" } },
             "G8",           { Normal: { Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up" }, GShift: { Type: "Send", Cmd: "{Volume_Up 4}", Label: "Fast Vol Up" } },
             "G7",           { Normal: { Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down" }, GShift: { Type: "Send", Cmd: "{Volume_Down 4}", Label: "Fast Vol Down" } },
             "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "G-Shift / Play-Pause" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
@@ -148,8 +152,9 @@ class ProfileEngine {
             if (p = profileName) {
                 this.CurrentProfile := p
                 OSD.Show("Profile: " . p, this.GetProfileDescription(p))
-                if (this.OnProfileChanged)
-                    this.OnProfileChanged(p)
+                fn := this.OnProfileChanged
+                if (fn)
+                    fn(p)
                 return
             }
         }
@@ -197,66 +202,39 @@ class ProfileEngine {
         }
     }
 
-    ; --- Button Event Handlers (F13 - F20) ---
+    ; --- Button Event Handlers (F13 - F21) ---
+    ; Matches Logitech Onboard Memory Manager (OMM) physical layout
 
-    ; F13 - Tilt Left
-    static HandleF13_TiltLeft(isDown) {
+    ; Button 3: Middle Click (Mouse 3) -> F13
+    static HandleF13_Middle(isDown) {
         if (!isDown)
             return
-        this.NotifyButton("TiltLeft", true)
+        this.NotifyButton("Middle", true)
 
         if (this.IsGShiftActive) {
             this.ChordTriggered := true
-            this.ExecuteAction("TiltLeft", true)
+            this.ExecuteAction("Middle", true)
         } else {
-            this.ExecuteAction("TiltLeft", false)
+            this.ExecuteAction("Middle", false)
         }
     }
 
-    ; F14 - Tilt Right
-    static HandleF14_TiltRight(isDown) {
+    ; Button 4: Back Button Click (Mouse 4 / G4) -> F14
+    static HandleF14_Back(isDown) {
         if (!isDown)
             return
-        this.NotifyButton("TiltRight", true)
+        this.NotifyButton("Back", true)
 
         if (this.IsGShiftActive) {
             this.ChordTriggered := true
-            this.ExecuteAction("TiltRight", true)
+            this.ExecuteAction("Back", true)
         } else {
-            this.ExecuteAction("TiltRight", false)
+            this.ExecuteAction("Back", false)
         }
     }
 
-    ; F15 - G8 (DPI Up / Index Top)
-    static HandleF15_G8(isDown) {
-        if (!isDown)
-            return
-        this.NotifyButton("G8", true)
-
-        if (this.IsGShiftActive) {
-            this.ChordTriggered := true
-            this.ExecuteAction("G8", true)
-        } else {
-            this.ExecuteAction("G8", false)
-        }
-    }
-
-    ; F16 - G7 (DPI Down / Index Bottom)
-    static HandleF16_G7(isDown) {
-        if (!isDown)
-            return
-        this.NotifyButton("G7", true)
-
-        if (this.IsGShiftActive) {
-            this.ChordTriggered := true
-            this.ExecuteAction("G7", true)
-        } else {
-            this.ExecuteAction("G7", false)
-        }
-    }
-
-    ; F17 - DPI Shift / Sniper Thumb Button (Tap vs Hold G-Shift)
-    static HandleF17_DpiShift(isDown) {
+    ; Button 5: G-Shift / Sniper Thumb Button (DPI Shift) -> F15
+    static HandleF15_DpiShift(isDown) {
         if (isDown) {
             this.NotifyButton("DpiShift", true)
             this.IsGShiftActive := true
@@ -287,8 +265,8 @@ class ProfileEngine {
         }
     }
 
-    ; F18 - G5 / Forward Thumb Button
-    static HandleF18_Forward(isDown) {
+    ; Button 6: Forward Button Click (Mouse 5 / G5) -> F16
+    static HandleF16_Forward(isDown) {
         if (!isDown)
             return
         this.NotifyButton("Forward", true)
@@ -301,26 +279,68 @@ class ProfileEngine {
         }
     }
 
-    ; F19 - G4 / Back Thumb Button
-    static HandleF19_Back(isDown) {
+    ; Button 7: Tilt Left -> F17
+    static HandleF17_TiltLeft(isDown) {
         if (!isDown)
             return
-        this.NotifyButton("Back", true)
+        this.NotifyButton("TiltLeft", true)
 
         if (this.IsGShiftActive) {
             this.ChordTriggered := true
-            this.ExecuteAction("Back", true)
+            this.ExecuteAction("TiltLeft", true)
         } else {
-            this.ExecuteAction("Back", false)
+            this.ExecuteAction("TiltLeft", false)
         }
     }
 
-    ; F20 - G9 / Profile Cycle Button
-    static HandleF20_ProfileCycle(isDown) {
+    ; Button 8: Tilt Right -> F18
+    static HandleF18_TiltRight(isDown) {
+        if (!isDown)
+            return
+        this.NotifyButton("TiltRight", true)
+
+        if (this.IsGShiftActive) {
+            this.ChordTriggered := true
+            this.ExecuteAction("TiltRight", true)
+        } else {
+            this.ExecuteAction("TiltRight", false)
+        }
+    }
+
+    ; Button 9: Cycle Profiles (G9) -> F19
+    static HandleF19_ProfileCycle(isDown) {
         if (!isDown)
             return
         this.NotifyButton("ProfileCycle", true)
         this.ExecuteAction("ProfileCycle", false)
+    }
+
+    ; Button 10: Next DPI (G8 / DPI Up) -> F20
+    static HandleF20_G8(isDown) {
+        if (!isDown)
+            return
+        this.NotifyButton("G8", true)
+
+        if (this.IsGShiftActive) {
+            this.ChordTriggered := true
+            this.ExecuteAction("G8", true)
+        } else {
+            this.ExecuteAction("G8", false)
+        }
+    }
+
+    ; Button 11: Previous DPI (G7 / DPI Down) -> F21
+    static HandleF21_G7(isDown) {
+        if (!isDown)
+            return
+        this.NotifyButton("G7", true)
+
+        if (this.IsGShiftActive) {
+            this.ChordTriggered := true
+            this.ExecuteAction("G7", true)
+        } else {
+            this.ExecuteAction("G7", false)
+        }
     }
 
     ; Scroll Wheel G-Shift Chording (Volume / Zoom knob)
@@ -356,8 +376,9 @@ class ProfileEngine {
     }
 
     static NotifyButton(btnName, isPressed) {
-        if (this.OnButtonStateChanged) {
-            this.OnButtonStateChanged(btnName, isPressed)
+        fn := this.OnButtonStateChanged
+        if (fn) {
+            fn(btnName, isPressed)
         }
     }
 }
