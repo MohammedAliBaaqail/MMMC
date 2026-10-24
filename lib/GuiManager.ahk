@@ -42,6 +42,25 @@ class GuiManager {
     static MonitorSubtitles := Map()
     static ShowButtonNames := false
     static ToggleNamesBtn := ""
+    static MainTab := ""
+    static CalibrateBtn := ""
+    static DiagramPic := ""
+    static OMMDiagramPic := ""
+
+    ; Visual Pointer Calibration Tool State
+    static CalibratorDlg := ""
+    static CalibratorPoints := Map()
+    static CalibratorSelectedId := "G8"
+    static CalibratorStepSize := 2
+    static CalibratorMarkers := Map()
+    static CalibratorSelectorBtns := Map()
+    static CalibratorInfoText := ""
+    static CalibratorCanvasPic := ""
+    static CalibratorCanvasX := 80
+    static CalibratorCanvasY := 140
+    static CalibratorCanvasW := 860
+    static CalibratorCanvasH := 500
+    static CalibratorKeyDownHandlerBound := ""
 
     ; Keystroke Recorder Modal & Macro Studio Controls
     static RecorderGui := ""
@@ -233,7 +252,8 @@ class GuiManager {
 
         ; Tab Control
         g.SetFont("s10 norm cCDD6F4", "Segoe UI")
-        tab := g.Add("Tab3", "x15 y60 w1110 h635", ["Live Monitor", "OMM Setup Assistant"])
+        this.MainTab := g.Add("Tab3", "x15 y60 w1110 h635", ["Live Monitor", "OMM Setup Assistant"])
+        tab := this.MainTab
 
         diagramPath := A_ScriptDir . "\assets\g502x_diagram.png"
 
@@ -305,14 +325,18 @@ class GuiManager {
         g.SetFont("s10 bold cA6ADC8", "Segoe UI")
         this.RapidFireStatusText := g.Add("Text", "ys+2 x+6 w70", "OFF")
 
-        ; Toggle switch on the top right to show / hide hardware button names
+        ; Header action controls on the top right
         g.SetFont("s9 bold c89B4FA", "Segoe UI")
-        this.ToggleNamesBtn := g.Add("Button", "x940 y90 w170 h28", "Show Button Names: OFF")
+        this.ToggleNamesBtn := g.Add("Button", "x760 y90 w170 h28", "Show Button Names: OFF")
         this.ToggleNamesBtn.OnEvent("Click", (*) => this.ToggleNameVisibility())
+
+        g.SetFont("s9 bold cFAB387", "Segoe UI")
+        this.CalibrateBtn := g.Add("Button", "x940 y90 w170 h28", "🎯 Calibrate Pointers")
+        this.CalibrateBtn.OnEvent("Click", (*) => this.OpenPointerCalibrator())
 
         ; Precision Diagram (Mouse and leader lines)
         if FileExist(diagramPath) {
-            g.Add("Picture", "x280 y140 w860 h500 +BackgroundTrans", diagramPath)
+            this.DiagramPic := g.Add("Picture", "x280 y140 w860 h500 +BackgroundTrans", diagramPath)
         }
 
         ; Callout pill badges placed at the ends of the leader lines (Synced with OMM F13-F21)
@@ -405,7 +429,7 @@ class GuiManager {
         this.OMMStatusText := g.Add("Text", "x30 y175 w1050 Center", "Ready. Click any button below to inject into OMM.")
 
         if FileExist(diagramPath) {
-            g.Add("Picture", "x280 y200 w860 h500 +BackgroundTrans", diagramPath)
+            this.OMMDiagramPic := g.Add("Picture", "x280 y200 w860 h500 +BackgroundTrans", diagramPath)
         }
 
         ; Injectors mapped 1:1 to OMM buttons 3 to 11
@@ -479,6 +503,312 @@ class GuiManager {
             IniWrite(this.IsAlwaysOnTop ? "1" : "0", A_ScriptDir . "\settings.ini", "General", "AlwaysOnTop")
         }
         OSD.Show("Always on Top", this.IsAlwaysOnTop ? "Enabled (Pinned)" : "Disabled (Unpinned)")
+    }
+
+    ; ========================================================
+    ; VISUAL POINTER CALIBRATION TOOL
+    ; ========================================================
+    static OpenPointerCalibrator() {
+        this.LoadCalibratorPoints()
+
+        dlg := Gui("+Owner" . this.MainGui.Hwnd . " +AlwaysOnTop -MinimizeBox", "🎯 G502 X Button Pointer Calibration")
+        this.CalibratorDlg := dlg
+        dlg.BackColor := "181825"
+
+        ; Header
+        dlg.SetFont("s13 bold cCDD6F4", "Segoe UI")
+        dlg.Add("Text", "x20 y12 w800", "🎯 Logitech G502 X Button Pointer Calibration")
+        dlg.SetFont("s9 norm cA6ADC8", "Segoe UI")
+        dlg.Add("Text", "x20 y38 w980", 
+            "1. Select a button in the row below.`n"
+            . "2. CLICK DIRECTLY ON THE MOUSE IMAGE to place its pointer target at that exact location.`n"
+            . "3. Fine-tune with Arrow keys (◄ ▲ ▼ ►) or Nudge buttons.`n"
+            . "4. Click 'Preview Lines' to view live leader lines, and 'Save & Apply' when finished.")
+
+        ; Button Order for selector
+        order := ["TiltLeft", "Middle", "TiltRight", "G8", "G7", "DpiShift", "Forward", "Back", "ProfileCycle"]
+
+        ; Selector buttons bar
+        bx := 20, by := 88, bw := 105, bh := 32
+        this.CalibratorSelectorBtns := Map()
+        for id in order {
+            info := this.CalibratorPoints[id]
+            dlg.SetFont("s9 bold cCDD6F4", "Segoe UI")
+            btn := dlg.Add("Button", "x" . bx . " y" . by . " w" . bw . " h" . bh, info.tag . ": " . id)
+            btn.ButtonId := id
+            btn.OnEvent("Click", (ctrl, *) => this.SelectCalibratorButton(ctrl.ButtonId))
+            this.CalibratorSelectorBtns[id] := btn
+            bx += bw + 5
+        }
+
+        ; Coordinate readout & Nudge controls
+        canvX := 80, canvY := 140, canvW := 860, canvH := 500
+        this.CalibratorCanvasX := canvX
+        this.CalibratorCanvasY := canvY
+        this.CalibratorCanvasW := canvW
+        this.CalibratorCanvasH := canvH
+
+        dlg.SetFont("s10 bold c89B4FA", "Segoe UI")
+        this.CalibratorInfoText := dlg.Add("Text", "x20 y" . (canvY + canvH + 15) . " w450 h28 0x200", "")
+
+        ; Nudge controls
+        nx := 480, ny := canvY + canvH + 12
+        dlg.SetFont("s9 bold cA6ADC8", "Segoe UI")
+        dlg.Add("Text", "x" . nx . " y" . (ny + 4) . " w55 h24", "Nudge:")
+        btnLeft := dlg.Add("Button", "x" . (nx + 55) . " y" . ny . " w40 h26", "◄")
+        btnLeft.OnEvent("Click", (*) => this.NudgeCalibrator(-this.CalibratorStepSize, 0))
+        btnUp := dlg.Add("Button", "x+4 y" . ny . " w40 h26", "▲")
+        btnUp.OnEvent("Click", (*) => this.NudgeCalibrator(0, -this.CalibratorStepSize))
+        btnDown := dlg.Add("Button", "x+4 y" . ny . " w40 h26", "▼")
+        btnDown.OnEvent("Click", (*) => this.NudgeCalibrator(0, this.CalibratorStepSize))
+        btnRight := dlg.Add("Button", "x+4 y" . ny . " w40 h26", "►")
+        btnRight.OnEvent("Click", (*) => this.NudgeCalibrator(this.CalibratorStepSize, 0))
+
+        ; Step toggle
+        btnStep := dlg.Add("Button", "x+10 y" . ny . " w85 h26", "Step: " . this.CalibratorStepSize . "px")
+        btnStep.OnEvent("Click", (ctrl, *) => this.ToggleCalibratorStep(ctrl))
+
+        ; Bottom action row
+        ay := ny + 45
+        dlg.SetFont("s10 bold c89B4FA", "Segoe UI")
+        btnPreview := dlg.Add("Button", "x340 y" . ay . " w160 h36", "👁️ Preview Lines")
+        btnPreview.OnEvent("Click", (*) => this.PreviewCalibratorLines())
+
+        dlg.SetFont("s10 bold cA6E3A1", "Segoe UI")
+        btnSave := dlg.Add("Button", "x510 y" . ay . " w160 h36", "💾 Save & Apply")
+        btnSave.OnEvent("Click", (*) => this.SaveCalibratorPoints())
+
+        dlg.SetFont("s10 bold cFAB387", "Segoe UI")
+        btnReset := dlg.Add("Button", "x680 y" . ay . " w150 h36", "🔄 Reset Defaults")
+        btnReset.OnEvent("Click", (*) => this.ResetCalibratorDefaults())
+
+        dlg.SetFont("s10 bold cF38BA8", "Segoe UI")
+        btnCancel := dlg.Add("Button", "x840 y" . ay . " w100 h36", "Cancel")
+        btnCancel.OnEvent("Click", (*) => this.CloseCalibratorDialog())
+
+        ; Canvas background and diagram
+        diagramPath := A_ScriptDir . "\assets\g502x_diagram.png"
+        cleanPath   := A_ScriptDir . "\assets\g502x.png"
+        bgPath      := FileExist(diagramPath) ? diagramPath : cleanPath
+
+        dlg.Add("Text", "x" . (canvX - 2) . " y" . (canvY - 2) . " w" . (canvW + 4) . " h" . (canvH + 4) . " Background11111B +Border")
+        this.CalibratorCanvasPic := dlg.Add("Picture", "x" . canvX . " y" . canvY . " w" . canvW . " h" . canvH . " +BackgroundTrans", bgPath)
+        this.CalibratorCanvasPic.OnEvent("Click", (*) => this.OnCalibratorCanvasClick())
+
+        ; Marker badges for each button on top of the canvas
+        this.CalibratorMarkers := Map()
+        for id in order {
+            pt := this.CalibratorPoints[id]
+            mx := canvX + pt.tx - 13
+            my := canvY + pt.ty - 13
+            m := dlg.Add("Text", "x" . mx . " y" . my . " w26 h26 Center 0x200 Background1E1E2E c89B4FA +Border", pt.tag)
+            m.ButtonId := id
+            m.OnEvent("Click", (ctrl, *) => this.SelectCalibratorButton(ctrl.ButtonId))
+            this.CalibratorMarkers[id] := m
+        }
+
+        ; Register keyboard handler
+        dlg.OnEvent("Close", (*) => this.CloseCalibratorDialog())
+        dlg.OnEvent("Escape", (*) => this.CloseCalibratorDialog())
+        OnMessage(0x0100, this.CalibratorKeyDownHandlerBound := this.OnCalibratorKeyDown.Bind(this))
+
+        this.SelectCalibratorButton("G8")
+        dlg.Show("w1020 h750")
+    }
+
+    static SelectCalibratorButton(id) {
+        this.CalibratorSelectedId := id
+        for bid, btn in this.CalibratorSelectorBtns {
+            if (bid = id) {
+                btn.SetFont("s9 bold cFAB387")
+            } else {
+                btn.SetFont("s9 bold cCDD6F4")
+            }
+        }
+        for bid, m in this.CalibratorMarkers {
+            if (bid = id) {
+                m.Opt("BackgroundFAB387 c11111B")
+                m.Redraw()
+            } else {
+                m.Opt("Background1E1E2E c89B4FA")
+                m.Redraw()
+            }
+        }
+        this.UpdateCalibratorStatus()
+    }
+
+    static UpdateCalibratorStatus() {
+        if (!this.CalibratorPoints.Has(this.CalibratorSelectedId))
+            return
+        pt := this.CalibratorPoints[this.CalibratorSelectedId]
+        this.CalibratorInfoText.Value := "Selected: " . pt.name . " | Target Point: X = " . pt.tx . ", Y = " . pt.ty
+    }
+
+    static OnCalibratorCanvasClick() {
+        CoordMode("Mouse", "Client")
+        MouseGetPos(&mX, &mY)
+
+        targetX := mX - this.CalibratorCanvasX
+        targetY := mY - this.CalibratorCanvasY
+
+        targetX := Max(10, Min(this.CalibratorCanvasW - 10, targetX))
+        targetY := Max(10, Min(this.CalibratorCanvasH - 10, targetY))
+
+        pt := this.CalibratorPoints[this.CalibratorSelectedId]
+        pt.tx := targetX
+        pt.ty := targetY
+
+        m := this.CalibratorMarkers[this.CalibratorSelectedId]
+        m.Move(this.CalibratorCanvasX + targetX - 13, this.CalibratorCanvasY + targetY - 13)
+        this.UpdateCalibratorStatus()
+    }
+
+    static NudgeCalibrator(dx, dy) {
+        if (!this.CalibratorPoints.Has(this.CalibratorSelectedId))
+            return
+        pt := this.CalibratorPoints[this.CalibratorSelectedId]
+        pt.tx := Max(10, Min(this.CalibratorCanvasW - 10, pt.tx + dx))
+        pt.ty := Max(10, Min(this.CalibratorCanvasH - 10, pt.ty + dy))
+
+        m := this.CalibratorMarkers[this.CalibratorSelectedId]
+        m.Move(this.CalibratorCanvasX + pt.tx - 13, this.CalibratorCanvasY + pt.ty - 13)
+        this.UpdateCalibratorStatus()
+    }
+
+    static OnCalibratorKeyDown(wParam, lParam, msg, hwnd) {
+        if (!this.CalibratorDlg || !WinExist(this.CalibratorDlg.Hwnd) || !WinActive(this.CalibratorDlg.Hwnd))
+            return
+
+        ; 37: Left, 38: Up, 39: Right, 40: Down
+        switch wParam {
+            case 37:
+                this.NudgeCalibrator(-this.CalibratorStepSize, 0)
+                return 0
+            case 38:
+                this.NudgeCalibrator(0, -this.CalibratorStepSize)
+                return 0
+            case 39:
+                this.NudgeCalibrator(this.CalibratorStepSize, 0)
+                return 0
+            case 40:
+                this.NudgeCalibrator(0, this.CalibratorStepSize)
+                return 0
+        }
+    }
+
+    static ToggleCalibratorStep(ctrl) {
+        this.CalibratorStepSize := (this.CalibratorStepSize = 1) ? 2 : ((this.CalibratorStepSize = 2) ? 5 : ((this.CalibratorStepSize = 5) ? 10 : 1))
+        ctrl.Text := "Step: " . this.CalibratorStepSize . "px"
+    }
+
+    static LoadCalibratorPoints() {
+        defaults := Map(
+            "TiltLeft",     { name: "Tilt Left [F17]",      ax: 170, ay: 50,  tx: 338, ty: 64,  tag: "TL" },
+            "Middle",       { name: "Middle Click [F13]",   ax: 650, ay: 115, tx: 355, ty: 58,  tag: "MID" },
+            "TiltRight",    { name: "Tilt Right [F18]",     ax: 650, ay: 50,  tx: 374, ty: 64,  tag: "TR" },
+            "G8",           { name: "G8 (DPI Up) [F20]",    ax: 170, ay: 115, tx: 228, ty: 106, tag: "G8" },
+            "G7",           { name: "G7 (DPI Down) [F21]",  ax: 170, ay: 175, tx: 242, ty: 126, tag: "G7" },
+            "DpiShift",     { name: "DPI Shift [F15]",      ax: 170, ay: 245, tx: 270, ty: 264, tag: "DPI" },
+            "Forward",      { name: "G5 (Forward) [F16]",   ax: 170, ay: 315, tx: 308, ty: 248, tag: "G5" },
+            "Back",         { name: "G4 (Back) [F14]",      ax: 170, ay: 385, tx: 352, ty: 272, tag: "G4" },
+            "ProfileCycle", { name: "G9 (Profile) [F19]",   ax: 650, ay: 180, tx: 426, ty: 92,  tag: "G9" }
+        )
+
+        this.CalibratorPoints := Map()
+        iniPath := A_ScriptDir . "\settings.ini"
+
+        for id, def in defaults {
+            defTx := def.tx
+            defTy := def.ty
+            if FileExist(iniPath) {
+                try {
+                    iniX := IniRead(iniPath, "DiagramPoints", id . "_X", "")
+                    iniY := IniRead(iniPath, "DiagramPoints", id . "_Y", "")
+                    if (iniX != "" && IsInteger(iniX))
+                        defTx := Integer(iniX)
+                    if (iniY != "" && IsInteger(iniY))
+                        defTy := Integer(iniY)
+                }
+            }
+            this.CalibratorPoints[id] := { name: def.name, ax: def.ax, ay: def.ay, tx: defTx, ty: defTy, tag: def.tag }
+        }
+    }
+
+    static PreviewCalibratorLines() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        for id, pt in this.CalibratorPoints {
+            IniWrite(pt.tx, iniPath, "DiagramPoints", id . "_X")
+            IniWrite(pt.ty, iniPath, "DiagramPoints", id . "_Y")
+        }
+
+        psScript := A_ScriptDir . "\lib\render_diagram.ps1"
+        diagramPath := A_ScriptDir . "\assets\g502x_diagram.png"
+        if FileExist(psScript) {
+            RunWait('powershell -ExecutionPolicy Bypass -File "' . psScript . '"', A_ScriptDir, "Hide")
+            if (this.CalibratorCanvasPic != "")
+                this.CalibratorCanvasPic.Value := diagramPath
+        }
+    }
+
+    static SaveCalibratorPoints() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        for id, pt in this.CalibratorPoints {
+            IniWrite(pt.tx, iniPath, "DiagramPoints", id . "_X")
+            IniWrite(pt.ty, iniPath, "DiagramPoints", id . "_Y")
+        }
+
+        psScript := A_ScriptDir . "\lib\render_diagram.ps1"
+        diagramPath := A_ScriptDir . "\assets\g502x_diagram.png"
+        if FileExist(psScript) {
+            RunWait('powershell -ExecutionPolicy Bypass -File "' . psScript . '"', A_ScriptDir, "Hide")
+        }
+
+        ; Refresh picture controls in Main GUI
+        if (this.DiagramPic != "")
+            this.DiagramPic.Value := diagramPath
+        if (this.OMMDiagramPic != "")
+            this.OMMDiagramPic.Value := diagramPath
+
+        OSD.Show("Pointer Calibration", "Saved & Applied Successfully!")
+        this.CloseCalibratorDialog()
+    }
+
+    static ResetCalibratorDefaults() {
+        defaults := Map(
+            "TiltLeft",     { tx: 338, ty: 64 },
+            "Middle",       { tx: 355, ty: 58 },
+            "TiltRight",    { tx: 374, ty: 64 },
+            "G8",           { tx: 228, ty: 106 },
+            "G7",           { tx: 242, ty: 126 },
+            "DpiShift",     { tx: 270, ty: 264 },
+            "Forward",      { tx: 308, ty: 248 },
+            "Back",         { tx: 352, ty: 272 },
+            "ProfileCycle", { tx: 426, ty: 92 }
+        )
+
+        for id, def in defaults {
+            if (this.CalibratorPoints.Has(id)) {
+                pt := this.CalibratorPoints[id]
+                pt.tx := def.tx
+                pt.ty := def.ty
+                if (this.CalibratorMarkers.Has(id)) {
+                    m := this.CalibratorMarkers[id]
+                    m.Move(this.CalibratorCanvasX + pt.tx - 13, this.CalibratorCanvasY + pt.ty - 13)
+                }
+            }
+        }
+        this.UpdateCalibratorStatus()
+    }
+
+    static CloseCalibratorDialog() {
+        if (this.CalibratorKeyDownHandlerBound != "") {
+            OnMessage(0x0100, this.CalibratorKeyDownHandlerBound, 0)
+            this.CalibratorKeyDownHandlerBound := ""
+        }
+        if (this.CalibratorDlg != "" && WinExist(this.CalibratorDlg.Hwnd)) {
+            this.CalibratorDlg.Destroy()
+            this.CalibratorDlg := ""
+        }
     }
 
     ; ========================================================
@@ -809,10 +1139,6 @@ class GuiManager {
         }
 
         cmdName := Trim(this.CommandListView.GetText(row, 2))
-        btnId := this.SelectedButtonId
-        currentProf := ProfileEngine.CurrentProfile
-
-        ; Find command object from catalog
         targetCmdObj := ""
         for item in this.CommandCatalog {
             if (item.Name = cmdName) {
@@ -823,6 +1149,16 @@ class GuiManager {
 
         if (targetCmdObj = "")
             return
+
+        this.AssignCommandToButton(targetCmdObj, this.SelectedButtonId)
+    }
+
+    static AssignCommandToButton(targetCmdObj, btnId) {
+        if (targetCmdObj = "" || btnId = "")
+            return false
+
+        currentProf := ProfileEngine.CurrentProfile
+        btnDisplayName := this.GetButtonDisplayName(btnId)
 
         isShiftModifier := (targetCmdObj.Type = "Special" && (targetCmdObj.Cmd = "GShift" || targetCmdObj.Cmd = "GShift1" || targetCmdObj.Cmd = "GShift2"))
 
@@ -835,12 +1171,12 @@ class GuiManager {
             if ((this.CurrentViewLayer = "GShift" || this.CurrentViewLayer = "GShift1") && btnId = s1Id) {
                 OSD.Show("Shift Trigger Button", "Cannot reassign B-Shift 1 trigger while inside B-Shift 1 layer.`nSwitch to DEFAULT layer first.")
                 SoundBeep(600, 100)
-                return
+                return false
             }
             if (this.CurrentViewLayer = "GShift2" && btnId = s2Id) {
                 OSD.Show("Shift Trigger Button", "Cannot reassign B-Shift 2 trigger while inside B-Shift 2 layer.`nSwitch to DEFAULT layer first.")
                 SoundBeep(600, 100)
-                return
+                return false
             }
         }
 
@@ -862,7 +1198,7 @@ class GuiManager {
             if (otherShiftsCount >= 2) {
                 OSD.Show("Shift Limit Reached", "Max 2 B-Shift buttons allowed! Reassign an existing shift button first.")
                 SoundBeep(600, 120)
-                return
+                return false
             }
 
             ; Auto-determine slot (Shift 1 vs Shift 2)
@@ -879,6 +1215,9 @@ class GuiManager {
         targetLayer := isShiftModifier ? "Normal" : this.CurrentViewLayer
         ProfileEngine.SaveButtonLayer(currentProf, btnId, targetLayer, actionObj)
 
+        ; Also select this button as active in UI
+        this.SelectButton(btnId, btnDisplayName)
+
         ; Refresh UI, layer switches, and button cards
         this.UpdateLayerSwitches()
         this.RefreshAllButtonCards()
@@ -888,8 +1227,9 @@ class GuiManager {
         }
 
         layerDisp := this.GetLayerDisplayName(targetLayer)
-        OSD.Show("Mapped (" . layerDisp . "): " . this.SelectedButtonName, "-> " . actionObj.Label)
+        OSD.Show("Mapped (" . layerDisp . "): " . btnDisplayName, "-> " . actionObj.Label)
         SoundBeep(1100, 80)
+        return true
     }
 
     static ResetSelectedButton() {
@@ -2083,4 +2423,191 @@ class GuiManager {
             }
         }
     }
+
+    ; ========================================================
+    ; DRAG & DROP COMMAND REMAPPING ENGINE
+    ; ========================================================
+    static IsMainGuiActive() {
+        return (this.MainGui != "" && WinExist(this.MainGui.Hwnd) && WinActive(this.MainGui.Hwnd) && (this.MainTab = "" || this.MainTab.Value = 1))
+    }
+
+    static GetCalibratedPoints() {
+        defaults := Map(
+            "TiltLeft",     { name: "Tilt Left [F17]",      tx: 338, ty: 64 },
+            "Middle",       { name: "Middle Click [F13]",   tx: 355, ty: 58 },
+            "TiltRight",    { name: "Tilt Right [F18]",     tx: 374, ty: 64 },
+            "G8",           { name: "G8 (DPI Up) [F20]",    tx: 228, ty: 106 },
+            "G7",           { name: "G7 (DPI Down) [F21]",  tx: 242, ty: 126 },
+            "DpiShift",     { name: "DPI Shift [F15]",      tx: 270, ty: 264 },
+            "Forward",      { name: "G5 (Forward) [F16]",   tx: 308, ty: 248 },
+            "Back",         { name: "G4 (Back) [F14]",      tx: 352, ty: 272 },
+            "ProfileCycle", { name: "G9 (Profile) [F19]",   tx: 426, ty: 92 }
+        )
+
+        iniPath := A_ScriptDir . "\settings.ini"
+        points := Map()
+
+        for id, def in defaults {
+            tx := def.tx
+            ty := def.ty
+            if FileExist(iniPath) {
+                try {
+                    iniX := IniRead(iniPath, "DiagramPoints", id . "_X", "")
+                    iniY := IniRead(iniPath, "DiagramPoints", id . "_Y", "")
+                    if (iniX != "" && IsInteger(iniX))
+                        tx := Integer(iniX)
+                    if (iniY != "" && IsInteger(iniY))
+                        ty := Integer(iniY)
+                }
+            }
+            points[id] := { name: def.name, tx: tx, ty: ty }
+        }
+        return points
+    }
+
+    static FindButtonUnderCursor() {
+        pt := Buffer(8, 0)
+        DllCall("GetCursorPos", "ptr", pt)
+        hoverHwnd := DllCall("WindowFromPoint", "int64", NumGet(pt, 0, "int64"), "ptr")
+
+        for btnId, cardCtrl in this.MonitorCards {
+            if (hoverHwnd = cardCtrl.Hwnd)
+                return btnId
+        }
+
+        for btnId, subCtrl in this.MonitorSubtitles {
+            if (subCtrl != "" && hoverHwnd = subCtrl.Hwnd)
+                return btnId
+        }
+
+        ; Check if cursor is over the diagram picture control (snaps to closest hardware button)
+        if (this.DiagramPic != "" && hoverHwnd = this.DiagramPic.Hwnd) {
+            diagPt := Buffer(8, 0)
+            DllCall("GetCursorPos", "ptr", diagPt)
+            DllCall("ScreenToClient", "ptr", this.DiagramPic.Hwnd, "ptr", diagPt)
+            cx := NumGet(diagPt, 0, "int")
+            cy := NumGet(diagPt, 4, "int")
+
+            points := this.GetCalibratedPoints()
+            closestId := ""
+            minDist := 999999
+
+            for id, p in points {
+                dist := Sqrt((cx - p.tx)**2 + (cy - p.ty)**2)
+                if (dist < minDist) {
+                    minDist := dist
+                    closestId := id
+                }
+            }
+
+            if (minDist <= 55)
+                return closestId
+        }
+
+        return ""
+    }
+
+    static HandleDragDrop() {
+        if (!this.IsMainGuiActive() || this.CommandListView = "")
+            return
+
+        pt := Buffer(8, 0)
+        DllCall("GetCursorPos", "ptr", pt)
+        mHwnd := DllCall("WindowFromPoint", "int64", NumGet(pt, 0, "int64"), "ptr")
+        if (mHwnd != this.CommandListView.Hwnd)
+            return
+
+        ; Convert to ListView client coordinates
+        DllCall("ScreenToClient", "ptr", this.CommandListView.Hwnd, "ptr", pt)
+        lvX := NumGet(pt, 0, "int")
+        lvY := NumGet(pt, 4, "int")
+
+        ; Hit test row in ListView
+        hti := Buffer(24, 0)
+        NumPut("int", lvX, hti, 0)
+        NumPut("int", lvY, hti, 4)
+        rowIdx := DllCall("SendMessage", "ptr", this.CommandListView.Hwnd, "uint", 0x1012, "ptr", 0, "ptr", hti, "int")
+        clickedRow := (rowIdx >= 0) ? (rowIdx + 1) : 0
+        if (clickedRow <= 0)
+            return
+
+        cat := this.CommandListView.GetText(clickedRow, 1)
+        if (InStr(cat, "__SECTION__:"))
+            return
+
+        cmdName := Trim(this.CommandListView.GetText(clickedRow, 2))
+        if (cmdName = "")
+            return
+
+        targetCmdObj := ""
+        for item in this.CommandCatalog {
+            if (item.Name = cmdName) {
+                targetCmdObj := item
+                break
+            }
+        }
+        if (targetCmdObj = "")
+            return
+
+        startPt := Buffer(8, 0)
+        DllCall("GetCursorPos", "ptr", startPt)
+        startX := NumGet(startPt, 0, "int")
+        startY := NumGet(startPt, 4, "int")
+        isDragging := false
+
+        while GetKeyState("LButton", "P") {
+            curPt := Buffer(8, 0)
+            DllCall("GetCursorPos", "ptr", curPt)
+            if (Abs(NumGet(curPt, 0, "int") - startX) > 5 || Abs(NumGet(curPt, 4, "int") - startY) > 5) {
+                isDragging := true
+                break
+            }
+            Sleep 15
+        }
+
+        if (!isDragging)
+            return
+
+        lastHoveredId := ""
+        while GetKeyState("LButton", "P") {
+            curHoveredId := this.FindButtonUnderCursor()
+
+            if (curHoveredId != lastHoveredId) {
+                if (lastHoveredId != "" && this.MonitorCards.Has(lastHoveredId)) {
+                    this.MonitorCards[lastHoveredId].Opt("Background1E1E2E cCDD6F4")
+                    this.MonitorCards[lastHoveredId].Redraw()
+                }
+                if (curHoveredId != "" && this.MonitorCards.Has(curHoveredId)) {
+                    this.MonitorCards[curHoveredId].Opt("BackgroundFAB387 c11111B")
+                    this.MonitorCards[curHoveredId].Redraw()
+                }
+                lastHoveredId := curHoveredId
+            }
+
+            if (curHoveredId != "") {
+                btnName := this.GetButtonDisplayName(curHoveredId)
+                ToolTip("✨ Drop onto " . btnName . " to map '" . cmdName . "'!")
+            } else {
+                ToolTip("📌 Dragging: " . cmdName . "`nDrop onto any mouse button or card")
+            }
+            Sleep 20
+        }
+
+        ToolTip()
+        if (lastHoveredId != "" && this.MonitorCards.Has(lastHoveredId)) {
+            this.MonitorCards[lastHoveredId].Opt("Background1E1E2E cCDD6F4")
+            this.MonitorCards[lastHoveredId].Redraw()
+        }
+
+        finalDropId := this.FindButtonUnderCursor()
+        if (finalDropId != "") {
+            this.AssignCommandToButton(targetCmdObj, finalDropId)
+        } else {
+            this.RefreshAllButtonCards()
+        }
+    }
 }
+
+#HotIf GuiManager.IsMainGuiActive()
+~LButton::GuiManager.HandleDragDrop()
+#HotIf
