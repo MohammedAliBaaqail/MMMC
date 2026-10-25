@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logitech G502 X — Advanced Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+    <!-- Top Studio Header -->
+    <header class="studio-header">
+        <div class="header-left">
+            <div class="brand-badge">
+                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <div class="brand-titles">
+                    <span class="brand-title">LOGITECH G502 X</span>
+                    <span class="brand-sub">INTERACTIVE STUDIO // ADVANCED AHK v2</span>
+                </div>
+            </div>
+            
+        </div>
+
+        <div class="header-center">
+            <!-- Dynamic B-Shift Layer Switcher: only visible when a button is mapped to B-Shift -->
+            <div class="layer-pills" id="layerPills" style="display: none;">
+                <button class="layer-pill active" id="layerBtnNormal" data-layer="Normal" title="Default Button Layer">
+                    <span class="pill-dot"></span> DEFAULT
+                </button>
+                <button class="layer-pill" id="layerBtnShift1" data-layer="GShift1" title="B-Shift Secondary Layer" style="display: none;">
+                    <span class="pill-dot shift1"></span> ⚡ B-SHIFT
+                </button>
+                <button class="layer-pill" id="layerBtnShift2" data-layer="GShift2" title="B-Shift 2 Secondary Layer" style="display: none;">
+                    <span class="pill-dot shift2"></span> ⚡ B-SHIFT 2
+                </button>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <div class="status-indicator live-omm">
+                <span class="pulse-dot"></span>
+                <span class="status-text">OMM CONNECTED</span>
+            </div>
+            <div class="live-shift-badge" id="liveShiftBadge" style="display: none;">B-SHIFT: INACTIVE</div>
+            
+            <label class="always-top-check" title="Keep Studio Window Always on Top">
+                <input type="checkbox" id="chkAlwaysOnTop">
+                <span class="check-custom"></span>
+                <span class="check-lbl">📌 TOP</span>
+            </label>
+        </div>
+    </header>
+
+    <!-- Logitech Gaming Software (LGS) Profiles Ribbon -->
+    <div class="lgs-profiles-bar" id="lgsProfilesBar">
+        <!-- Left Controls: Header, Filter, Action Buttons -->
+        <div class="lgs-bar-controls">
+            <div class="lgs-title-row">
+                <span class="lgs-title">PROFILES</span>
+                <button class="lgs-autoswitch-badge active" id="btnToggleAutoSwitch" title="Toggle Automatic Profile Switching by Focused App">
+                    <span class="auto-dot" id="autoSwitchDot"></span>
+                    <span id="autoSwitchLabel">AUTO: ON</span>
+                </button>
+            </div>
+            
+            <div class="lgs-search-row">
+                <div class="lgs-search-wrap">
+                    <svg class="search-mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="profileSearchInput" placeholder="Filter profiles..." autocomplete="off">
+                </div>
+
+                <div class="lgs-action-btns">
+                    <button class="lgs-mini-btn" id="btnAddProfile" title="Add New Game / App Profile">＋</button>
+                    <button class="lgs-mini-btn" id="btnEditProfile" title="Configure Profile & Executable">⚙</button>
+                    <button class="lgs-mini-btn" id="btnLockProfile" title="Lock Profile (Freeze Auto-Switch)">🔓</button>
+                    <button class="lgs-mini-btn danger" id="btnDeleteProfile" title="Delete Profile">✕</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center/Right: App Profiles Carousel / Strip -->
+        <div class="lgs-carousel-wrap">
+            <button class="lgs-scroll-btn left" id="btnScrollProfilesLeft" title="Scroll Left">‹</button>
+            
+            <div class="lgs-profiles-track" id="lgsProfilesTrack">
+                <!-- Dynamically rendered app profile tiles (Blender, BlueStacks, Elden Ring, VS Code, etc.) -->
+            </div>
+
+            <button class="lgs-scroll-btn right" id="btnScrollProfilesRight" title="Scroll Right">›</button>
+        </div>
+    </div>
+
+    <!-- Main Studio Layout -->
+    <main class="studio-main">
+        <!-- Left Sidebar: Command Catalog & Presets -->
+        <aside class="sidebar-catalog" id="sidebarCatalog">
+            <div class="sidebar-header">
+                <div class="sidebar-title">COMMAND CATALOG</div>
+                <div class="search-box">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="cmdSearch" placeholder="Search commands, keys, presets..." autocomplete="off">
+                    <button class="clear-search-btn" id="btnClearSearch" title="Clear search">×</button>
+                </div>
+            </div>
+
+            <div class="catalog-instructions">
+                <span>Drag & drop any command onto a mouse button or callout card</span>
+            </div>
+
+            <div class="catalog-sections" id="catalogSections">
+                <!-- Dynamically populated categories -->
+            </div>
+        </aside>
+
+        <!-- Center Workspace: Interactive G502 X Mouse Stage -->
+        <section class="mouse-stage" id="mouseStage">
+            <div class="stage-toolbar">
+                <div class="selected-target-indicator">
+                    <span class="target-lbl">TARGET:</span>
+                    <span class="target-name" id="selectedTargetName">G8 (DPI Up)</span>
+                    <span class="target-action" id="selectedTargetAction">Volume Up</span>
+                </div>
+                <div class="stage-actions">
+                    <button class="stage-btn calibrate-btn" id="btnCalibratePointers" title="Manually adjust and align pointing dots to button centers">
+                        🎯 Calibrate Pointers
+                    </button>
+                    <button class="stage-btn primary" id="btnRecordSelected" title="Double click button to record immediately">
+                        ⌨ Record / Customize
+                    </button>
+                    <button class="stage-btn secondary" id="btnResetSelected">
+                        ↺ Reset Default
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pointer Calibration Mode Panel (Hidden by default) -->
+            <div class="calibration-panel" id="calibrationPanel" style="display: none;">
+                <div class="calib-header">
+                    <div class="calib-title-wrap">
+                        <span class="calib-badge">🎯 POINTER CALIBRATION MODE</span>
+                        <span class="calib-hint">Drag any target dot directly on the mouse • Or click to reposition • Fine-tune with Arrow keys</span>
+                    </div>
+                    <div class="calib-header-actions">
+                        <button class="calib-btn save" id="btnSaveCalib" title="Save coordinates to settings.ini">💾 Save Calibration</button>
+                        <button class="calib-btn reset" id="btnResetCalib" title="Reset all points to factory defaults">↺ Reset Defaults</button>
+                        <button class="calib-btn close" id="btnCloseCalib" title="Exit calibration mode">✕ Exit</button>
+                    </div>
+                </div>
+
+                <div class="calib-body">
+                    <!-- Button Selection Pills -->
+                    <div class="calib-pills-bar" id="calibPillsBar">
+                        <!-- Populated dynamically via JS: G8, G7, DPI Shift, Forward, Back, Tilt Left, etc. -->
+                    </div>
+
+                    <!-- Fine-Tuning Controls: Inputs & D-Pad -->
+                    <div class="calib-controls-row">
+                        <div class="calib-selected-info">
+                            <span class="calib-info-lbl">EDITING POINT:</span>
+                            <span class="calib-info-name" id="calibSelectedName">G8 (DPI Up)</span>
+                        </div>
+
+                        <div class="calib-inputs-group">
+                            <label class="coord-label">
+                                <span>X:</span>
+                                <input type="number" id="calibInputX" min="-200" max="1100" step="1" class="coord-input">
+                            </label>
+                            <label class="coord-label">
+                                <span>Y:</span>
+                                <input type="number" id="calibInputY" min="-200" max="700" step="1" class="coord-input">
+                            </label>
+                        </div>
+
+                        <div class="calib-dpad">
+                            <button class="dpad-btn up" id="dpadUp" title="Nudge Up (Arrow Up)">▲</button>
+                            <div class="dpad-mid">
+                                <button class="dpad-btn left" id="dpadLeft" title="Nudge Left (Arrow Left)">◄</button>
+                                <span class="dpad-step" id="dpadStepDisplay">1px</span>
+                                <button class="dpad-btn right" id="dpadRight" title="Nudge Right (Arrow Right)">►</button>
+                            </div>
+                            <button class="dpad-btn down" id="dpadDown" title="Nudge Down (Arrow Down)">▼</button>
+                        </div>
+
+                        <div class="calib-step-selector">
+                            <span class="step-lbl">STEP:</span>
+                            <div class="step-buttons" id="stepButtons">
+                                <button class="step-btn active" data-step="1">1px</button>
+                                <button class="step-btn" data-step="5">5px</button>
+                                <button class="step-btn" data-step="10">10px</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Stage Area -->
+            <div class="interactive-mouse-container" id="mouseContainer">
+                <!-- Left Callout Cards Column -->
+                <div class="callout-column left-column" id="leftCallouts">
+                    <div class="btn-card" id="card_G8" data-btn="G8">
+                        <div class="card-header">
+                            <span class="card-badge">G8</span>
+                            <span class="card-title">DPI Up</span>
+                        </div>
+                        <div class="card-action" id="action_G8">Volume Up</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+
+                    <div class="btn-card" id="card_G7" data-btn="G7">
+                        <div class="card-header">
+                            <span class="card-badge">G7</span>
+                            <span class="card-title">DPI Down</span>
+                        </div>
+                        <div class="card-action" id="action_G7">Volume Down</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+
+                    <div class="btn-card" id="card_DpiShift" data-btn="DpiShift">
+                        <div class="card-header">
+                            <span class="card-badge special">DPI Shift</span>
+                            <span class="card-title">Sniper / B-Shift</span>
+                        </div>
+                        <div class="card-action" id="action_DpiShift">B-Shift Layer</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+
+                    <div class="btn-card" id="card_Forward" data-btn="Forward">
+                        <div class="card-header">
+                            <span class="card-badge">G5</span>
+                            <span class="card-title">Forward Click</span>
+                        </div>
+                        <div class="card-action" id="action_Forward">Browser Forward</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+
+                    <div class="btn-card" id="card_Back" data-btn="Back">
+                        <div class="card-header">
+                            <span class="card-badge">G4</span>
+                            <span class="card-title">Back Click</span>
+                        </div>
+                        <div class="card-action" id="action_Back">Browser Back</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+                </div>
+
+                <!-- Center Mouse Visual with SVG Vector Overlays -->
+                <div class="mouse-render-wrapper" id="mouseRenderWrap">
+                    <img src="../assets/g502x.png" alt="Logitech G502 X" class="mouse-bg-img" id="mouseImg">
+                    
+                    <!-- Dynamic SVG Pointer Lines & Hotspots -->
+                    <svg class="mouse-svg-overlay" id="mouseSvg" viewBox="0 0 860 500">
+                        <!-- Vector Leader Lines -->
+                        <g id="svgLeaderLines"></g>
+                        <!-- Interactive Hotspot Circles -->
+                        <g id="svgHotspots"></g>
+                    </svg>
+                </div>
+
+                <!-- Right Callout Cards Column -->
+                <div class="callout-column right-column" id="rightCallouts">
+                    <div class="btn-card" id="card_TiltLeft" data-btn="TiltLeft">
+                        <div class="card-header">
+                            <span class="card-badge">Tilt ⯇</span>
+                            <span class="card-title">Wheel Tilt Left</span>
+                        </div>
+                        <div class="card-action" id="action_TiltLeft">Prev Tab</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+
+                    <div class="btn-card" id="card_WheelUp" data-btn="WheelUp">
+                        <div class="card-header">
+                            <span class="card-badge">Scroll ▲</span>
+                            <span class="card-title">Wheel Scroll Up</span>
+                        </div>
+                        <div class="card-action" id="action_WheelUp">Default Scroll Up</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+
+                    <div class="btn-card" id="card_Middle" data-btn="Middle">
+                        <div class="card-header">
+                            <span class="card-badge">Mouse 3</span>
+                            <span class="card-title">Wheel Click</span>
+                        </div>
+                        <div class="card-action" id="action_Middle">Middle Click</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+
+                    <div class="btn-card" id="card_WheelDown" data-btn="WheelDown">
+                        <div class="card-header">
+                            <span class="card-badge">Scroll ▼</span>
+                            <span class="card-title">Wheel Scroll Down</span>
+                        </div>
+                        <div class="card-action" id="action_WheelDown">Default Scroll Down</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+
+                    <div class="btn-card" id="card_TiltRight" data-btn="TiltRight">
+                        <div class="card-header">
+                            <span class="card-badge">Tilt ⯈</span>
+                            <span class="card-title">Wheel Tilt Right</span>
+                        </div>
+                        <div class="card-action" id="action_TiltRight">Next Tab</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+
+                    <div class="btn-card" id="card_ProfileCycle" data-btn="ProfileCycle">
+                        <div class="card-header">
+                            <span class="card-badge special">G9</span>
+                            <span class="card-title">Profile Switch</span>
+                        </div>
+                        <div class="card-action" id="action_ProfileCycle">Next Profile</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- BUTTON STUDIO MODAL (Single / Combo & Macro Recorder) -->
+    <div class="modal-backdrop" id="studioModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-header-titles">
+                    <span class="modal-title" id="modalTargetTitle">BUTTON STUDIO — G8</span>
+                    <span class="modal-subtitle" id="modalTargetMeta">Profile: Desktop • Layer: Default</span>
+                </div>
+                <button class="modal-close-btn" id="btnModalClose">✕</button>
+            </div>
+
+            <!-- Modal Dual Mode Tabs -->
+            <div class="modal-tabs">
+                <button class="modal-tab active" id="tabBtnSingle" data-tab="single">
+                    ⌨ Single / Keystroke Combination
+                </button>
+                <button class="modal-tab" id="tabBtnMacro" data-tab="macro">
+                    🗂 Macro Recorder (G-HUB Style)
+                </button>
+            </div>
+
+            <!-- Tab 1: Single / Combination of Buttons -->
+            <div class="modal-tab-content active" id="tabContentSingle">
+                <div class="config-row">
+                    <div class="form-group flex-1">
+                        <label for="singlePlaybackMode" class="form-lbl">Playback Mode (How button is pressed):</label>
+                        <select id="singlePlaybackMode" class="studio-select">
+                            <option value="NoRepeat">No Repeat</option>
+                            <option value="RepeatWhileHolding">Repeat While Holding</option>
+                            <option value="Toggle">Toggle</option>
+                            <option value="Sequence">Sequence</option>
+                        </select>
+                    </div>
+                    <div class="form-group w-140">
+                        <label for="singleRepeatDelay" class="form-lbl">Repeat Delay (ms):</label>
+                        <input type="number" id="singleRepeatDelay" class="studio-input" value="50" min="5" max="5000">
+                    </div>
+                </div>
+
+                <div class="mode-explain-text" id="singleExplainText">
+                    • Executes the keystroke once when the mouse button is pressed.
+                </div>
+
+                <!-- Live Keystroke Preview Box -->
+                <div class="keystroke-preview-box" id="singlePreviewBox">
+                    <div class="preview-inner" id="singlePreviewText">[ Press Any Key or Click Mouse Button Below ]</div>
+                </div>
+
+                <div class="preview-hint">
+                    Press any key or combination (e.g. Q, Enter, Ctrl + C, Shift + G + Enter).
+                </div>
+
+                <div class="recorder-actions-row">
+                    <button class="action-pill primary" id="btnRecordKeyToggle">
+                        <span class="rec-dot"></span> <span id="recordKeyBtnText">● Record Key</span>
+                    </button>
+                    <button class="action-pill secondary" id="btnClearRecordedKey">
+                        🗑 Clear Key
+                    </button>
+                    <button class="action-pill accent" id="btnAssignBShiftStudio">
+                        ⚡ Assign B-Shift
+                    </button>
+                </div>
+
+                <!-- Mouse Button Injection Section -->
+                <div class="mouse-injection-section">
+                    <div class="injection-header">
+                        <span class="injection-title">INJECT MOUSE BUTTON</span>
+                        <span class="injection-sub">Click to inject into recording (supports modifier keys like Ctrl / Shift / Alt held on keyboard)</span>
+                    </div>
+                    <div class="injection-btn-row">
+                        <button class="mouse-inject-btn" id="btnInjectLClick" data-mouse="LButton">
+                            <span class="mouse-btn-icon">🖱</span> Left Click
+                        </button>
+                        <button class="mouse-inject-btn" id="btnInjectMClick" data-mouse="MButton">
+                            <span class="mouse-btn-icon">🖱</span> Middle Click
+                        </button>
+                        <button class="mouse-inject-btn" id="btnInjectRClick" data-mouse="RButton">
+                            <span class="mouse-btn-icon">🖱</span> Right Click
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Macro Recorder (G-HUB Style) -->
+            <div class="modal-tab-content" id="tabContentMacro">
+                <div class="config-row">
+                    <div class="form-group flex-1">
+                        <label for="macroPlaybackMode" class="form-lbl">Macro Type (Playback Mode):</label>
+                        <select id="macroPlaybackMode" class="studio-select">
+                            <option value="NoRepeat">No Repeat</option>
+                            <option value="RepeatWhileHolding">Repeat While Holding</option>
+                            <option value="Toggle">Toggle</option>
+                            <option value="Sequence">Sequence</option>
+                        </select>
+                    </div>
+                    <div class="form-group w-140">
+                        <label for="macroDefDelay" class="form-lbl">Default Delay (ms):</label>
+                        <input type="number" id="macroDefDelay" class="studio-input" value="50" min="5" max="5000">
+                    </div>
+                </div>
+
+                <div class="mode-explain-text" id="macroExplainText">
+                    • Standard macro. Plays the recorded sequence once.
+                </div>
+
+                <!-- Target Section Selector -->
+                <div class="macro-section-selector">
+                    <span class="section-sel-lbl">Target Section:</span>
+                    <div class="section-pills" id="macroPhasePills">
+                        <button class="section-pill active" data-phase="ON PRESS">ON PRESS</button>
+                        <button class="section-pill" data-phase="WHILE HOLDING">WHILE HOLDING</button>
+                        <button class="section-pill" data-phase="ON RELEASE">ON RELEASE</button>
+                    </div>
+                </div>
+
+                <!-- Macro Controls and Injections -->
+                <div class="macro-controls-bar">
+                    <div class="macro-actions-left">
+                        <button class="action-pill primary" id="btnRecordMacroToggle">
+                            ● Start Recording
+                        </button>
+                        <button class="action-pill secondary" id="btnClearMacroSection">
+                            🗑 Clear Section
+                        </button>
+                        <button class="action-pill secondary" id="btnClearMacroAll">
+                            🗑 Clear All
+                        </button>
+                        <button class="action-pill test" id="btnTestMacroPlay">
+                            ▶ Test Playback
+                        </button>
+                    </div>
+                    
+                    <div class="macro-mouse-inject">
+                        <span class="inject-lbl">Inject Click:</span>
+                        <button class="inject-sm-btn" id="btnMacroLClick" data-mouse="LButton">Left</button>
+                        <button class="inject-sm-btn" id="btnMacroMClick" data-mouse="MButton">Middle</button>
+                        <button class="inject-sm-btn" id="btnMacroRClick" data-mouse="RButton">Right</button>
+                    </div>
+                </div>
+
+                <!-- Recorded Steps List -->
+                <div class="macro-steps-table-wrap">
+                    <table class="macro-steps-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 45px;">#</th>
+                                <th style="width: 140px;">Section</th>
+                                <th style="width: 120px;">Event</th>
+                                <th>Key / Mouse Action</th>
+                                <th style="width: 110px;">Delay (ms)</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="macroStepsBody">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="macro-summary-line" id="macroSummaryLine">
+                    Total Steps: 0  |  Press: 0  |  Hold: 0  |  Release: 0
+                </div>
+            </div>
+
+            <!-- Modal Action Footer -->
+            <div class="modal-footer">
+                <button class="modal-btn save" id="btnModalSave">✔ Save & Apply</button>
+                <button class="modal-btn cancel" id="btnModalCancel">Cancel (Esc)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Configuration Modal (LGS Style) -->
+    <div class="modal-backdrop" id="profileConfigModal">
+        <div class="modal-dialog profile-dialog">
+            <div class="modal-header">
+                <div class="modal-header-titles">
+                    <span class="modal-title" id="profileModalTitle">CREATE APP PROFILE</span>
+                    <span class="modal-subtitle">Configure auto-switching application target & icon</span>
+                </div>
+                <button class="modal-close-btn" id="btnCloseProfileModal">✕</button>
+            </div>
+
+            <div class="profile-modal-body">
+                <div class="form-group mb-14">
+                    <label for="profInputName" class="form-lbl">Profile Name:</label>
+                    <input type="text" id="profInputName" class="studio-input" placeholder="e.g. Blender, BlueStacks, Elden Ring, Photoshop" autocomplete="off">
+                </div>
+
+                <div class="form-group mb-14">
+                    <div class="flex-between mb-4">
+                        <label for="profInputExe" class="form-lbl">Target Executable Name (Auto-Switch on Focus):</label>
+                        <button class="detect-app-btn" id="btnDetectRunningApps">
+                            <span class="detect-icon">🔍</span> Pick from Open Windows
+                        </button>
+                    </div>
+                    <input type="text" id="profInputExe" class="studio-input" placeholder="e.g. blender.exe, HD-Player.exe, eldenring.exe (comma-separated)" autocomplete="off">
+                    <div class="input-hint">When this application window comes into focus, this profile will activate automatically.</div>
+
+                    <!-- Dropdown for Running Windows Detection -->
+                    <div class="running-apps-picker" id="runningAppsPicker" style="display: none;">
+                        <div class="picker-header">
+                            <span>CURRENTLY RUNNING APPLICATIONS:</span>
+                            <button class="picker-close" id="btnCloseAppPicker">✕</button>
+                        </div>
+                        <div class="picker-list" id="runningAppsList">
+                            <!-- Populated with running window names & process IDs -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group mb-14">
+                    <label class="form-lbl">Profile Icon Preset:</label>
+                    <div class="icon-preset-strip" id="iconPresetStrip">
+                        <div class="icon-preset-item active" data-icon="generic" title="Generic Application">
+                            <span class="preset-preview gear">⚙</span>
+                            <span class="preset-name">App</span>
+                        </div>
+                        <div class="icon-preset-item" data-icon="blender" title="Blender 3D">
+                            <span class="preset-preview blender">🟠</span>
+                            <span class="preset-name">Blender</span>
+                        </div>
+                        <div class="icon-preset-item" data-icon="bluestack" title="BlueStacks">
+                            <span class="preset-preview bluestack">📱</span>
+                            <span class="preset-name">BlueStacks</span>
+                        </div>
+                        <div class="icon-preset-item" data-icon="game" title="Gaming">
+                            <span class="preset-preview game">🎮</span>
+                            <span class="preset-name">Game</span>
+                        </div>
+                        <div class="icon-preset-item" data-icon="code" title="VS Code / IDE">
+                            <span class="preset-preview code">💻</span>
+                            <span class="preset-name">Code</span>
+                        </div>
+                        <div class="icon-preset-item" data-icon="media" title="Media & Music">
+                            <span class="preset-preview media">🎵</span>
+                            <span class="preset-name">Media</span>
+                        </div>
+                        <div class="icon-preset-item" data-icon="chrome" title="Browser">
+                            <span class="preset-preview chrome">🌐</span>
+                            <span class="preset-name">Browser</span>
+                        </div>
+                        <div class="icon-preset-item" data-icon="photoshop" title="Adobe Photoshop">
+                            <span class="preset-preview ps">🎨</span>
+                            <span class="preset-name">Creative</span>
+                        </div>
+                        <div class="icon-preset-item" data-icon="desktop" title="Desktop / System">
+                            <span class="preset-preview desktop">🖥️</span>
+                            <span class="preset-name">Desktop</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="modal-btn save" id="btnSaveProfileModal">✔ Save Profile</button>
+                <button class="modal-btn cancel" id="btnCancelProfileModal">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast / OSD -->
+    <div class="studio-toast" id="studioToast">
+        <div class="toast-title" id="toastTitle">Notification</div>
+        <div class="toast-msg" id="toastMsg">Action applied</div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

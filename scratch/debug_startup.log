@@ -1,0 +1,14 @@
+20261025102149 | Starting debug script
+20261025102149 | Includes loaded successfully
+20261025102149 | Init ProfileEngine with D:\For Safe Keeping\OBM AHK\settings.ini
+20261025102150 | ProfileEngine initialized
+20261025102150 | InitialProfile: Desktop
+20261025102150 | Profile set
+20261025102150 | AlwaysOnTop set
+20261025102150 | Calling GuiManager.Show()
+20261025102150 | EXCEPTION: Can't create control. in D:\For Safe Keeping\OBM AHK\lib\GuiManager.ahk:400
+Stack: D:\For Safe Keeping\OBM AHK\lib\GuiManager.ahk (400) : [Gui.Prototype.Add] this.PicToggle1 := g.Add("Picture", "x600 y643 w46 h24 +BackgroundTrans", A_ScriptDir . "\assets\toggle_off.png")
+D:\For Safe Keeping\OBM AHK\lib\GuiManager.ahk (400) : [GuiManager.Show] this.PicToggle1 := g.Add("Picture", "x600 y643 w46 h24 +BackgroundTrans", A_ScriptDir . "\assets\toggle_off.png")
+D:\For Safe Keeping\OBM AHK\scratch\debug_run.ahk (32) : [] GuiManager.Show()
+> Auto-execute
+

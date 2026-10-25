@@ -74,6 +74,9 @@ class GuiManager {
     static RecActiveCombo := []
     static RecKeysDown := Map()
     static RecBtnRecordSingle := ""
+    static RecBtnInjectLClick := ""
+    static RecBtnInjectMClick := ""
+    static RecBtnInjectRClick := ""
     static RecIsRecordingSingle := false
     static RecDdlSingleMode := ""
     static RecEdtSingleInt := ""
@@ -131,6 +134,8 @@ class GuiManager {
         { Cat: "Editing", Name: "Duplicate Line",        Type: "Send", Cmd: "!+{Down}",      Label: "Duplicate Line", Key: "Alt+Shift+Down" },
         { Cat: "Editing", Name: "Delete Line",           Type: "Send", Cmd: "^+k",           Label: "Delete Line",   Key: "Ctrl+Shift+K" },
         
+        { Cat: "Navigation", Name: "Left Click",         Type: "Send", Cmd: "{LButton}",     Label: "Left Click",    Key: "Mouse 1" },
+        { Cat: "Navigation", Name: "Right Click",        Type: "Send", Cmd: "{RButton}",     Label: "Right Click",   Key: "Mouse 2" },
         { Cat: "Navigation", Name: "Middle Click",       Type: "Send", Cmd: "{MButton}",     Label: "Middle Click",  Key: "Mouse 3" },
         { Cat: "Navigation", Name: "Previous Tab",       Type: "Send", Cmd: "^+{Tab}",       Label: "Prev Tab",      Key: "Ctrl+Shift+Tab" },
         { Cat: "Navigation", Name: "Next Tab",           Type: "Send", Cmd: "^{Tab}",        Label: "Next Tab",      Key: "Ctrl + Tab" },
@@ -165,8 +170,8 @@ class GuiManager {
         ; --- Device & Special ---
         { Cat: "Navigation", Name: "Zoom In (Ctrl+Scroll)", Key: "Ctrl+WheelUp", Type: "Send", Cmd: "^{WheelUp}", Label: "Zoom In" },
         { Cat: "Navigation", Name: "Zoom Out (Ctrl+Scroll)", Key: "Ctrl+WheelDn", Type: "Send", Cmd: "^{WheelDown}", Label: "Zoom Out" },
-        { Cat: "Device", Name: "Default Scroll Up", Key: "WheelUp", Type: "Default", Cmd: "{WheelUp}", Label: "Default Scroll Up" },
-        { Cat: "Device", Name: "Default Scroll Down", Key: "WheelDown", Type: "Default", Cmd: "{WheelDown}", Label: "Default Scroll Down" },
+        { Cat: "Device", Name: "Default Scroll Up", Key: "WheelUp", Type: "Send", Cmd: "{WheelUp}", Label: "Default Scroll Up" },
+        { Cat: "Device", Name: "Default Scroll Down", Key: "WheelDown", Type: "Send", Cmd: "{WheelDown}", Label: "Default Scroll Down" },
         { Cat: "Device", Name: "B-Shift Modifier",       Type: "Special", Cmd: "GShift",     Label: "B-Shift Layer",   Key: "⚡ B-Shift" },
         { Cat: "Device", Name: "B-Shift 1 Modifier",     Type: "Special", Cmd: "GShift1",    Label: "B-Shift 1 Layer", Key: "⚡ B-Shift 1" },
         { Cat: "Device", Name: "B-Shift 2 Modifier",     Type: "Special", Cmd: "GShift2",    Label: "B-Shift 2 Layer", Key: "⚡ B-Shift 2" },
@@ -175,6 +180,8 @@ class GuiManager {
     ]
 
     static Presets := Map(
+        "Left Click",                              { Type: "Send", Cmd: "{LButton}", Label: "Left Click" },
+        "Right Click",                             { Type: "Send", Cmd: "{RButton}", Label: "Right Click" },
         "Middle Click",                            { Type: "Send", Cmd: "{MButton}", Label: "Middle Click" },
         "Copy (Ctrl + C)",                         { Type: "Send", Cmd: "^c", Label: "Copy (Ctrl+C)" },
         "Paste (Ctrl + V)",                        { Type: "Send", Cmd: "^v", Label: "Paste (Ctrl+V)" },
@@ -222,7 +229,8 @@ class GuiManager {
         "F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12",
         "F13","F14","F15","F16","F17","F18","F19","F20","F21","F22","F23","F24",
         "Space","Enter","Escape","Tab","Backspace","Delete","Insert",
-        "Home","End","PgUp","PgDn","Up","Down","Left","Right","PrintScreen"
+        "Home","End","PgUp","PgDn","Up","Down","Left","Right","PrintScreen",
+        "LButton","MButton","RButton"
     ]
 
     static Show() {
@@ -1348,6 +1356,22 @@ class GuiManager {
         btnSetBShift.OnEvent("Click", (*) => this.AssignBShiftFromStudio())
         this.RecDdlSingleMode.OnEvent("Change", (*) => this.UpdateSingleModeExplain())
 
+        ; Mouse Button Injection
+        rg.SetFont("s9 bold cFAB387", "Segoe UI")
+        rg.Add("Text", "x45 y326 w550 Center", "INJECT MOUSE BUTTON")
+
+        rg.SetFont("s8 norm cA6ADC8", "Segoe UI")
+        rg.Add("Text", "x45 y346 w550 Center", "Click to inject into recording (supports modifier keys like Ctrl / Shift / Alt held on keyboard)")
+
+        rg.SetFont("s9 bold cCDD6F4", "Segoe UI")
+        this.RecBtnInjectLClick := rg.Add("Button", "x55 y368 w160 h36", "🖱 Left Click")
+        this.RecBtnInjectMClick := rg.Add("Button", "x240 y368 w160 h36", "🖱 Middle Click")
+        this.RecBtnInjectRClick := rg.Add("Button", "x425 y368 w160 h36", "🖱 Right Click")
+
+        this.RecBtnInjectLClick.OnEvent("Click", (*) => this.InjectMouseButton("LButton"))
+        this.RecBtnInjectMClick.OnEvent("Click", (*) => this.InjectMouseButton("MButton"))
+        this.RecBtnInjectRClick.OnEvent("Click", (*) => this.InjectMouseButton("RButton"))
+
         ; ========================================================
         ; TAB 2: G-HUB MACRO RECORDER
         ; ========================================================
@@ -1390,9 +1414,20 @@ class GuiManager {
         btnTestMacro.OnEvent("Click", (*) => this.TestMacroPlayback())
         this.RecDdlMacroMode.OnEvent("Change", (*) => this.UpdateMacroModeExplain())
 
+        ; Inject mouse click buttons for macro
+        rg.SetFont("s8 bold cFAB387", "Segoe UI")
+        rg.Add("Text", "x45 y284 w135", "Inject Mouse Click:")
+        btnMacroLClick := rg.Add("Button", "x180 y280 w125 h26", "🖱 Left Click")
+        btnMacroMClick := rg.Add("Button", "x315 y280 w125 h26", "🖱 Middle Click")
+        btnMacroRClick := rg.Add("Button", "x450 y280 w125 h26", "🖱 Right Click")
+
+        btnMacroLClick.OnEvent("Click", (*) => this.InjectMouseMacroStep("LButton"))
+        btnMacroMClick.OnEvent("Click", (*) => this.InjectMouseMacroStep("MButton"))
+        btnMacroRClick.OnEvent("Click", (*) => this.InjectMouseMacroStep("RButton"))
+
         ; Recorded steps ListView
         rg.SetFont("s9 norm cCDD6F4", "Segoe UI")
-        this.RecLvMacro := rg.Add("ListView", "x45 y284 w550 h180 Background11111B cCDD6F4 +Grid -Multi", ["#", "Section", "Event", "Key", "Delay (ms)"])
+        this.RecLvMacro := rg.Add("ListView", "x45 y312 w550 h155 Background11111B cCDD6F4 +Grid -Multi", ["#", "Section", "Event", "Key", "Delay (ms)"])
         this.RecLvMacro.ModifyCol(1, 40)
         this.RecLvMacro.ModifyCol(2, 120)
         this.RecLvMacro.ModifyCol(3, 110)
@@ -1409,7 +1444,7 @@ class GuiManager {
         tabs.UseTab()
 
         rg.SetFont("s10 bold c11111B", "Segoe UI")
-        btnSave := rg.Add("Button", "x160 y518 w190 h36", "✔ Save & Apply")
+        btnSave := rg.Add("Button", "x160 y518 w190 h36 Default", "✔ Save & Apply")
         rg.SetFont("s10 bold cCDD6F4", "Segoe UI")
         btnCancel := rg.Add("Button", "x370 y518 w130 h36", "Cancel (Esc)")
 
@@ -1697,7 +1732,8 @@ class GuiManager {
 
         label := ""
         for i, k in comboList {
-            label .= (i = 1 ? "" : " + ") . k
+            dispName := (k = "LButton") ? "Left Click" : ((k = "RButton") ? "Right Click" : ((k = "MButton") ? "Middle Click" : k))
+            label .= (i = 1 ? "" : " + ") . dispName
         }
 
         if (comboList.Length = 1) {
@@ -1748,6 +1784,66 @@ class GuiManager {
             idx--
         }
         return { Cmd: downSeq . upSeq, Label: label }
+    }
+
+    static InjectMouseButton(btnName) {
+        ; Check if modifiers are held or already in combo
+        combo := []
+        for k in this.RecActiveCombo {
+            if (k = "Ctrl" || k = "Shift" || k = "Alt" || k = "Win") {
+                combo.Push(k)
+            }
+        }
+        ; Also check physical modifier state if not in combo
+        if (GetKeyState("Ctrl", "P") && !this.HasKey(combo, "Ctrl"))
+            combo.Push("Ctrl")
+        if (GetKeyState("Shift", "P") && !this.HasKey(combo, "Shift"))
+            combo.Push("Shift")
+        if (GetKeyState("Alt", "P") && !this.HasKey(combo, "Alt"))
+            combo.Push("Alt")
+        if ((GetKeyState("LWin", "P") || GetKeyState("RWin", "P")) && !this.HasKey(combo, "Win"))
+            combo.Push("Win")
+
+        combo.Push(btnName)
+        res := this.FormatCombination(combo)
+        this.RecCapturedCmd := res.Cmd
+        this.RecCapturedLabel := res.Label
+
+        if (this.RecPreviewText != "") {
+            this.RecPreviewText.SetFont("c" . "A6E3A1")
+            this.RecPreviewText.Value := "✔  " . res.Label
+        }
+        SoundBeep(1100, 70)
+
+        ; Stop ongoing recording hook
+        this.StopSingleKeyListening()
+        this.RecIsRecordingSingle := false
+        if (this.RecBtnRecordSingle != "") {
+            this.RecBtnRecordSingle.Text := "● Record Key"
+        }
+        OSD.Show("Mouse Button Injected", res.Label)
+    }
+
+    static InjectMouseMacroStep(btnName) {
+        del := 50
+        if (this.RecEdtDefDelay != "" && IsInteger(this.RecEdtDefDelay.Value)) {
+            del := Integer(this.RecEdtDefDelay.Value)
+        }
+        dispName := (btnName = "LButton") ? "Left Click" : ((btnName = "RButton") ? "Right Click" : "Middle Click")
+        this.AddMacroStep(this.RecActivePhase, "Down", btnName, del)
+        this.AddMacroStep(this.RecActivePhase, "Up", btnName, del)
+        SoundBeep(1100, 70)
+        OSD.Show("Injected Mouse Click", dispName . " (" . this.RecActivePhase . ")")
+    }
+
+    static HasKey(arr, target) {
+        if (!IsObject(arr))
+            return false
+        for item in arr {
+            if (item = target)
+                return true
+        }
+        return false
     }
 
     ; ========================================================
@@ -2037,6 +2133,9 @@ class GuiManager {
         this.RecTabs := ""
         this.RecPreviewText := ""
         this.RecBtnRecordSingle := ""
+        this.RecBtnInjectLClick := ""
+        this.RecBtnInjectMClick := ""
+        this.RecBtnInjectRClick := ""
         this.RecIsRecordingSingle := false
         this.RecDdlSingleMode := ""
         this.RecEdtSingleInt := ""

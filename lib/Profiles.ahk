@@ -6,8 +6,18 @@
  * persisted via settings.ini.
  */
 class ProfileEngine {
-    static Profiles := ["Desktop", "Productivity", "Gaming", "Media"]
+    static Profiles := ["Desktop"]
     static CurrentProfile := "Desktop"
+    static AutoSwitchEnabled := true
+    static LockedProfile := ""
+    static LastActiveProcess := ""
+    static AutoSwitchTimerFn := ""
+
+    ; Profile Metadata: Map(profileName, { TargetExe: "...", Icon: "...", IsDefault: bool, Desc: "..." })
+    static ProfileMetadata := Map(
+        "Desktop",      { TargetExe: "", Icon: "desktop", IsDefault: true, Desc: "Default System & Desktop Profile" }
+    )
+
     static IsGShiftActive := false
     static IsGShift1Active := false
     static IsGShift2Active := false
@@ -38,48 +48,9 @@ class ProfileEngine {
             "Middle",       { Normal: { Type: "Send", Cmd: "{MButton}", Label: "Middle Click" }, GShift: { Type: "Send", Cmd: "^w", Label: "Close Tab" } },
             "G8",           { Normal: { Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up" }, GShift: { Type: "Send", Cmd: "#{Up}", Label: "Maximize Win" } },
             "G7",           { Normal: { Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down" }, GShift: { Type: "Send", Cmd: "#{Down}", Label: "Minimize Win" } },
-            "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "G-Shift / Task View" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
+            "DpiShift",     { Normal: { Type: "Default", Cmd: "", Label: "DPI Shift" }, GShift: { Type: "Default", Cmd: "", Label: "Default" } },
             "Forward",      { Normal: { Type: "Send", Cmd: "!{Right}", Label: "Browser Forward" }, GShift: { Type: "Send", Cmd: "^w", Label: "Close Tab" } },
             "Back",         { Normal: { Type: "Send", Cmd: "!{Left}", Label: "Browser Back" }, GShift: { Type: "Send", Cmd: "^+t", Label: "Reopen Tab" } },
-            "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } },
-            "WheelUp",      { Normal: { Type: "Default", Cmd: "{WheelUp}", Label: "Default Scroll Up" }, GShift: { Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up" } },
-            "WheelDown",    { Normal: { Type: "Default", Cmd: "{WheelDown}", Label: "Default Scroll Down" }, GShift: { Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down" } }
-        ),
-        "Productivity", Map(
-            "TiltLeft",     { Normal: { Type: "Send", Cmd: "!{Left}", Label: "Cursor History Back" }, GShift: { Type: "Send", Cmd: "^{PgUp}", Label: "Prev Editor Tab" } },
-            "TiltRight",    { Normal: { Type: "Send", Cmd: "!{Right}", Label: "Cursor History Fwd" }, GShift: { Type: "Send", Cmd: "^{PgDn}", Label: "Next Editor Tab" } },
-            "Middle",       { Normal: { Type: "Send", Cmd: "{MButton}", Label: "Middle Click" }, GShift: { Type: "Send", Cmd: "^w", Label: "Close Tab" } },
-            "G8",           { Normal: { Type: "Send", Cmd: "!+{Down}", Label: "Duplicate Line" }, GShift: { Type: "Send", Cmd: "^d", Label: "Select Next Word" } },
-            "G7",           { Normal: { Type: "Send", Cmd: "^+k", Label: "Delete Line" }, GShift: { Type: "Send", Cmd: "^/", Label: "Toggle Comment" } },
-            "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "G-Shift / Command Pal" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
-            "Forward",      { Normal: { Type: "Send", Cmd: "^y", Label: "Redo (Ctrl+Y)" }, GShift: { Type: "Send", Cmd: "+!f", Label: "Format Document" } },
-            "Back",         { Normal: { Type: "Send", Cmd: "^z", Label: "Undo (Ctrl+Z)" }, GShift: { Type: "Send", Cmd: "^s", Label: "Save (Ctrl+S)" } },
-            "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } },
-            "WheelUp",      { Normal: { Type: "Default", Cmd: "{WheelUp}", Label: "Default Scroll Up" }, GShift: { Type: "Send", Cmd: "^{WheelUp}", Label: "Zoom In" } },
-            "WheelDown",    { Normal: { Type: "Default", Cmd: "{WheelDown}", Label: "Default Scroll Down" }, GShift: { Type: "Send", Cmd: "^{WheelDown}", Label: "Zoom Out" } }
-        ),
-        "Gaming", Map(
-            "TiltLeft",     { Normal: { Type: "Send", Cmd: "1", Label: "Weapon Slot 1" }, GShift: { Type: "Send", Cmd: "1", Label: "Weapon Slot 1" } },
-            "TiltRight",    { Normal: { Type: "Send", Cmd: "2", Label: "Weapon Slot 2" }, GShift: { Type: "Send", Cmd: "2", Label: "Weapon Slot 2" } },
-            "Middle",       { Normal: { Type: "Send", Cmd: "{MButton}", Label: "Middle Click" }, GShift: { Type: "Send", Cmd: "{MButton}", Label: "Middle Click" } },
-            "G8",           { Normal: { Type: "Special", Cmd: "ToggleRapidFire", Label: "Toggle Rapid Fire" }, GShift: { Type: "Special", Cmd: "ToggleRapidFire", Label: "Toggle Rapid Fire" } },
-            "G7",           { Normal: { Type: "Send", Cmd: "z", Label: "Quick Ping (Z)" }, GShift: { Type: "Send", Cmd: "z", Label: "Quick Ping (Z)" } },
-            "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "Sniper Aim / Melee" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
-            "Forward",      { Normal: { Type: "Send", Cmd: "g", Label: "Grenade (G)" }, GShift: { Type: "Send", Cmd: "g", Label: "Grenade (G)" } },
-            "Back",         { Normal: { Type: "Send", Cmd: "r", Label: "Reload (R)" }, GShift: { Type: "Send", Cmd: "r", Label: "Reload (R)" } },
-            "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } },
-            "WheelUp",      { Normal: { Type: "Default", Cmd: "{WheelUp}", Label: "Default Scroll Up" }, GShift: { Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up" } },
-            "WheelDown",    { Normal: { Type: "Default", Cmd: "{WheelDown}", Label: "Default Scroll Down" }, GShift: { Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down" } }
-        ),
-        "Media", Map(
-            "TiltLeft",     { Normal: { Type: "Send", Cmd: "{Media_Prev}", Label: "Previous Track" }, GShift: { Type: "Send", Cmd: "{Media_Prev}", Label: "Previous Track" } },
-            "TiltRight",    { Normal: { Type: "Send", Cmd: "{Media_Next}", Label: "Next Track" }, GShift: { Type: "Send", Cmd: "{Media_Next}", Label: "Next Track" } },
-            "Middle",       { Normal: { Type: "Send", Cmd: "{MButton}", Label: "Middle Click" }, GShift: { Type: "Send", Cmd: "{Media_Play_Pause}", Label: "Play / Pause" } },
-            "G8",           { Normal: { Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up" }, GShift: { Type: "Send", Cmd: "{Volume_Up 4}", Label: "Fast Vol Up" } },
-            "G7",           { Normal: { Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down" }, GShift: { Type: "Send", Cmd: "{Volume_Down 4}", Label: "Fast Vol Down" } },
-            "DpiShift",     { Normal: { Type: "Special", Cmd: "GShift", Label: "G-Shift / Play-Pause" }, GShift: { Type: "Special", Cmd: "GShift", Label: "G-Shift Layer" } },
-            "Forward",      { Normal: { Type: "Send", Cmd: "{Right}", Label: "Seek Forward 10s" }, GShift: { Type: "Send", Cmd: "{Right 2}", Label: "Seek Forward 20s" } },
-            "Back",         { Normal: { Type: "Send", Cmd: "{Left}", Label: "Seek Back 10s" }, GShift: { Type: "Send", Cmd: "{Left 2}", Label: "Seek Back 20s" } },
             "ProfileCycle", { Normal: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" }, GShift: { Type: "Special", Cmd: "CycleProfile", Label: "Next Profile" } },
             "WheelUp",      { Normal: { Type: "Default", Cmd: "{WheelUp}", Label: "Default Scroll Up" }, GShift: { Type: "Send", Cmd: "{Volume_Up 2}", Label: "Volume Up" } },
             "WheelDown",    { Normal: { Type: "Default", Cmd: "{WheelDown}", Label: "Default Scroll Down" }, GShift: { Type: "Send", Cmd: "{Volume_Down 2}", Label: "Volume Down" } }
@@ -92,14 +63,50 @@ class ProfileEngine {
     static Init(iniPath) {
         this.ConfigPath := iniPath
         this.LoadAllMappings()
+        this.StartAutoSwitchTimer()
     }
 
     static LoadAllMappings() {
+        ; Load Profile List & Options from settings.ini
+        try {
+            savedList := IniRead(this.ConfigPath, "Profiles", "List", "")
+            if (savedList != "") {
+                arr := StrSplit(savedList, ",")
+                loadedList := []
+                for item in arr {
+                    pName := Trim(item)
+                    if (pName != "")
+                        loadedList.Push(pName)
+                }
+                if (loadedList.Length > 0)
+                    this.Profiles := loadedList
+            }
+            this.AutoSwitchEnabled := (IniRead(this.ConfigPath, "Profiles", "AutoSwitchEnabled", "1") = "1")
+            this.LockedProfile := IniRead(this.ConfigPath, "Profiles", "LockedProfile", "")
+        }
+
+        ; Load metadata for each profile
+        for prof in this.Profiles {
+            if (!this.ProfileMetadata.Has(prof)) {
+                this.ProfileMetadata[prof] := { TargetExe: "", Icon: "generic", IsDefault: (prof = "Desktop"), Desc: prof . " Profile" }
+            }
+            sec := "Profile_" . prof
+            try {
+                savedExe := IniRead(this.ConfigPath, sec, "TargetExe", this.ProfileMetadata[prof].TargetExe)
+                savedIcon := IniRead(this.ConfigPath, sec, "Icon", this.ProfileMetadata[prof].Icon)
+                savedDef := (IniRead(this.ConfigPath, sec, "IsDefault", this.ProfileMetadata[prof].IsDefault ? "1" : "0") = "1")
+                this.ProfileMetadata[prof].TargetExe := savedExe
+                this.ProfileMetadata[prof].Icon := savedIcon
+                this.ProfileMetadata[prof].IsDefault := savedDef
+            }
+            this.EnsureProfileIcon(prof, this.ProfileMetadata[prof].TargetExe)
+        }
+
         for profile in this.Profiles {
             if (!this.ActiveMappings.Has(profile))
                 this.ActiveMappings[profile] := Map()
 
-            defaults := this.DefaultMappings[profile]
+            defaults := this.DefaultMappings.Has(profile) ? this.DefaultMappings[profile] : this.DefaultMappings["Desktop"]
             for btnId, def in defaults {
                 section := "Mapping_" . profile . "_" . btnId
                 
@@ -295,6 +302,16 @@ class ProfileEngine {
         return shiftBtns
     }
 
+    static HasProfile(profileName) {
+        for p in this.Profiles {
+            if (p = profileName)
+                return true
+        }
+        return false
+    }
+
+    static SelectProfile(profileName) => this.SetProfile(profileName)
+
     ; Switch to a specific profile
     static SetProfile(profileName) {
         for p in this.Profiles {
@@ -342,13 +359,318 @@ class ProfileEngine {
     }
 
     static GetProfileDescription(p) {
+        if (this.ProfileMetadata.Has(p) && this.ProfileMetadata[p].HasOwnProp("Desc") && this.ProfileMetadata[p].Desc != "")
+            return this.ProfileMetadata[p].Desc
         switch p {
             case "Desktop": return "Tabs, Media, Snap Windows & G-Shift"
             case "Productivity": return "VS Code, Undo/Redo, Duplication & Format"
             case "Gaming": return "Rapid Fire, Sniper Aim, Weapon Shortcuts"
             case "Media": return "Track Controls, Volume Wheel & Play/Pause"
-            default: return ""
+            default: return p . " Profile"
         }
+    }
+
+    ; =========================================================================
+    ; AUTOMATIC PROFILE SWITCHING BY WINDOW FOCUS (LGS STYLE)
+    ; =========================================================================
+    static StartAutoSwitchTimer() {
+        if (!this.AutoSwitchTimerFn) {
+            this.AutoSwitchTimerFn := () => ProfileEngine.CheckActiveWindow()
+        }
+        SetTimer(this.AutoSwitchTimerFn, 250)
+    }
+
+    static StopAutoSwitchTimer() {
+        if (this.AutoSwitchTimerFn) {
+            SetTimer(this.AutoSwitchTimerFn, 0)
+        }
+    }
+
+    static CheckActiveWindow() {
+        if (!this.AutoSwitchEnabled || this.LockedProfile != "")
+            return
+            
+        try {
+            activeHwnd := WinExist("A")
+            if (!activeHwnd)
+                return
+                
+            guiHwnd := (HasProp(WebViewGuiManager, "MainGui") && WebViewGuiManager.MainGui != "") ? WebViewGuiManager.MainGui.Hwnd : 0
+            if (guiHwnd && (activeHwnd == guiHwnd || DllCall("IsChild", "ptr", guiHwnd, "ptr", activeHwnd)))
+                return
+                
+            activeProc := WinGetProcessName(activeHwnd)
+            if (activeProc == "" || activeProc = "AutoHotkey64.exe" || activeProc = "msedgewebview2.exe")
+                return
+
+            ; Ignore transient shell and system navigation windows:
+            ; Taskbar, Start Menu, Search, Alt+Tab, System Tray, DWM
+            winClass := WinGetClass(activeHwnd)
+            if (winClass = "Shell_TrayWnd" || winClass = "Shell_SecondaryTrayWnd" || winClass = "Windows.UI.Core.CoreWindow" || winClass = "XamlExplorerHostIslandWindow")
+                return
+
+            if (activeProc = "SearchHost.exe" || activeProc = "StartMenuExperienceHost.exe" || activeProc = "ShellExperienceHost.exe" || activeProc = "MultitaskingView.exe" || activeProc = "dwm.exe")
+                return
+
+            ; If explorer.exe is focused, only switch to Desktop if it's the actual desktop wallpaper (Progman/WorkerW) or File Explorer (CabinetWClass)
+            if (activeProc = "explorer.exe" && winClass != "Progman" && winClass != "WorkerW" && winClass != "CabinetWClass")
+                return
+
+            ; Find matching profile for activeProc
+            matchedProfile := ""
+            cleanProc := RegExReplace(activeProc, "i)\.exe$", "")
+
+            for profName, meta in this.ProfileMetadata {
+                ; 1. Match against TargetExe list
+                if (meta.TargetExe != "") {
+                    for exe in StrSplit(meta.TargetExe, [",", ";", "`n", "`r", " "]) {
+                        exe := Trim(exe)
+                        if (exe == "")
+                            continue
+                        cleanExe := RegExReplace(exe, "i)\.exe$", "")
+                        if (StrCompare(cleanExe, cleanProc, false) == 0) {
+                            matchedProfile := profName
+                            break 2
+                        }
+                    }
+                }
+                ; 2. Match if profile name directly matches process name (e.g. "Vivaldi" profile matches vivaldi.exe)
+                if (profName != "Desktop" && StrCompare(profName, cleanProc, false) == 0) {
+                    matchedProfile := profName
+                    break
+                }
+            }
+            
+            ; If no specific app profile matched, fallback to default profile ("Desktop")
+            if (matchedProfile == "") {
+                for profName, meta in this.ProfileMetadata {
+                    if (meta.IsDefault) {
+                        matchedProfile := profName
+                        break
+                    }
+                }
+                if (matchedProfile == "")
+                    matchedProfile := "Desktop"
+            }
+            
+            ; Switch if profile changed
+            if (matchedProfile != this.CurrentProfile && this.HasProfile(matchedProfile)) {
+                this.LastActiveProcess := activeProc
+                WebViewGuiManager.Log("AutoSwitch: Active=" . activeProc . " -> Switch to Profile: " . matchedProfile . " (was: " . this.CurrentProfile . ")")
+                this.SetProfile(matchedProfile)
+            } else {
+                this.LastActiveProcess := activeProc
+            }
+        } catch as err {
+            WebViewGuiManager.Log("Error in CheckActiveWindow: " . err.Message)
+        }
+    }
+
+    static SaveProfileConfig() {
+        if (this.ConfigPath == "")
+            return
+        listStr := ""
+        for i, p in this.Profiles
+            listStr .= (i = 1 ? "" : ",") . p
+        IniWrite(listStr, this.ConfigPath, "Profiles", "List")
+        IniWrite(this.AutoSwitchEnabled ? "1" : "0", this.ConfigPath, "Profiles", "AutoSwitchEnabled")
+        IniWrite(this.LockedProfile, this.ConfigPath, "Profiles", "LockedProfile")
+        
+        for prof in this.Profiles {
+            sec := "Profile_" . prof
+            if (this.ProfileMetadata.Has(prof)) {
+                meta := this.ProfileMetadata[prof]
+                IniWrite(meta.TargetExe, this.ConfigPath, sec, "TargetExe")
+                IniWrite(meta.Icon, this.ConfigPath, sec, "Icon")
+                IniWrite(meta.IsDefault ? "1" : "0", this.ConfigPath, sec, "IsDefault")
+                if (meta.HasOwnProp("Desc"))
+                    IniWrite(meta.Desc, this.ConfigPath, sec, "Desc")
+            }
+        }
+    }
+
+    static AddProfile(name, targetExe := "", icon := "") {
+        name := Trim(name)
+        if (name == "" || this.HasProfile(name))
+            return false
+            
+        this.Profiles.Push(name)
+        if (icon == "")
+            icon := "generic"
+            
+        this.ProfileMetadata[name] := { TargetExe: targetExe, Icon: icon, IsDefault: false, Desc: name . " Profile" }
+        
+        ; Initialize ActiveMappings for this profile by copying Desktop defaults
+        this.ActiveMappings[name] := Map()
+        defMap := this.DefaultMappings.Has("Desktop") ? this.DefaultMappings["Desktop"] : Map()
+        for btnId, def in defMap {
+            this.ActiveMappings[name][btnId] := {
+                Normal: { Type: def.Normal.Type, Cmd: def.Normal.Cmd, Label: def.Normal.Label, PlayType: "NoRepeat", RepeatInterval: 50, Steps: [], SeqPress: [], SeqHold: [], SeqRelease: [] },
+                GShift: { Type: def.GShift.Type, Cmd: def.GShift.Cmd, Label: def.GShift.Label, PlayType: "NoRepeat", RepeatInterval: 50, Steps: [], SeqPress: [], SeqHold: [], SeqRelease: [] },
+                GShift2: { Type: def.Normal.Type, Cmd: def.Normal.Cmd, Label: def.Normal.Label, PlayType: "NoRepeat", RepeatInterval: 50, Steps: [], SeqPress: [], SeqHold: [], SeqRelease: [] }
+            }
+        }
+        
+        this.SaveProfileConfig()
+        this.EnsureProfileIcon(name, targetExe)
+        return true
+    }
+
+    static DeleteProfile(name) {
+        name := Trim(name)
+        if (name == "Desktop" || !this.HasProfile(name))
+            return false
+            
+        if (this.ProfileMetadata.Has(name) && this.ProfileMetadata[name].IsDefault)
+            return false
+            
+        newProfiles := []
+        for p in this.Profiles {
+            if (p != name)
+                newProfiles.Push(p)
+        }
+        this.Profiles := newProfiles
+        
+        if (this.ProfileMetadata.Has(name))
+            this.ProfileMetadata.Delete(name)
+            
+        if (this.ActiveMappings.Has(name))
+            this.ActiveMappings.Delete(name)
+            
+        if (this.CurrentProfile = name)
+            this.SetProfile("Desktop")
+            
+        this.SaveProfileConfig()
+        return true
+    }
+
+    static UpdateProfile(name, targetExe, icon := "") {
+        name := Trim(name)
+        if (!this.HasProfile(name))
+            return false
+            
+        if (!this.ProfileMetadata.Has(name))
+            this.ProfileMetadata[name] := { TargetExe: targetExe, Icon: "generic", IsDefault: (name = "Desktop"), Desc: name . " Profile" }
+        else {
+            this.ProfileMetadata[name].TargetExe := targetExe
+            if (icon != "")
+                this.ProfileMetadata[name].Icon := icon
+        }
+        
+        this.SaveProfileConfig()
+        this.EnsureProfileIcon(name, targetExe)
+        return true
+    }
+
+    static EnsureProfileIcon(profName, targetExe) {
+        if (profName = "Desktop")
+            return
+        outDir := A_ScriptDir . "\web\icons"
+        if (!DirExist(outDir)) {
+            try DirCreate(outDir)
+        }
+        outPng := outDir . "\" . profName . ".png"
+        if (FileExist(outPng))
+            return
+            
+        fullPath := this.ResolveExePath(targetExe)
+        if (fullPath != "" && FileExist(fullPath)) {
+            this.ExtractExeIcon(fullPath, outPng)
+        }
+    }
+
+    static ResolveExePath(exePathOrName) {
+        exePathOrName := Trim(exePathOrName)
+        if (exePathOrName == "")
+            return ""
+        if (FileExist(exePathOrName))
+            return exePathOrName
+
+        cleanName := RegExReplace(exePathOrName, "i)\.exe$", "") . ".exe"
+        try {
+            pid := ProcessExist(cleanName)
+            if (pid) {
+                p := ProcessGetPath(pid)
+                if (FileExist(p))
+                    return p
+            }
+        }
+        try {
+            p := RegRead("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" . cleanName, "")
+            if (p != "" && FileExist(p))
+                return p
+        }
+        try {
+            p := RegRead("HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" . cleanName, "")
+            if (p != "" && FileExist(p))
+                return p
+        }
+        candidates := [
+            A_AppData . "\..\Local\" . RegExReplace(cleanName, "i)\.exe$", "") . "\Application\" . cleanName,
+            "C:\Program Files\" . RegExReplace(cleanName, "i)\.exe$", "") . "\" . cleanName,
+            "C:\Program Files (x86)\" . RegExReplace(cleanName, "i)\.exe$", "") . "\" . cleanName
+        ]
+        for c in candidates {
+            if (FileExist(c))
+                return c
+        }
+        return ""
+    }
+
+    static ExtractExeIcon(fullPath, outPng) {
+        try {
+            token := 0
+            si := Buffer(24, 0)
+            NumPut("UInt", 1, si, 0)
+            if (DllCall("gdiplus\GdiplusStartup", "Ptr*", &token, "Ptr", si.Ptr, "Ptr", 0) != 0)
+                return false
+
+            index := 0
+            hIcon := DllCall("shell32\ExtractAssociatedIcon", "Ptr", 0, "Str", fullPath, "Short*", &index, "Ptr")
+            if (hIcon) {
+                pBitmap := 0
+                DllCall("gdiplus\GdipCreateBitmapFromHICON", "Ptr", hIcon, "Ptr*", &pBitmap)
+                DllCall("user32\DestroyIcon", "Ptr", hIcon)
+                
+                if (pBitmap) {
+                    clsidPng := Buffer(16)
+                    DllCall("ole32\CLSIDFromString", "Str", "{557CF406-1A04-11D3-9A73-0000F81EF32E}", "Ptr", clsidPng.Ptr)
+                    DllCall("gdiplus\GdipSaveImageToFile", "Ptr", pBitmap, "Str", outPng, "Ptr", clsidPng.Ptr, "Ptr", 0)
+                    DllCall("gdiplus\GdipDisposeImage", "Ptr", pBitmap)
+                }
+            }
+            DllCall("gdiplus\GdiplusShutdown", "Ptr", token)
+            return FileExist(outPng) ? true : false
+        } catch {
+            return false
+        }
+    }
+
+    static GetRunningProcesses() {
+        procs := Map()
+        try {
+            hwndList := WinGetList()
+            for hwnd in hwndList {
+                if (!DllCall("IsWindowVisible", "Ptr", hwnd))
+                    continue
+                title := WinGetTitle(hwnd)
+                if (title == "" || title == "Program Manager")
+                    continue
+                try {
+                    pname := WinGetProcessName(hwnd)
+                    if (pname != "" && !procs.Has(pname)) {
+                        if (pname != "explorer.exe" && pname != "AutoHotkey64.exe" && pname != "msedgewebview2.exe" && pname != "ApplicationFrameHost.exe" && pname != "SystemSettings.exe") {
+                            procs[pname] := title
+                        }
+                    }
+                }
+            }
+        }
+        out := []
+        for pname, title in procs {
+            out.Push(Map("process", pname, "title", title))
+        }
+        return out
     }
 
     ; Dynamic execution engine
@@ -456,8 +778,12 @@ class ProfileEngine {
     }
 
     static ExecuteActionOnce(act) {
-        if (act.Type = "Send" && act.Cmd != "") {
-            Send(act.Cmd)
+        if ((act.Type = "Send" || act.Type = "Default") && act.Cmd != "") {
+            if (act.Cmd = "{WheelUp}" || act.Cmd = "{WheelDown}") {
+                Send("{Blind}" . act.Cmd)
+            } else {
+                Send(act.Cmd)
+            }
         } else if (act.Type = "Macro") {
             if (act.HasOwnProp("Steps") && act.Steps.Length > 0) {
                 this.PlaySteps(act.Steps)
@@ -626,6 +952,34 @@ class ProfileEngine {
         this.DispatchButton("G7", isDown)
     }
 
+    static LastWheelNotifyTime := 0
+
+    ; Determines if WheelUp/WheelDown should be intercepted by AHK hook
+    static NeedsWheelIntercept() {
+        if (this.IsGShiftActive || this.IsGShift1Active || this.IsGShift2Active)
+            return true
+            
+        mappingUp := this.GetButtonMapping(this.CurrentProfile, "WheelUp")
+        if (this.IsCustomWheelAction(mappingUp.Normal, "WheelUp"))
+            return true
+            
+        mappingDown := this.GetButtonMapping(this.CurrentProfile, "WheelDown")
+        if (this.IsCustomWheelAction(mappingDown.Normal, "WheelDown"))
+            return true
+            
+        return false
+    }
+
+    static IsCustomWheelAction(act, defaultBtnId) {
+        if (!IsObject(act))
+            return false
+        if (act.Type = "Macro" || act.Type = "Special")
+            return true
+        if (act.Cmd != "" && act.Cmd != "{" . defaultBtnId . "}")
+            return true
+        return false
+    }
+
     ; Native Scroll Wheel Mapping & Dispatch (No F-key required)
     static DispatchWheel(direction) {
         btnId := (direction = "Up") ? "WheelUp" : "WheelDown"
@@ -643,12 +997,16 @@ class ProfileEngine {
         mapping := this.GetButtonMapping(this.CurrentProfile, btnId)
         act := (layer = "GShift2") ? mapping.GShift2 : ((layer = "GShift" || layer = "GShift1") ? mapping.GShift : mapping.Normal)
 
-        ; Notify GUI for visual feedback
-        this.NotifyButton(btnId, true)
-        SetTimer(() => this.NotifyButton(btnId, false), -150)
+        ; Throttled GUI visual feedback (max once per 200ms)
+        now := A_TickCount
+        if (now - this.LastWheelNotifyTime > 200) {
+            this.LastWheelNotifyTime := now
+            this.NotifyButton(btnId, true)
+            SetTimer(() => this.NotifyButton(btnId, false), -150)
+        }
 
-        ; If action is Default (or empty or standard wheel), pass-through natively!
-        if (act.Type = "Default" || (act.Type = "Send" && (act.Cmd = "{WheelUp}" || act.Cmd = "{WheelDown}"))) {
+        ; If action is unassigned or Default native wheel, pass-through natively!
+        if ((act.Type = "Default" && (act.Cmd == "" || act.Cmd == "{" . btnId . "}")) || act.Cmd == "" || (act.Type = "Send" && act.Cmd == "{" . btnId . "}")) {
             if (direction = "Up") {
                 Send("{Blind}{WheelUp}")
             } else {

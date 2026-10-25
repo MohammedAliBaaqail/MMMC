@@ -6,6 +6,11 @@ OnError(LogError)
 LogError(thrown, mode) {
     FileAppend("Error: " . thrown.Message . "`nFile: " . thrown.File . "`nLine: " . thrown.Line . "`n", A_ScriptDir . "\error.log")
 }
+OnExit(OnScriptExit)
+OnScriptExit(ExitReason, ExitCode) {
+    try WebViewGuiManager.Cleanup()
+    FileAppend(FormatTime(, "yyyy-MM-dd HH:mm:ss") . " | SCRIPT EXIT: Reason=" . ExitReason . ", Code=" . ExitCode . "`n", A_ScriptDir . "\webview_debug.log")
+}
 
 /**
  * LOGITECH G502 X — ADVANCED AHK v2 CONTROLLER
@@ -29,6 +34,7 @@ LogError(thrown, mode) {
 #Include "lib/OMMHelper.ahk"
 #Include "lib/Profiles.ahk"
 #Include "lib/GuiManager.ahk"
+#Include "lib/WebViewGuiManager.ahk"
 
 ; --- Application Initialization ---
 A_IconTip := "Logitech G502 X Manager (AHK v2)"
@@ -42,14 +48,15 @@ InitialProfile := IniRead(ConfigFile, "General", "DefaultProfile", "Desktop")
 ProfileEngine.SetProfile(InitialProfile)
 
 AlwaysOnTopPref := IniRead(ConfigFile, "General", "AlwaysOnTop", "1")
+WebViewGuiManager.IsAlwaysOnTop := (AlwaysOnTopPref = "1")
 GuiManager.IsAlwaysOnTop := (AlwaysOnTopPref = "1")
 
 ; Setup System Tray Menu
 SetupTrayMenu()
 
-; Display welcome OSD and Launch GUI
+; Display welcome OSD and Launch Modern Studio GUI
 OSD.Show("G502 X Manager Active", "Profile: " . ProfileEngine.CurrentProfile . " (OMM Connected)")
-GuiManager.Show()
+WebViewGuiManager.Show()
 
 ; ========================================================
 ; TRAY MENU SETUP
@@ -58,9 +65,10 @@ SetupTrayMenu() {
     tray := A_TrayMenu
     tray.Delete() ; Clear default items
     
-    tray.Add("Open Control Center", (*) => GuiManager.Show())
-    tray.Add("Always on Top", (*) => GuiManager.ToggleAlwaysOnTop())
-    if (GuiManager.IsAlwaysOnTop)
+    tray.Add("Open G502 X Studio (WebView2)", (*) => WebViewGuiManager.Show())
+    tray.Add("Open Classic GUI (Win32)", (*) => GuiManager.Show())
+    tray.Add("Always on Top", (*) => WebViewGuiManager.ToggleAlwaysOnTop())
+    if (WebViewGuiManager.IsAlwaysOnTop)
         tray.Check("Always on Top")
     tray.Add() ; Separator
 
@@ -76,7 +84,7 @@ SetupTrayMenu() {
     
     tray.Add("Reload Script", (*) => Reload())
     tray.Add("Exit", (*) => SaveAndExit())
-    tray.Default := "Open Control Center"
+    tray.Default := "Open G502 X Studio (WebView2)"
 }
 
 SwitchProfileFromTray(p) {
@@ -94,7 +102,7 @@ SaveAndExit() {
 ; Synchronized 1:1 with Logitech Onboard Memory Manager
 ; Active whenever keystroke recording modal is NOT open
 ; ========================================================
-#HotIf !GuiManager.IsRecording()
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording()
 
 ; Button 3: Middle Click (Mouse 3) -> F13
 *F13::ProfileEngine.HandleF13_Middle(true)
@@ -138,7 +146,7 @@ SaveAndExit() {
 ; SCROLL WHEEL INTERCEPT (No F-Key Required)
 ; Dispatches based on active profile & B-Shift layer
 ; ========================================================
-#HotIf !GuiManager.IsRecording()
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && ProfileEngine.NeedsWheelIntercept()
 
 *WheelUp::ProfileEngine.DispatchWheel("Up")
 *WheelDown::ProfileEngine.DispatchWheel("Down")

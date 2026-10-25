@@ -39,9 +39,19 @@ class OSD {
         this.textTitle.Value := title
         this.textSub.Value := subtitle
 
-        ; Calculate position: bottom right, above taskbar
-        MonIndex := 1
-        MonitorGetWorkArea(MonIndex, &WL, &WT, &WR, &WB)
+        ; Calculate position: bottom right of active monitor where mouse cursor is
+        CoordMode("Mouse", "Screen")
+        MouseGetPos(&mX, &mY)
+        monCount := MonitorGetCount()
+        monIndex := 1
+        Loop monCount {
+            MonitorGet(A_Index, &mL, &mT, &mR, &mB)
+            if (mX >= mL && mX < mR && mY >= mT && mY < mB) {
+                monIndex := A_Index
+                break
+            }
+        }
+        MonitorGetWorkArea(monIndex, &WL, &WT, &WR, &WB)
         
         guiW := 300
         guiH := (subtitle != "") ? 74 : 52
