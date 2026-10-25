@@ -219,7 +219,7 @@ class GuiManager {
         "G-Shift 2 Modifier",                      { Type: "Special", Cmd: "GShift2", Label: "B-Shift 2 Layer" },
         "G-Shift Layer Modifier",                  { Type: "Special", Cmd: "GShift", Label: "B-Shift Layer" },
         "[Custom Key Combination]",                { Type: "Custom", Cmd: "", Label: "Custom Combo" },
-        "[Raw AHK String / Macro]",                { Type: "Raw", Cmd: "", Label: "Raw Macro" }
+        "[Raw Command String / Macro]",            { Type: "Raw", Cmd: "", Label: "Raw Macro" }
     )
 
     static KeysList := [
@@ -242,13 +242,15 @@ class GuiManager {
         ; Hook ProfileEngine profile changes
         ProfileEngine.OnProfileChanged := (p) => GuiManager.OnProfileChangedHandler(p)
 
-        ; Create Main GUI (Wide G-HUB Studio Layout)
+        ; Create Main GUI (Wide Studio Layout)
         opt := this.IsAlwaysOnTop ? "+AlwaysOnTop -MaximizeBox" : "-AlwaysOnTop -MaximizeBox"
-        g := Gui(opt, "Logitech G502 X — Advanced Controller (LGS & G-HUB Studio)")
+        g := Gui(opt, "Logitech G502 X — Advanced Controller")
         g.BackColor := "181825"
         g.MarginX := 15
         g.MarginY := 15
         this.MainGui := g
+        try WebViewGuiManager.SetWindowIcon(g.Hwnd)
+        try WebViewGuiManager.ApplyThemeToTitleBar(g.Hwnd)
 
         ; Header Row
         g.SetFont("s13 bold c89B4FA", "Segoe UI")
@@ -435,8 +437,8 @@ class GuiManager {
             . "1. Open Logitech Onboard Memory Manager (OMM.exe).`n"
             . "2. Click a button on your G502 X in OMM and choose 'Keystroke' -> 'Record'.`n"
             . "3. Click the matching button below. A 3-second countdown will begin.`n"
-            . "4. Switch back to OMM during the countdown. AHK will inject the dedicated virtual key for you!`n"
-            . "5. Save to onboard memory and close OMM forever."
+            . "4. Switch back to OMM during the countdown. The virtual key will be injected for you!`n"
+            . "5. Save to onboard memory and close OMM."
         )
 
         g.SetFont("s10 bold cFAB387", "Segoe UI")
@@ -482,6 +484,7 @@ class GuiManager {
 
         g.OnEvent("Close", (*) => g.Hide())
         g.Show("w1145 h748")
+        try WebViewGuiManager.ApplyThemeToTitleBar(g.Hwnd)
     }
 
     static ToggleNameVisibility() {
@@ -1321,7 +1324,7 @@ class GuiManager {
 
         ; Dual Mode Tabs
         rg.SetFont("s9 bold cCDD6F4", "Segoe UI")
-        tabs := rg.Add("Tab3", "x25 y62 w590 h445 Choose1 -Theme", ["  ⌨  Single / Keystroke Combination  ", "  🗂  Macro Recorder (G-HUB Style)  "])
+        tabs := rg.Add("Tab3", "x25 y62 w590 h445 Choose1 -Theme", ["  ⌨  Single / Keystroke Combination  ", "  🗂  Macro Recorder  "])
         this.RecTabs := tabs
 
         ; ========================================================
@@ -1631,8 +1634,8 @@ class GuiManager {
         this.RecActiveCombo := []
         this.RecKeysDown.Clear()
 
-        ih := InputHook("V I0")
-        ih.KeyOpt("{All}", "N")
+        ih := InputHook("I0")
+        ih.KeyOpt("{All}", "+S +N")
         this.RecorderHook := ih
 
         ih.OnKeyDown := (hook, vk, sc) => this.OnSingleKeyDown(vk, sc)
@@ -1865,10 +1868,8 @@ class GuiManager {
             this.RecMacroActiveKeys.Clear()
             this.RecMacroLastTime := A_TickCount
 
-            ih := InputHook("V")
-            ih.KeyOpt("{All}", "N")
-            ; Suppress keys that activate GUI buttons or alter dialog focus in the Button Studio window
-            ih.KeyOpt("{Enter}{NumpadEnter}{Space}{Tab}{Escape}", "+S")
+            ih := InputHook("I0")
+            ih.KeyOpt("{All}", "+S +N")
             ih.OnKeyDown := (hook, vk, sc) => this.OnMacroKeyDown(vk, sc)
             ih.OnKeyUp   := (hook, vk, sc) => this.OnMacroKeyUp(vk, sc)
             this.RecMacroHook := ih
@@ -2287,7 +2288,7 @@ class GuiManager {
         this.EditKeyDrop.OnEvent("Change", (*) => this.OnCustomCombinationChanged())
 
         eg.SetFont("s9 bold c89B4FA", "Segoe UI")
-        eg.Add("Text", "xp-240 y+16", "Raw AHK Command / String (Optional):")
+        eg.Add("Text", "xp-240 y+16", "Raw Command String (Optional):")
         eg.SetFont("s9 norm cCDD6F4", "Segoe UI")
         this.EditCustomCmd := eg.Add("Edit", "xp y+6 w490 h24 Background1E1E2E cCDD6F4", currentMapping.Normal.Cmd)
 
@@ -2393,7 +2394,7 @@ class GuiManager {
                 lbl .= (i > 1 ? " + " : "") . p
             }
             normalObj := { Type: "Send", Cmd: cmd, Label: lbl }
-        } else if (presetChoice = "[Raw AHK String / Macro]") {
+        } else if (presetChoice = "[Raw Command String / Macro]") {
             raw := this.EditCustomCmd.Value
             normalObj := { Type: "Send", Cmd: raw, Label: "Raw: " . SubStr(raw, 1, 14) }
         } else if (this.Presets.Has(presetChoice)) {

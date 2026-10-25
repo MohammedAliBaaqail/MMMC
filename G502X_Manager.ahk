@@ -20,7 +20,7 @@ OnScriptExit(ExitReason, ExitCode) {
  * Hardware buttons mapped via OMM (Buttons 3 to 11):
  *   - Button 3: Middle Click (Mouse 3)             -> F13
  *   - Button 4: Back Button Click (Mouse 4 / G4)   -> F14
- *   - Button 5: G-Shift / Sniper (DPI Shift)       -> F15 (G-Shift Layer & Tap macro)
+ *   - Button 5: G-Shift / Sniper (DPI Shift)       -> F15 (B-Shift / G-Shift Layer Modifier)
  *   - Button 6: Forward Button Click (Mouse 5 / G5)-> F16
  *   - Button 7: Tilt Left                          -> F17
  *   - Button 8: Tilt Right                         -> F18
@@ -37,7 +37,11 @@ OnScriptExit(ExitReason, ExitCode) {
 #Include "lib/WebViewGuiManager.ahk"
 
 ; --- Application Initialization ---
-A_IconTip := "Logitech G502 X Manager (AHK v2)"
+A_IconTip := "Logitech G502 X Studio"
+iconFile := A_ScriptDir . "\assets\app.ico"
+if FileExist(iconFile) {
+    try TraySetIcon(iconFile)
+}
 ConfigFile := A_ScriptDir . "\settings.ini"
 
 ; Initialize profile mappings from settings
@@ -55,7 +59,7 @@ GuiManager.IsAlwaysOnTop := (AlwaysOnTopPref = "1")
 SetupTrayMenu()
 
 ; Display welcome OSD and Launch Modern Studio GUI
-OSD.Show("G502 X Manager Active", "Profile: " . ProfileEngine.CurrentProfile . " (OMM Connected)")
+OSD.Show("G502 X Studio Active", "Profile: " . ProfileEngine.CurrentProfile . " (OMM Connected)")
 WebViewGuiManager.Show()
 
 ; ========================================================
@@ -65,8 +69,8 @@ SetupTrayMenu() {
     tray := A_TrayMenu
     tray.Delete() ; Clear default items
     
-    tray.Add("Open G502 X Studio (WebView2)", (*) => WebViewGuiManager.Show())
-    tray.Add("Open Classic GUI (Win32)", (*) => GuiManager.Show())
+    tray.Add("Open G502 X Studio", (*) => WebViewGuiManager.Show())
+    tray.Add("Open Classic GUI", (*) => GuiManager.Show())
     tray.Add("Always on Top", (*) => WebViewGuiManager.ToggleAlwaysOnTop())
     if (WebViewGuiManager.IsAlwaysOnTop)
         tray.Check("Always on Top")
@@ -82,9 +86,9 @@ SetupTrayMenu() {
     tray.Add("Toggle Rapid-Fire", (*) => ProfileEngine.ToggleRapidFire())
     tray.Add() ; Separator
     
-    tray.Add("Reload Script", (*) => Reload())
+    tray.Add("Reload", (*) => Reload())
     tray.Add("Exit", (*) => SaveAndExit())
-    tray.Default := "Open G502 X Studio (WebView2)"
+    tray.Default := "Open G502 X Studio"
 }
 
 SwitchProfileFromTray(p) {
@@ -150,6 +154,25 @@ SaveAndExit() {
 
 *WheelUp::ProfileEngine.DispatchWheel("Up")
 *WheelDown::ProfileEngine.DispatchWheel("Down")
+
+#HotIf
+
+; ========================================================
+; B-SHIFT LEFT & RIGHT CLICK INTERCEPT (#HotIf)
+; Active ONLY when B-Shift is ON and a custom mapping exists
+; Normal layer is NEVER intercepted, guaranteeing normal clicking
+; ========================================================
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && ProfileEngine.NeedsLeftClickIntercept()
+
+*LButton::ProfileEngine.HandleLeftClick(true)
+*LButton Up::ProfileEngine.HandleLeftClick(false)
+
+#HotIf
+
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && ProfileEngine.NeedsRightClickIntercept()
+
+*RButton::ProfileEngine.HandleRightClick(true)
+*RButton Up::ProfileEngine.HandleRightClick(false)
 
 #HotIf
 

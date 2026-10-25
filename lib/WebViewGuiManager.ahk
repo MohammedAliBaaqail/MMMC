@@ -10,6 +10,7 @@
 #Include "JSON.ahk"
 #Include "Profiles.ahk"
 #Include "OSD.ahk"
+#Include "OMMHelper.ahk"
 
 class WebViewGuiManager {
     static MainGui := ""
@@ -25,6 +26,8 @@ class WebViewGuiManager {
     static Show() {
         if (this.MainGui != "" && WinExist(this.MainGui.Hwnd)) {
             this.MainGui.Show()
+            this.ApplyThemeToTitleBar(this.MainGui.Hwnd)
+            this.SetWindowIcon(this.MainGui.Hwnd)
             if (this.wvc != "") {
                 this.wvc.Fill()
             }
@@ -40,9 +43,12 @@ class WebViewGuiManager {
     static Toggle() {
         if (this.MainGui != "" && WinExist(this.MainGui.Hwnd)) {
             if (DllCall("IsWindowVisible", "Ptr", this.MainGui.Hwnd)) {
+                this.StopRecording()
                 this.MainGui.Hide()
             } else {
                 this.MainGui.Show()
+                this.ApplyThemeToTitleBar(this.MainGui.Hwnd)
+                this.SetWindowIcon(this.MainGui.Hwnd)
                 if (this.wvc != "") {
                     this.wvc.Fill()
                 }
@@ -69,7 +75,7 @@ class WebViewGuiManager {
         ; Hook ProfileEngine callbacks
         ProfileEngine.OnProfileChanged := (p) => WebViewGuiManager.OnProfileChangedHandler(p)
         ProfileEngine.OnButtonStateChanged := (btnId, isDown) => WebViewGuiManager.OnButtonStateChangedHandler(btnId, isDown)
-        ProfileEngine.OnShiftStateChanged := (isShift, shiftName) => WebViewGuiManager.OnShiftStateChangedHandler(isShift, shiftName)
+        ProfileEngine.OnShiftStateChanged := (layerNum, isActive) => WebViewGuiManager.OnShiftStateChangedHandler(isActive, (layerNum = 2 ? "GShift2" : "GShift1"))
 
         ; Clean any orphaned WebView2 renderer processes from prior runs
         this.CleanOrphanedProcesses()
@@ -82,13 +88,20 @@ class WebViewGuiManager {
         g.MarginY := 0
         this.MainGui := g
 
+        ; Set custom app icon (16x16 caption, 32x32 taskbar)
+        this.SetWindowIcon(g.Hwnd)
+
+        ; Apply immersive dark mode and theme matching colors to the title bar
+        this.ApplyThemeToTitleBar(g.Hwnd)
+
         ; Sizing event
         g.OnEvent("Size", (guiObj, minMax, w, h) => WebViewGuiManager.OnSize(minMax, w, h))
-        g.OnEvent("Close", (*) => g.Hide())
-        g.OnEvent("Escape", (*) => g.Hide())
+        g.OnEvent("Close", (*) => (WebViewGuiManager.StopRecording(), g.Hide()))
+        g.OnEvent("Escape", (*) => (WebViewGuiManager.StopRecording(), g.Hide()))
 
         ; Display window
         g.Show("w1360 h840 Center")
+        this.ApplyThemeToTitleBar(g.Hwnd)
 
         ; Initialize WebView2 Controller
         dllPath := A_ScriptDir . "\lib\WebView2Loader.dll"
@@ -285,8 +298,9 @@ class WebViewGuiManager {
                 if (req.Has("name")) {
                     pName := req["name"]
                     pExe := req.Has("targetExe") ? req["targetExe"] : ""
-                    pIcon := req.Has("icon") ? req["icon"] : "generic"
-                    if (ProfileEngine.AddProfile(pName, pExe, pIcon)) {
+                    pIcon := req.Has("icon") ? req["icon"] : "auto"
+                    pHover := req.Has("switchOnHover") ? (req["switchOnHover"] ? true : false) : false
+                    if (ProfileEngine.AddProfile(pName, pExe, pIcon, pHover)) {
                         this.SendProfilesUpdated()
                         ProfileEngine.SetProfile(pName)
                         OSD.Show("Profile Created: " . pName, pExe != "" ? "Bound to: " . pExe : "Default Bindings")
@@ -307,7 +321,8 @@ class WebViewGuiManager {
                     pName := req["name"]
                     pExe := req.Has("targetExe") ? req["targetExe"] : ""
                     pIcon := req.Has("icon") ? req["icon"] : ""
-                    if (ProfileEngine.UpdateProfile(pName, pExe, pIcon)) {
+                    pHover := req.Has("switchOnHover") ? (req["switchOnHover"] ? true : false) : -1
+                    if (ProfileEngine.UpdateProfile(pName, pExe, pIcon, pHover)) {
                         this.SendProfilesUpdated()
                         OSD.Show("Profile Updated: " . pName, pExe != "" ? "App: " . pExe : "No Exe")
                     }
@@ -327,12 +342,84 @@ class WebViewGuiManager {
                 this.PostMessage(Map("type", "lockProfileChanged", "lockedProfile", ProfileEngine.LockedProfile))
                 OSD.Show(ProfileEngine.LockedProfile != "" ? "Profile Locked: " . ProfileEngine.LockedProfile : "Profile Unlocked", "Auto-switch will " . (ProfileEngine.LockedProfile != "" ? "stay on this profile" : "follow active window"))
 
+            case "toggleOSD":
+                enabled := req.Has("enabled") ? req["enabled"] : !OSD.Enabled
+                OSD.Enabled := enabled ? true : false
+                IniWrite(OSD.Enabled ? "1" : "0", ProfileEngine.ConfigPath, "Settings", "ShowOSD")
+                this.PostMessage(Map("type", "osdStateChanged", "enabled", OSD.Enabled ? true : false))
+                if (OSD.Enabled)
+                    OSD.Show("Notifications: Enabled")
+
             case "getRunningApps":
                 procs := ProfileEngine.GetRunningProcesses()
                 this.PostMessage(Map("type", "runningAppsList", "apps", procs))
 
             case "saveMapping":
                 this.HandleSaveMapping(req)
+
+            case "copyProfileMappings":
+                fromP := req.Has("fromProfile") ? req["fromProfile"] : ""
+                toP := req.Has("toProfile") ? req["toProfile"] : ""
+                if (fromP != "" && toP != "") {
+                    ProfileEngine.CopyProfileMappings(fromP, toP)
+                    this.PostMessage(Map(
+                        "type", "mappingsCopied",
+                        "fromProfile", fromP,
+                        "toProfile", toP,
+                        "mappings", this.ExportAllMappings()
+                    ))
+                    OSD.Show("Mappings Copied", "Pasted from " . fromP . " into " . toP)
+                }
+
+            case "browseAppExe":
+                selectedFile := FileSelect(3, , "Select Application Executable for Profile", "Programs (*.exe)")
+                if (selectedFile != "") {
+                    SplitPath(selectedFile, &outFileName, &outDir, &outExt, &outNameNoExt)
+                    iconName := ProfileEngine.EnsureExeIconDirect(selectedFile, outNameNoExt)
+                    this.PostMessage(Map(
+                        "type", "appExeBrowsed",
+                        "fullPath", selectedFile,
+                        "exeName", outFileName,
+                        "nameNoExt", outNameNoExt,
+                        "icon", iconName
+                    ))
+                }
+
+            case "browseCustomIcon":
+                selectedFile := FileSelect(1, , "Select Custom Profile Icon", "Image Files (*.png; *.ico; *.jpg; *.jpeg; *.bmp; *.exe)")
+                if (selectedFile != "") {
+                    SplitPath(selectedFile, &outFileName, &outDir, &outExt, &outNameNoExt)
+                    cleanKey := "custom_" . StrLower(RegExReplace(outNameNoExt, "[^a-zA-Z0-9_]", "")) . "_" . A_TickCount
+                    outPng := A_ScriptDir . "\web\icons\" . cleanKey . ".png"
+                    if (ProfileEngine.SaveImageAsPng(selectedFile, outPng)) {
+                        this.PostMessage(Map(
+                            "type", "customIconSelected",
+                            "iconKey", cleanKey,
+                            "fileName", outFileName
+                        ))
+                    }
+                }
+
+            case "injectFKey":
+                targetK := req.Has("key") ? req["key"] : "F20"
+                OMMHelper.StartCountdown(targetK)
+
+            case "swapHardwareFKeys":
+                b1 := req.Has("btnId1") ? req["btnId1"] : ""
+                b2 := req.Has("btnId2") ? req["btnId2"] : ""
+                if (b1 != "" && b2 != "" && ProfileEngine.SwapHardwareFKeys(b1, b2)) {
+                    this.PostMessage(Map("type", "hardwareFKeysUpdated", "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport()))
+                    OSD.Show("F-Keys Swapped", b1 . " ↔ " . b2)
+                }
+
+            case "copySingleButtonMapping":
+                p := req.Has("profile") ? req["profile"] : ProfileEngine.CurrentProfile
+                fId := req.Has("fromBtnId") ? req["fromBtnId"] : ""
+                tId := req.Has("toBtnId") ? req["toBtnId"] : ""
+                if (p != "" && fId != "" && tId != "" && ProfileEngine.CopySingleButtonMapping(p, fId, tId)) {
+                    this.PostMessage(Map("type", "buttonMappingPasted", "profile", p, "toBtnId", tId, "mappings", this.ExportAllMappings()))
+                    OSD.Show("Mapping Pasted", fId . " ➔ " . tId)
+                }
 
             case "resetButtonDefault":
                 this.HandleResetButtonDefault(req)
@@ -347,6 +434,18 @@ class WebViewGuiManager {
             case "setAlwaysOnTop":
                 enable := req.Has("enabled") ? req["enabled"] : false
                 this.SetAlwaysOnTop(enable)
+
+            case "startRecording":
+                mode := req.Has("mode") ? req["mode"] : "single"
+                opts := Map()
+                if (req.Has("defDelay"))
+                    opts["defDelay"] := req["defDelay"]
+                if (req.Has("realDelays"))
+                    opts["realDelays"] := req["realDelays"]
+                this.StartRecording(mode, opts)
+
+            case "stopRecording":
+                this.StopRecording()
 
             case "testMacro":
                 if (req.Has("macro")) {
@@ -381,12 +480,13 @@ class WebViewGuiManager {
 
             profilesList := []
             for p in ProfileEngine.Profiles {
-                meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), Desc: p . " Profile" }
+                meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), SwitchOnHover: false, Desc: p . " Profile" }
                 profilesList.Push(Map(
                     "name", p,
                     "targetExe", meta.TargetExe,
                     "icon", meta.Icon,
                     "isDefault", meta.IsDefault ? true : false,
+                    "switchOnHover", (meta.HasOwnProp("SwitchOnHover") && meta.SwitchOnHover) ? true : false,
                     "desc", meta.HasOwnProp("Desc") ? meta.Desc : p . " Profile"
                 ))
             }
@@ -400,7 +500,9 @@ class WebViewGuiManager {
                 "lockedProfile", ProfileEngine.LockedProfile,
                 "rapidFire", ProfileEngine.RapidFireEnabled ? true : false,
                 "alwaysOnTop", this.IsAlwaysOnTop ? true : false,
+                "showOSD", OSD.Enabled ? true : false,
                 "mappings", mappings,
+                "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport(),
                 "diagramPoints", diagPoints
             )
             this.Log("SendInitialState: calling PostMessage...")
@@ -414,12 +516,13 @@ class WebViewGuiManager {
     static SendProfilesUpdated() {
         profilesList := []
         for p in ProfileEngine.Profiles {
-            meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), Desc: p . " Profile" }
+            meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), SwitchOnHover: false, Desc: p . " Profile" }
             profilesList.Push(Map(
                 "name", p,
                 "targetExe", meta.TargetExe,
                 "icon", meta.Icon,
                 "isDefault", meta.IsDefault ? true : false,
+                "switchOnHover", (meta.HasOwnProp("SwitchOnHover") && meta.SwitchOnHover) ? true : false,
                 "desc", meta.HasOwnProp("Desc") ? meta.Desc : p . " Profile"
             ))
         }
@@ -466,17 +569,25 @@ class WebViewGuiManager {
     }
 
     static HandleResetButtonDefault(req) {
-        if (!req.Has("profile") || !req.Has("btnId") || !req.Has("layer"))
+        if (!req.Has("profile") || !req.Has("btnId"))
             return
 
         profile := req["profile"]
         btnId := req["btnId"]
-        layer := req["layer"]
+        layer := req.Has("layer") ? req["layer"] : "Normal"
 
-        if (ProfileEngine.DefaultMappings.Has(profile) && ProfileEngine.DefaultMappings[profile].Has(btnId)) {
-            def := ProfileEngine.DefaultMappings[profile][btnId]
-            defAction := (layer = "GShift2") ? def.Normal : ((layer = "GShift" || layer = "GShift1") ? def.GShift : def.Normal)
-            ProfileEngine.SaveButtonLayer(profile, btnId, layer, defAction)
+        defProfile := ProfileEngine.DefaultMappings.Has(profile) ? profile : "Desktop"
+        if (ProfileEngine.DefaultMappings.Has(defProfile) && ProfileEngine.DefaultMappings[defProfile].Has(btnId)) {
+            def := ProfileEngine.DefaultMappings[defProfile][btnId]
+
+            if (layer = "GShift" || layer = "GShift1") {
+                ProfileEngine.SaveButtonLayer(profile, btnId, "GShift", def.GShift.Clone())
+            } else if (layer = "GShift2") {
+                ProfileEngine.SaveButtonLayer(profile, btnId, "GShift2", def.Normal.Clone())
+            } else {
+                ; Default / Normal layer or full reset: restore baseline defaults across layers
+                ProfileEngine.SaveButtonMapping(profile, btnId, def.Normal.Clone(), def.GShift.Clone(), def.Normal.Clone())
+            }
 
             currMap := ProfileEngine.GetButtonMapping(profile, btnId)
             this.PostMessage(Map(
@@ -485,6 +596,7 @@ class WebViewGuiManager {
                 "btnId", btnId,
                 "mapping", this.ExportButtonMapping(currMap)
             ))
+            OSD.Show("Reset to Default", btnId . " on " . profile)
         }
     }
 
@@ -510,8 +622,336 @@ class WebViewGuiManager {
         OSD.Show("Always on Top", this.IsAlwaysOnTop ? "Enabled (Pinned)" : "Disabled (Unpinned)")
     }
 
+    ; =========================================================================
+    ; HARDWARE-LEVEL KEY & COMBINATION RECORDER (Suppresses all OS/Shell hotkeys)
+    ; =========================================================================
+    static IsRecordingActive := false
+    static RecordingMode := ""
+    static RecorderHook := ""
+    static RecKeysDown := Map()
+    static RecModifiers := Map()
+    static RecCapturedResult := ""
+    static RecMacroActiveKeys := Map()
+    static RecMacroLastTime := 0
+    static RecMacroDefDelay := 50
+    static RecMacroRealDelays := false
+    static FocusWatchdogFn := ObjBindMethod(WebViewGuiManager, "CheckRecordingFocus")
+    static ReleaseSafetyFn := ObjBindMethod(WebViewGuiManager, "ForceReleaseRecordedHook")
+
     static IsRecording() {
-        return false
+        return this.IsRecordingActive
+    }
+
+    static StartRecording(mode := "single", options := "") {
+        this.StopRecording()
+
+        ; Ensure the Studio window is focused
+        if (!this.MainGui || !WinExist(this.MainGui.Hwnd) || !WinActive("ahk_id " . this.MainGui.Hwnd))
+            return
+
+        this.IsRecordingActive := true
+        this.RecordingMode := mode
+        this.RecKeysDown.Clear()
+        this.RecModifiers.Clear()
+        this.RecCapturedResult := ""
+        this.RecMacroActiveKeys.Clear()
+        this.RecMacroLastTime := A_TickCount
+
+        if (IsObject(options)) {
+            if (options.Has("defDelay"))
+                this.RecMacroDefDelay := Integer(options["defDelay"])
+            if (options.Has("realDelays"))
+                this.RecMacroRealDelays := !!options["realDelays"]
+        }
+
+        ; Low-level keyboard hook with +S (Suppress) and +N (Notify)
+        ; Prevents Windows shell (Win+D, Win+E, Win+Tab, Start Menu, etc.) from executing!
+        ih := InputHook("I0")
+        ih.KeyOpt("{All}", "+S +N")
+        ih.VisibleNonText := false
+
+        if (mode = "macro") {
+            ih.OnKeyDown := (hook, vk, sc) => this.OnMacroKeyDown(vk, sc)
+            ih.OnKeyUp   := (hook, vk, sc) => this.OnMacroKeyUp(vk, sc)
+        } else {
+            ih.OnKeyDown := (hook, vk, sc) => this.OnSingleKeyDown(vk, sc)
+            ih.OnKeyUp   := (hook, vk, sc) => this.OnSingleKeyUp(vk, sc)
+        }
+
+        this.RecorderHook := ih
+        ih.Start()
+
+        ; Focus watchdog: automatically deactivates hook if user clicks away or switches apps
+        fnWatchdog := this.FocusWatchdogFn
+        SetTimer(fnWatchdog, 100)
+    }
+
+    static StopRecording() {
+        fnWatchdog := this.FocusWatchdogFn
+        SetTimer(fnWatchdog, 0)
+        fnSafety := this.ReleaseSafetyFn
+        SetTimer(fnSafety, 0)
+
+        if (this.RecorderHook != "") {
+            try this.RecorderHook.Stop()
+            this.RecorderHook := ""
+        }
+
+        this.IsRecordingActive := false
+        this.RecordingMode := ""
+        this.RecKeysDown.Clear()
+        this.RecModifiers.Clear()
+        this.RecCapturedResult := ""
+        this.RecMacroActiveKeys.Clear()
+    }
+
+    static CheckRecordingFocus() {
+        if (!this.IsRecordingActive) {
+            fnWatchdog := this.FocusWatchdogFn
+            SetTimer(fnWatchdog, 0)
+            return
+        }
+
+        if (!this.MainGui || !WinExist(this.MainGui.Hwnd) || !WinActive("ahk_id " . this.MainGui.Hwnd)) {
+            this.StopRecording()
+            this.PostMessage(Map("type", "cancelRecording", "reason", "lostFocus"))
+        }
+    }
+
+    static NormalizeKey(vk, sc) {
+        kName := GetKeyName(Format("vk{:02x}sc{:03x}", vk, sc))
+        if (kName = "")
+            return ""
+
+        switch kName {
+            case "Control", "Ctrl", "LCtrl", "RCtrl": return "Ctrl"
+            case "Shift", "LShift", "RShift":         return "Shift"
+            case "Alt", "LAlt", "RAlt":               return "Alt"
+            case "LWin", "RWin":                     return "Win"
+        }
+
+        switch kName {
+            case "Escape":     return "Escape"
+            case "Space":      return "Space"
+            case "Tab":        return "Tab"
+            case "Enter":      return "Enter"
+            case "Backspace":  return "Backspace"
+            case "Delete":     return "Delete"
+            case "Insert":     return "Insert"
+            case "Home":       return "Home"
+            case "End":        return "End"
+            case "PgUp":       return "PgUp"
+            case "PgDn":       return "PgDn"
+            case "Up":         return "Up"
+            case "Down":       return "Down"
+            case "Left":       return "Left"
+            case "Right":      return "Right"
+        }
+
+        return kName
+    }
+
+    static OnSingleKeyDown(vk, sc) {
+        if (!this.IsRecordingActive || !this.MainGui || !WinExist(this.MainGui.Hwnd) || !WinActive("ahk_id " . this.MainGui.Hwnd)) {
+            this.StopRecording()
+            return
+        }
+
+        kName := this.NormalizeKey(vk, sc)
+        if (kName = "")
+            return
+
+        ; If a combo was already captured and we're waiting for key release, ignore further downs
+        if (this.RecCapturedResult != "")
+            return
+
+        this.RecKeysDown[kName] := true
+
+        ; If modifier pressed
+        if (kName = "Ctrl" || kName = "Alt" || kName = "Shift" || kName = "Win") {
+            this.RecModifiers[kName] := true
+            this.PostMessage(Map(
+                "type", "modifierStateChanged",
+                "ctrl", this.RecModifiers.Has("Ctrl") ? true : false,
+                "alt", this.RecModifiers.Has("Alt") ? true : false,
+                "shift", this.RecModifiers.Has("Shift") ? true : false,
+                "win", this.RecModifiers.Has("Win") ? true : false
+            ))
+            this.PostMessage(Map(
+                "type", "liveKeyPreview",
+                "preview", this.BuildModifierPreview()
+            ))
+            return
+        }
+
+        ; If Escape pressed alone with no modifiers, cancel recording
+        if (kName = "Escape" && this.RecModifiers.Count = 0) {
+            this.StopRecording()
+            this.PostMessage(Map("type", "cancelRecording", "reason", "escape"))
+            return
+        }
+
+        ; Non-modifier key pressed! Build combination
+        mods := this.RecModifiers.Clone()
+        if (GetKeyState("Ctrl", "P") && !mods.Has("Ctrl"))
+            mods["Ctrl"] := true
+        if (GetKeyState("Alt", "P") && !mods.Has("Alt"))
+            mods["Alt"] := true
+        if (GetKeyState("Shift", "P") && !mods.Has("Shift"))
+            mods["Shift"] := true
+        if ((GetKeyState("LWin", "P") || GetKeyState("RWin", "P")) && !mods.Has("Win"))
+            mods["Win"] := true
+
+        res := this.BuildSingleCombo(mods, kName)
+        this.RecCapturedResult := res
+
+        this.PostMessage(Map(
+            "type", "singleKeyRecorded",
+            "ahkCmd", res.Cmd,
+            "niceLabel", res.Label
+        ))
+
+        ; Fallback safety timer: stop hook after 500ms even if keyup is somehow not triggered
+        fnSafety := this.ReleaseSafetyFn
+        SetTimer(fnSafety, -500)
+    }
+
+    static OnSingleKeyUp(vk, sc) {
+        kName := this.NormalizeKey(vk, sc)
+        if (kName != "") {
+            if (this.RecKeysDown.Has(kName))
+                this.RecKeysDown.Delete(kName)
+            if (this.RecModifiers.Has(kName)) {
+                this.RecModifiers.Delete(kName)
+                this.PostMessage(Map(
+                    "type", "modifierStateChanged",
+                    "ctrl", this.RecModifiers.Has("Ctrl") ? true : false,
+                    "alt", this.RecModifiers.Has("Alt") ? true : false,
+                    "shift", this.RecModifiers.Has("Shift") ? true : false,
+                    "win", this.RecModifiers.Has("Win") ? true : false
+                ))
+                if (this.RecCapturedResult = "") {
+                    this.PostMessage(Map(
+                        "type", "liveKeyPreview",
+                        "preview", this.BuildModifierPreview()
+                    ))
+                }
+            }
+        }
+
+        ; When all keys are physically released, safely stop the hook
+        if (this.RecCapturedResult != "" && this.RecKeysDown.Count = 0) {
+            this.StopRecording()
+        }
+    }
+
+    static ForceReleaseRecordedHook() {
+        if (this.RecCapturedResult != "") {
+            this.StopRecording()
+        }
+    }
+
+    static BuildSingleCombo(mods, keyName) {
+        prefix := ""
+        lbl := ""
+        if (mods.Has("Ctrl")) {
+            prefix .= "^"
+            lbl .= "Ctrl + "
+        }
+        if (mods.Has("Alt")) {
+            prefix .= "!"
+            lbl .= "Alt + "
+        }
+        if (mods.Has("Shift")) {
+            prefix .= "+"
+            lbl .= "Shift + "
+        }
+        if (mods.Has("Win")) {
+            prefix .= "#"
+            lbl .= "Win + "
+        }
+
+        niceKey := (StrLen(keyName) = 1) ? StrUpper(keyName) : keyName
+        ahkKey := (StrLen(keyName) = 1) ? StrLower(keyName) : keyName
+
+        cmd := prefix . "{" . ahkKey . "}"
+        lbl := lbl . niceKey
+        return { Cmd: cmd, Label: lbl }
+    }
+
+    static BuildModifierPreview() {
+        lbl := ""
+        if (this.RecModifiers.Has("Ctrl"))
+            lbl .= "Ctrl + "
+        if (this.RecModifiers.Has("Alt"))
+            lbl .= "Alt + "
+        if (this.RecModifiers.Has("Shift"))
+            lbl .= "Shift + "
+        if (this.RecModifiers.Has("Win"))
+            lbl .= "Win + "
+        return (lbl != "") ? (lbl . "...") : ""
+    }
+
+    static OnMacroKeyDown(vk, sc) {
+        if (!this.IsRecordingActive || !this.MainGui || !WinExist(this.MainGui.Hwnd) || !WinActive("ahk_id " . this.MainGui.Hwnd)) {
+            this.StopRecording()
+            return
+        }
+
+        kName := this.NormalizeKey(vk, sc)
+        if (kName = "")
+            return
+
+        ; In macro mode, Escape alone stops recording
+        if (kName = "Escape" && this.RecMacroActiveKeys.Count = 0) {
+            this.StopRecording()
+            this.PostMessage(Map("type", "macroRecordingStopped"))
+            return
+        }
+
+        if (this.RecMacroActiveKeys.Has(kName))
+            return ; Ignore auto-repeat keydown
+
+        tNow := A_TickCount
+        del := (this.RecMacroRealDelays && this.RecMacroLastTime > 0) ? Max(10, tNow - this.RecMacroLastTime) : this.RecMacroDefDelay
+        this.RecMacroLastTime := tNow
+        this.RecMacroActiveKeys[kName] := tNow
+
+        ahkKey := (StrLen(kName) = 1) ? StrLower(kName) : ((kName = "Win") ? "LWin" : kName)
+
+        this.PostMessage(Map(
+            "type", "macroStepRecorded",
+            "action", "Down",
+            "key", ahkKey,
+            "delay", del
+        ))
+    }
+
+    static OnMacroKeyUp(vk, sc) {
+        if (!this.IsRecordingActive || !this.MainGui || !WinExist(this.MainGui.Hwnd))
+            return
+
+        kName := this.NormalizeKey(vk, sc)
+        if (kName = "")
+            return
+
+        tNow := A_TickCount
+        del := this.RecMacroDefDelay
+        if (this.RecMacroActiveKeys.Has(kName)) {
+            tDown := this.RecMacroActiveKeys[kName]
+            del := this.RecMacroRealDelays ? Max(10, tNow - tDown) : this.RecMacroDefDelay
+            this.RecMacroActiveKeys.Delete(kName)
+        }
+        this.RecMacroLastTime := tNow
+
+        ahkKey := (StrLen(kName) = 1) ? StrLower(kName) : ((kName = "Win") ? "LWin" : kName)
+
+        this.PostMessage(Map(
+            "type", "macroStepRecorded",
+            "action", "Up",
+            "key", ahkKey,
+            "delay", del
+        ))
     }
 
     static SetAlwaysOnTop(enable) {
@@ -532,11 +972,13 @@ class WebViewGuiManager {
     ; DIAGRAM POINTER CALIBRATION
     ; =========================================================================
     static DefaultDiagramPoints := Map(
+        "LeftClick",    Map("x", 268, "y", 88),
         "G8",           Map("x", 201, "y", 87),
         "G7",           Map("x", 242, "y", 126),
         "DpiShift",     Map("x", 270, "y", 264),
         "Forward",      Map("x", 287, "y", 229),
         "Back",         Map("x", 361, "y", 281),
+        "RightClick",   Map("x", 388, "y", 88),
         "TiltLeft",     Map("x", 322, "y", 73),
         "WheelUp",      Map("x", 304, "y", 33),
         "Middle",       Map("x", 355, "y", 58),
@@ -704,11 +1146,56 @@ class WebViewGuiManager {
         ))
     }
 
-    static OnShiftStateChangedHandler(isShift, shiftName) {
+    static OnShiftStateChangedHandler(isActive, shiftName) {
         this.PostMessage(Map(
             "type", "shiftStateChanged",
-            "isShift", isShift ? true : false,
+            "isShift", isActive ? true : false,
             "shiftName", shiftName
         ))
+    }
+
+    static SetWindowIcon(hwnd) {
+        if (!hwnd || !WinExist(hwnd))
+            return
+        iconPath := A_ScriptDir . "\assets\app.ico"
+        if FileExist(iconPath) {
+            try TraySetIcon(iconPath)
+            try {
+                hIconSmall := LoadPicture(iconPath, "w16 h16 Icon1", &imgType1)
+                hIconBig := LoadPicture(iconPath, "w32 h32 Icon1", &imgType2)
+                if (hIconSmall)
+                    SendMessage(0x0080, 0, hIconSmall, hwnd) ; WM_SETICON, ICON_SMALL
+                if (hIconBig)
+                    SendMessage(0x0080, 1, hIconBig, hwnd)   ; WM_SETICON, ICON_BIG
+            }
+        }
+    }
+
+    static ApplyThemeToTitleBar(hwnd) {
+        if (!hwnd || !WinExist(hwnd))
+            return
+        try {
+            ; DWMWA_USE_IMMERSIVE_DARK_MODE: 20 (Windows 11 / Windows 10 20H1+), 19 (older Win10)
+            darkMode := Buffer(4, 0)
+            NumPut("Int", 1, darkMode)
+            if (DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", 20, "Ptr", darkMode, "UInt", 4) != 0) {
+                DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", 19, "Ptr", darkMode, "UInt", 4)
+            }
+
+            ; DWMWA_CAPTION_COLOR: 35 (Windows 11) - Set background to match app header #10121c (BGR 0x1c1210)
+            captionColor := Buffer(4, 0)
+            NumPut("UInt", 0x1c1210, captionColor)
+            DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", 35, "Ptr", captionColor, "UInt", 4)
+
+            ; DWMWA_TEXT_COLOR: 36 (Windows 11) - Set caption text to match #e6eaf8 (BGR 0xf8eae6)
+            textColor := Buffer(4, 0)
+            NumPut("UInt", 0xf8eae6, textColor)
+            DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", 36, "Ptr", textColor, "UInt", 4)
+
+            ; DWMWA_BORDER_COLOR: 34 (Windows 11) - Set subtle border #222638 (BGR 0x382622)
+            borderColor := Buffer(4, 0)
+            NumPut("UInt", 0x382622, borderColor)
+            DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", 34, "Ptr", borderColor, "UInt", 4)
+        }
     }
 }

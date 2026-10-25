@@ -8,8 +8,7 @@ A lightweight, zero-bloat alternative to Logitech G-HUB combining **Logitech Onb
 
 1. **Zero Background Bloat**: No 500MB G-HUB services running in the background. Logitech OMM is run **once** to flash the onboard hardware memory of your G502 X, then closed forever.
 2. **Infinite Flexibility**: AHK v2 intercepts the mouse's virtual keys (`F13`–`F21`), enabling:
-   - **G-Shift Layering**: Holding the thumb DPI-Shift button unlocks a secondary function for every button and the scroll wheel.
-   - **Tap vs. Hold**: Tap the DPI-Shift button to trigger an instant action (e.g., Task View or Command Palette) without wasting the button.
+   - **B-Shift Layering**: Holding the B-Shift button unlocks a secondary function for every button and the scroll wheel.
    - **Multi-Profile System**: Switch between Desktop, Productivity (VS Code / Office), Gaming (Rapid-Fire / Sniping), and Media profiles.
    - **Live Hardware Monitor**: Visual GUI dashboard that lights up when you press any mouse button.
    - **OMM Pairing Assistant**: Solves the issue where physical keyboards cannot type `F13`–`F21` into OMM.
@@ -22,7 +21,7 @@ A lightweight, zero-bloat alternative to Logitech G-HUB combining **Logitech Onb
 | :---: | :--- | :---: | :---: | :--- | :--- |
 | **3** | **Middle Click (Mouse 3)** | `F13` | `*F13` | Default Middle Click (`{MButton}`) | Close Active Tab (`Ctrl+W`) |
 | **4** | **Back Button (Mouse 4 / G4)**| `F14` | `*F14` | Browser Back (`Alt+Left`) | Reopen Closed Tab (`Ctrl+Shift+T`) |
-| **5** | **G-Shift / Sniper (DPI Shift)**| `F15` | `*F15` | **Hold:** G-Shift Layer / **Tap:** Task View (`Win+Tab`) | Layer Modifier |
+| **5** | **G-Shift / Sniper (DPI Shift)**| `F15` | `*F15` | **Hold:** B-Shift Layer Modifier | Layer Modifier |
 | **6** | **Forward Button (Mouse 5 / G5)**| `F16` | `*F16` | Browser Forward (`Alt+Right`) | Close Active Tab (`Ctrl+W`) |
 | **7** | **Tilt Left** | `F17` | `*F17` | Previous Browser Tab (`Ctrl+Shift+Tab`) | Snap Window Left (`Win+Left`) |
 | **8** | **Tilt Right** | `F18` | `*F18` | Next Browser Tab (`Ctrl+Tab`) | Snap Window Right (`Win+Right`) |

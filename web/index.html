@@ -9,44 +9,36 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="dark-theme">
+<body class="dark-theme layer-normal">
     <!-- Top Studio Header -->
     <header class="studio-header">
         <div class="header-left">
             <div class="brand-badge">
-                <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                </svg>
+                <img src="../assets/app.png" alt="Logitech G502 X" class="brand-app-icon">
                 <div class="brand-titles">
                     <span class="brand-title">LOGITECH G502 X</span>
-                    <span class="brand-sub">INTERACTIVE STUDIO // ADVANCED AHK v2</span>
+                    <span class="brand-sub">INTERACTIVE STUDIO // ADVANCED CONTROL</span>
                 </div>
             </div>
             
         </div>
 
-        <div class="header-center">
-            <!-- Dynamic B-Shift Layer Switcher: only visible when a button is mapped to B-Shift -->
-            <div class="layer-pills" id="layerPills" style="display: none;">
-                <button class="layer-pill active" id="layerBtnNormal" data-layer="Normal" title="Default Button Layer">
-                    <span class="pill-dot"></span> DEFAULT
-                </button>
-                <button class="layer-pill" id="layerBtnShift1" data-layer="GShift1" title="B-Shift Secondary Layer" style="display: none;">
-                    <span class="pill-dot shift1"></span> ⚡ B-SHIFT
-                </button>
-                <button class="layer-pill" id="layerBtnShift2" data-layer="GShift2" title="B-Shift 2 Secondary Layer" style="display: none;">
-                    <span class="pill-dot shift2"></span> ⚡ B-SHIFT 2
-                </button>
-            </div>
-        </div>
+        <div class="header-center"></div>
 
         <div class="header-right">
-            <div class="status-indicator live-omm">
+            <div class="status-indicator live-omm" id="btnOpenOmmModal" title="Open Onboard Memory Setup & F-Key Injector">
                 <span class="pulse-dot"></span>
                 <span class="status-text">OMM CONNECTED</span>
+                <span class="omm-setup-hint">⚡ SETUP</span>
             </div>
             <div class="live-shift-badge" id="liveShiftBadge" style="display: none;">B-SHIFT: INACTIVE</div>
             
+            <label class="always-top-check" title="Toggle On-Screen Notification Popups">
+                <input type="checkbox" id="chkShowOSD" checked>
+                <span class="check-custom"></span>
+                <span class="check-lbl">🔔 NOTIF</span>
+            </label>
+
             <label class="always-top-check" title="Keep Studio Window Always on Top">
                 <input type="checkbox" id="chkAlwaysOnTop">
                 <span class="check-custom"></span>
@@ -131,6 +123,9 @@
                     <span class="target-action" id="selectedTargetAction">Volume Up</span>
                 </div>
                 <div class="stage-actions">
+                    <button class="stage-btn omm-btn" id="btnOpenOmmSetup" title="Setup Logitech Onboard Memory Manager & Inject Virtual F-Keys">
+                        ⚡ OMM Setup
+                    </button>
                     <button class="stage-btn calibrate-btn" id="btnCalibratePointers" title="Manually adjust and align pointing dots to button centers">
                         🎯 Calibrate Pointers
                     </button>
@@ -207,10 +202,18 @@
             <div class="interactive-mouse-container" id="mouseContainer">
                 <!-- Left Callout Cards Column -->
                 <div class="callout-column left-column" id="leftCallouts">
+                    <div class="btn-card" id="card_LeftClick" data-btn="LeftClick">
+                        <div class="card-header">
+                            <span class="card-badge" id="badge_LeftClick">M1</span>
+                        </div>
+                        <div class="card-action" id="action_LeftClick">Default Left Click</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+
                     <div class="btn-card" id="card_G8" data-btn="G8">
                         <div class="card-header">
                             <span class="card-badge">G8</span>
-                            <span class="card-title">DPI Up</span>
+                            <span class="card-fkey-pill" id="fkey_G8">F20</span>
                         </div>
                         <div class="card-action" id="action_G8">Volume Up</div>
                         <div class="card-drag-hint">Drop command here</div>
@@ -219,7 +222,7 @@
                     <div class="btn-card" id="card_G7" data-btn="G7">
                         <div class="card-header">
                             <span class="card-badge">G7</span>
-                            <span class="card-title">DPI Down</span>
+                            <span class="card-fkey-pill" id="fkey_G7">F21</span>
                         </div>
                         <div class="card-action" id="action_G7">Volume Down</div>
                         <div class="card-drag-hint">Drop command here</div>
@@ -227,8 +230,8 @@
 
                     <div class="btn-card" id="card_DpiShift" data-btn="DpiShift">
                         <div class="card-header">
-                            <span class="card-badge special">DPI Shift</span>
-                            <span class="card-title">Sniper / B-Shift</span>
+                            <span class="card-badge">DPI Shift</span>
+                            <span class="card-fkey-pill" id="fkey_DpiShift">F15</span>
                         </div>
                         <div class="card-action" id="action_DpiShift">B-Shift Layer</div>
                         <div class="card-drag-hint">Drop command here</div>
@@ -237,7 +240,7 @@
                     <div class="btn-card" id="card_Forward" data-btn="Forward">
                         <div class="card-header">
                             <span class="card-badge">G5</span>
-                            <span class="card-title">Forward Click</span>
+                            <span class="card-fkey-pill" id="fkey_Forward">F16</span>
                         </div>
                         <div class="card-action" id="action_Forward">Browser Forward</div>
                         <div class="card-drag-hint">Drop command here</div>
@@ -246,7 +249,7 @@
                     <div class="btn-card" id="card_Back" data-btn="Back">
                         <div class="card-header">
                             <span class="card-badge">G4</span>
-                            <span class="card-title">Back Click</span>
+                            <span class="card-fkey-pill" id="fkey_Back">F14</span>
                         </div>
                         <div class="card-action" id="action_Back">Browser Back</div>
                         <div class="card-drag-hint">Drop command here</div>
@@ -268,10 +271,18 @@
 
                 <!-- Right Callout Cards Column -->
                 <div class="callout-column right-column" id="rightCallouts">
+                    <div class="btn-card" id="card_RightClick" data-btn="RightClick">
+                        <div class="card-header">
+                            <span class="card-badge" id="badge_RightClick">M2</span>
+                        </div>
+                        <div class="card-action" id="action_RightClick">Default Right Click</div>
+                        <div class="card-drag-hint">Drop command here</div>
+                    </div>
+
                     <div class="btn-card" id="card_TiltLeft" data-btn="TiltLeft">
                         <div class="card-header">
                             <span class="card-badge">Tilt ⯇</span>
-                            <span class="card-title">Wheel Tilt Left</span>
+                            <span class="card-fkey-pill" id="fkey_TiltLeft">F17</span>
                         </div>
                         <div class="card-action" id="action_TiltLeft">Prev Tab</div>
                         <div class="card-drag-hint">Drop command here</div>
@@ -280,7 +291,6 @@
                     <div class="btn-card" id="card_WheelUp" data-btn="WheelUp">
                         <div class="card-header">
                             <span class="card-badge">Scroll ▲</span>
-                            <span class="card-title">Wheel Scroll Up</span>
                         </div>
                         <div class="card-action" id="action_WheelUp">Default Scroll Up</div>
                         <div class="card-drag-hint">Drop command here</div>
@@ -289,7 +299,7 @@
                     <div class="btn-card" id="card_Middle" data-btn="Middle">
                         <div class="card-header">
                             <span class="card-badge">Mouse 3</span>
-                            <span class="card-title">Wheel Click</span>
+                            <span class="card-fkey-pill" id="fkey_Middle">F13</span>
                         </div>
                         <div class="card-action" id="action_Middle">Middle Click</div>
                         <div class="card-drag-hint">Drop command here</div>
@@ -298,7 +308,6 @@
                     <div class="btn-card" id="card_WheelDown" data-btn="WheelDown">
                         <div class="card-header">
                             <span class="card-badge">Scroll ▼</span>
-                            <span class="card-title">Wheel Scroll Down</span>
                         </div>
                         <div class="card-action" id="action_WheelDown">Default Scroll Down</div>
                         <div class="card-drag-hint">Drop command here</div>
@@ -307,7 +316,7 @@
                     <div class="btn-card" id="card_TiltRight" data-btn="TiltRight">
                         <div class="card-header">
                             <span class="card-badge">Tilt ⯈</span>
-                            <span class="card-title">Wheel Tilt Right</span>
+                            <span class="card-fkey-pill" id="fkey_TiltRight">F18</span>
                         </div>
                         <div class="card-action" id="action_TiltRight">Next Tab</div>
                         <div class="card-drag-hint">Drop command here</div>
@@ -315,12 +324,27 @@
 
                     <div class="btn-card" id="card_ProfileCycle" data-btn="ProfileCycle">
                         <div class="card-header">
-                            <span class="card-badge special">G9</span>
-                            <span class="card-title">Profile Switch</span>
+                            <span class="card-badge">G9</span>
+                            <span class="card-fkey-pill" id="fkey_ProfileCycle">F19</span>
                         </div>
                         <div class="card-action" id="action_ProfileCycle">Next Profile</div>
                         <div class="card-drag-hint">Drop command here</div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Bottom Segmented B-Shift Layer Switch (Docked way down at screen bottom edge) -->
+            <div class="bottom-shift-toggle-bar" id="bottomShiftToggleBar">
+                <div class="shift-switch-pill" id="shiftSwitchPill" title="Click to switch layer or hold physical mouse B-Shift button">
+                    <button class="layer-pill-btn active" id="btnLayerDefault" data-layer="Normal">
+                        DEFAULT
+                    </button>
+                    <button class="layer-pill-btn bshift1-btn" id="btnLayerBShift1" data-layer="GShift1">
+                        <span class="shift-bolt yellow">⚡</span> B-SHIFT 1
+                    </button>
+                    <button class="layer-pill-btn bshift2-btn" id="btnLayerBShift2" data-layer="GShift2">
+                        <span class="shift-bolt magenta">⚡</span> B-SHIFT 2
+                    </button>
                 </div>
             </div>
         </section>
@@ -343,7 +367,7 @@
                     ⌨ Single / Keystroke Combination
                 </button>
                 <button class="modal-tab" id="tabBtnMacro" data-tab="macro">
-                    🗂 Macro Recorder (G-HUB Style)
+                    🗂 Macro Recorder
                 </button>
             </div>
 
@@ -356,7 +380,6 @@
                             <option value="NoRepeat">No Repeat</option>
                             <option value="RepeatWhileHolding">Repeat While Holding</option>
                             <option value="Toggle">Toggle</option>
-                            <option value="Sequence">Sequence</option>
                         </select>
                     </div>
                     <div class="form-group w-140">
@@ -410,7 +433,7 @@
                 </div>
             </div>
 
-            <!-- Tab 2: Macro Recorder (G-HUB Style) -->
+            <!-- Tab 2: Macro Recorder -->
             <div class="modal-tab-content" id="tabContentMacro">
                 <div class="config-row">
                     <div class="form-group flex-1">
@@ -499,84 +522,145 @@
         </div>
     </div>
 
-    <!-- Profile Configuration Modal (LGS Style) -->
+    <!-- Profile Configuration Modal (Full-Page Expansive Studio View) -->
     <div class="modal-backdrop" id="profileConfigModal">
-        <div class="modal-dialog profile-dialog">
+        <div class="modal-dialog profile-dialog fullpage-dialog">
             <div class="modal-header">
                 <div class="modal-header-titles">
                     <span class="modal-title" id="profileModalTitle">CREATE APP PROFILE</span>
-                    <span class="modal-subtitle">Configure auto-switching application target & icon</span>
+                    <span class="modal-subtitle">Configure auto-switching application targets, icon branding, and open window bindings</span>
                 </div>
                 <button class="modal-close-btn" id="btnCloseProfileModal">✕</button>
             </div>
 
-            <div class="profile-modal-body">
-                <div class="form-group mb-14">
-                    <label for="profInputName" class="form-lbl">Profile Name:</label>
-                    <input type="text" id="profInputName" class="studio-input" placeholder="e.g. Blender, BlueStacks, Elden Ring, Photoshop" autocomplete="off">
-                </div>
-
-                <div class="form-group mb-14">
-                    <div class="flex-between mb-4">
-                        <label for="profInputExe" class="form-lbl">Target Executable Name (Auto-Switch on Focus):</label>
-                        <button class="detect-app-btn" id="btnDetectRunningApps">
-                            <span class="detect-icon">🔍</span> Pick from Open Windows
-                        </button>
+            <div class="profile-modal-body fullpage-body">
+                <!-- Left Panel: Profile Setup Form -->
+                <div class="profile-setup-col">
+                    <div class="form-group mb-14">
+                        <label for="profInputName" class="form-lbl">Profile Name:</label>
+                        <input type="text" id="profInputName" class="studio-input" placeholder="e.g. Blender, BlueStacks, Elden Ring, Photoshop" autocomplete="off">
                     </div>
-                    <input type="text" id="profInputExe" class="studio-input" placeholder="e.g. blender.exe, HD-Player.exe, eldenring.exe (comma-separated)" autocomplete="off">
-                    <div class="input-hint">When this application window comes into focus, this profile will activate automatically.</div>
 
-                    <!-- Dropdown for Running Windows Detection -->
-                    <div class="running-apps-picker" id="runningAppsPicker" style="display: none;">
-                        <div class="picker-header">
-                            <span>CURRENTLY RUNNING APPLICATIONS:</span>
-                            <button class="picker-close" id="btnCloseAppPicker">✕</button>
-                        </div>
-                        <div class="picker-list" id="runningAppsList">
-                            <!-- Populated with running window names & process IDs -->
+                    <!-- Default Profile Lockout Notice (visible only when editing Default Desktop profile) -->
+                    <div class="default-profile-notice" id="defaultProfileNotice" style="display: none;">
+                        <span class="notice-icon">⭐</span>
+                        <div class="notice-text">
+                            <strong>System Default Profile</strong>
+                            <p>This profile activates automatically whenever no specific app profile is focused. It cannot be bound to specific applications.</p>
                         </div>
                     </div>
+
+                    <div class="form-group mb-14" id="profExeGroup">
+                        <div class="flex-between mb-4">
+                            <label for="profInputExe" class="form-lbl">Target Executable(s):</label>
+                            <div class="app-pick-actions" id="appPickActions" style="display: flex; gap: 6px;">
+                                <button type="button" class="detect-app-btn" id="btnBrowseAppExe" title="Browse PC for an executable file">
+                                    <span class="detect-icon">📂</span> Browse .exe
+                                </button>
+                                <button type="button" class="detect-app-btn" id="btnDetectRunningApps" title="Refresh list of open windows">
+                                    <span class="detect-icon">🔄</span> Rescan Apps
+                                </button>
+                            </div>
+                        </div>
+                        <input type="text" id="profInputExe" class="studio-input" placeholder="e.g. vivaldi.exe, chrome.exe, brave.exe (comma-separated)" autocomplete="off">
+                        <div class="input-hint">Assign multiple executables separated by commas. Click any window card on the right to toggle or add it instantly.</div>
+                    </div>
+
+                    <!-- Option: Switch on Mouse Hover -->
+                    <div class="form-group mb-14" id="profHoverGroup">
+                        <div class="hover-switch-option">
+                            <label class="switch-toggle" for="profInputHoverSwitch">
+                                <input type="checkbox" id="profInputHoverSwitch">
+                                <span class="switch-slider"></span>
+                            </label>
+                            <div class="switch-meta">
+                                <label class="switch-title" for="profInputHoverSwitch">Switch on Mouse Hover</label>
+                                <span class="switch-desc" id="profHoverDesc">Instantly activate this profile when cursor hovers over the app window (no click or focus needed)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-14">
+                        <label class="form-lbl">Profile Icon:</label>
+                        <div class="icon-preset-strip" id="iconPresetStrip">
+                            <div class="icon-preset-item active" data-icon="auto" title="Default: Actual Application Icon (Extracted from exe or window)">
+                                <span class="preset-preview auto" id="presetPreviewAuto">⚡</span>
+                                <span class="preset-name">App Icon</span>
+                            </div>
+                            <div class="icon-preset-item" data-icon="game" title="Gaming">
+                                <span class="preset-preview game">🎮</span>
+                                <span class="preset-name">Game</span>
+                            </div>
+                            <div class="icon-preset-item" data-icon="code" title="VS Code / Programming">
+                                <span class="preset-preview code">💻</span>
+                                <span class="preset-name">Code</span>
+                            </div>
+                            <div class="icon-preset-item" data-icon="chrome" title="Browser">
+                                <span class="preset-preview chrome">🌐</span>
+                                <span class="preset-name">Browser</span>
+                            </div>
+                            <div class="icon-preset-item" data-icon="media" title="Media & Music">
+                                <span class="preset-preview media">🎵</span>
+                                <span class="preset-name">Media</span>
+                            </div>
+                            <div class="icon-preset-item" data-icon="photoshop" title="Creative / Design">
+                                <span class="preset-preview ps">🎨</span>
+                                <span class="preset-name">Creative</span>
+                            </div>
+                            <div class="icon-preset-item" data-icon="blender" title="Blender 3D">
+                                <span class="preset-preview blender">🟠</span>
+                                <span class="preset-name">Blender</span>
+                            </div>
+                            <div class="icon-preset-item" data-icon="bluestack" title="BlueStacks / Emulator">
+                                <span class="preset-preview bluestack">📱</span>
+                                <span class="preset-name">Emulator</span>
+                            </div>
+                            <div class="icon-preset-item" data-icon="generic" title="Utility / Tools">
+                                <span class="preset-preview gear">⚙</span>
+                                <span class="preset-name">Utility</span>
+                            </div>
+                            <div class="icon-preset-item" data-icon="desktop" title="Desktop / System">
+                                <span class="preset-preview desktop">🖥️</span>
+                                <span class="preset-name">Desktop</span>
+                            </div>
+                            <div class="icon-preset-item" id="btnBrowseCustomIcon" data-icon="custom-browse" title="Browse Custom Image File (.png, .ico, .jpg)">
+                                <span class="preset-preview custom">📁</span>
+                                <span class="preset-name">Custom...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Auto-Switching Info Card -->
+                    <div class="profile-tips-card">
+                        <div class="tip-title">⚡ Real-Time Auto-Switch & Hover</div>
+                        <div class="tip-body">Profiles switch automatically when bound apps receive focus. Enable <strong>Switch on Mouse Hover</strong> to activate this profile the moment your cursor enters its window without clicking!</div>
+                    </div>
                 </div>
 
-                <div class="form-group mb-14">
-                    <label class="form-lbl">Profile Icon Preset:</label>
-                    <div class="icon-preset-strip" id="iconPresetStrip">
-                        <div class="icon-preset-item active" data-icon="generic" title="Generic Application">
-                            <span class="preset-preview gear">⚙</span>
-                            <span class="preset-name">App</span>
+                <!-- Right Panel: Full-Width Open Windows & Applications Explorer -->
+                <div class="profile-windows-col" id="profileWindowsCol">
+                    <div class="windows-col-header">
+                        <div class="col-header-left">
+                            <span class="col-title">PICK FROM OPEN WINDOWS</span>
+                            <span class="col-subtitle">Click any running window card below to bind it to this profile</span>
                         </div>
-                        <div class="icon-preset-item" data-icon="blender" title="Blender 3D">
-                            <span class="preset-preview blender">🟠</span>
-                            <span class="preset-name">Blender</span>
+                        <div class="col-header-search">
+                            <input type="text" id="runningAppsFilter" placeholder="Filter running apps..." autocomplete="off">
                         </div>
-                        <div class="icon-preset-item" data-icon="bluestack" title="BlueStacks">
-                            <span class="preset-preview bluestack">📱</span>
-                            <span class="preset-name">BlueStacks</span>
+                    </div>
+
+                    <!-- Default Profile Lockout Message on Right Panel -->
+                    <div class="windows-locked-banner" id="windowsLockedBanner" style="display: none;">
+                        <span class="locked-icon">🔒</span>
+                        <div class="locked-msg">
+                            <strong>Applications Cannot Be Assigned to Desktop</strong>
+                            <p>The Default Profile is the primary fallback for Windows whenever no other custom application profile matches. To bind controls to specific applications, create a new profile or select a custom app profile.</p>
                         </div>
-                        <div class="icon-preset-item" data-icon="game" title="Gaming">
-                            <span class="preset-preview game">🎮</span>
-                            <span class="preset-name">Game</span>
-                        </div>
-                        <div class="icon-preset-item" data-icon="code" title="VS Code / IDE">
-                            <span class="preset-preview code">💻</span>
-                            <span class="preset-name">Code</span>
-                        </div>
-                        <div class="icon-preset-item" data-icon="media" title="Media & Music">
-                            <span class="preset-preview media">🎵</span>
-                            <span class="preset-name">Media</span>
-                        </div>
-                        <div class="icon-preset-item" data-icon="chrome" title="Browser">
-                            <span class="preset-preview chrome">🌐</span>
-                            <span class="preset-name">Browser</span>
-                        </div>
-                        <div class="icon-preset-item" data-icon="photoshop" title="Adobe Photoshop">
-                            <span class="preset-preview ps">🎨</span>
-                            <span class="preset-name">Creative</span>
-                        </div>
-                        <div class="icon-preset-item" data-icon="desktop" title="Desktop / System">
-                            <span class="preset-preview desktop">🖥️</span>
-                            <span class="preset-name">Desktop</span>
-                        </div>
+                    </div>
+
+                    <!-- Grid of Running Windows with Real Icons -->
+                    <div class="running-apps-grid" id="runningAppsList">
+                        <div class="loading-apps-msg">Scanning open windows...</div>
                     </div>
                 </div>
             </div>
@@ -588,10 +672,118 @@
         </div>
     </div>
 
+    <!-- ONBOARD MEMORY SETUP & VIRTUAL KEY INJECTOR MODAL -->
+    <div class="modal-backdrop" id="ommSetupModal" style="display: none;">
+        <div class="omm-modal-dialog">
+            <div class="modal-header">
+                <div class="modal-header-titles">
+                    <span class="modal-title">⚡ ONBOARD MEMORY SETUP & VIRTUAL KEY INJECTOR</span>
+                    <span class="modal-subtitle">Inject virtual F13–F21 keys into Logitech Onboard Memory Manager (OMM)</span>
+                </div>
+                <button class="modal-close-btn" id="btnCloseOmmModal">✕</button>
+            </div>
+
+            <div class="omm-modal-body" style="padding: 20px 24px; overflow-y: auto;">
+                <!-- Instructions Banner -->
+                <div class="omm-guide-banner">
+                    <div class="omm-guide-title">
+                        <span>📋</span> HOW TO CONFIGURE IN LOGITECH ONBOARD MEMORY MANAGER (OMM):
+                    </div>
+                    <div class="omm-steps-list">
+                        <div><strong>1.</strong> Open Logitech Onboard Memory Manager (<strong>OMM.exe</strong>).</div>
+                        <div><strong>2.</strong> Click the mouse button you want to configure and select <strong>Keystroke ➔ Record</strong>.</div>
+                        <div><strong>3.</strong> Click the matching <strong>"⚡ Inject Key"</strong> button below — a 3-second countdown will start with audio beeps.</div>
+                        <div><strong>4.</strong> Switch focus back to OMM during the countdown. The virtual F-key will be automatically typed!</div>
+                        <div><strong>5.</strong> Save to mouse onboard memory and close OMM. The button is now fully unlocked for Studio customization!</div>
+                    </div>
+                </div>
+
+                <!-- Live Countdown & Status Box -->
+                <div class="omm-status-box" id="ommStatusBox">
+                    <span class="omm-status-icon" id="ommStatusIcon">⚡</span>
+                    <span class="omm-status-text" id="ommStatusText">Ready. Click any button below to start 3-second countdown.</span>
+                </div>
+
+                <!-- 3x3 Grid of Hardware Buttons with Injection Actions -->
+                <div class="omm-grid" id="ommGrid">
+                    <!-- Populated dynamically via JS: G8, G7, DPI Shift, Forward, Back, Tilt Left, Middle, Tilt Right, G9 -->
+                </div>
+            </div>
+
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 24px;">
+                <span style="font-size: 11px; color: var(--text-muted);">
+                    💡 Physical keyboards lack F13-F24 keys. This assistant injects them virtually to eliminate conflicts with normal typing.
+                </span>
+                <button class="modal-btn cancel" id="btnDoneOmmModal">Done</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Toast / OSD -->
     <div class="studio-toast" id="studioToast">
         <div class="toast-title" id="toastTitle">Notification</div>
         <div class="toast-msg" id="toastMsg">Action applied</div>
+    </div>
+
+    <!-- Button Right-Click Context Menu -->
+    <div class="profile-context-menu" id="buttonContextMenu" style="display: none;">
+        <div class="ctx-header" id="ctxBtnHeader">
+            BUTTON: G8
+        </div>
+        <div class="ctx-item" id="ctxBtnCopyMapping">
+            <span class="ctx-icon">📋</span>
+            <span class="ctx-text">Copy Button Mapping</span>
+        </div>
+        <div class="ctx-item" id="ctxBtnPasteMapping">
+            <span class="ctx-icon">📥</span>
+            <span class="ctx-text" id="ctxBtnPasteText">Paste Button Mapping</span>
+        </div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item" id="ctxBtnRecord">
+            <span class="ctx-icon">⌨</span>
+            <span class="ctx-text">Record / Customize...</span>
+        </div>
+        <div class="ctx-item" id="ctxBtnReset">
+            <span class="ctx-icon">↺</span>
+            <span class="ctx-text">Reset to Default</span>
+        </div>
+        <div class="ctx-divider" id="ctxBtnFKeyDivider"></div>
+        <div class="ctx-item has-submenu" id="ctxBtnChangeFKey">
+            <div class="ctx-item-left">
+                <span class="ctx-icon">⚡</span>
+                <span class="ctx-text">Change Hardware Key</span>
+            </div>
+            <span class="ctx-arrow">▶</span>
+            <div class="ctx-submenu" id="ctxFKeySubmenu">
+                <!-- Populated dynamically via JS: F13 to F21 with assigned buttons -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Right-Click Context Menu -->
+    <div class="profile-context-menu" id="profileContextMenu" style="display: none;">
+        <div class="ctx-item" id="ctxCopyMappings">
+            <span class="ctx-icon">📋</span>
+            <span class="ctx-text">Copy Mappings</span>
+        </div>
+        <div class="ctx-item" id="ctxPasteMappings">
+            <span class="ctx-icon">📥</span>
+            <span class="ctx-text" id="ctxPasteText">Paste Mappings</span>
+        </div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item" id="ctxEditProfile">
+            <span class="ctx-icon">⚙</span>
+            <span class="ctx-text">Edit Profile & Apps...</span>
+        </div>
+        <div class="ctx-item" id="ctxLockProfile">
+            <span class="ctx-icon" id="ctxLockIcon">🔒</span>
+            <span class="ctx-text" id="ctxLockText">Lock Profile</span>
+        </div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item danger" id="ctxDeleteProfile">
+            <span class="ctx-icon">✕</span>
+            <span class="ctx-text">Delete Profile</span>
+        </div>
     </div>
 
     <script src="app.js"></script>
