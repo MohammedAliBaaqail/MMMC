@@ -41246,3 +41246,69 @@
       "GShift":{
         "Cmd":"GShift1",
         ... (len=7694)
+2026-10-25 23:15:01 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:15:01 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:15:02 | AutoSwitch: Antigravity IDE.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:15:02 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:15:15 | PostMessage: {
+  "btnId":"ProfileCycle",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=73)
+2026-10-25 23:15:16 | PostMessage: {
+  "btnId":"ProfileCycle",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=73)
+2026-10-25 23:17:05 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:17:05 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:17:06 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:17:06 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:17:06 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:17:06 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:17:21 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:17:21 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:17:21 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:17:21 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:17:21 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:17:21 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
