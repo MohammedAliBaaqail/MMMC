@@ -37,6 +37,8 @@ const state = {
     },
     copiedButtonMapping: null,
     contextTargetButton: null,
+    customButtonNames: {},
+    renameTargetButton: null,
 
     // Pointer Calibration Mode State
     isCalibrating: false,
@@ -88,6 +90,38 @@ const DIAGRAM_POINTS = {
     TiltRight:    { x: 382, y: 27,  side: 'right', name: 'Wheel Tilt Right',  tag: 'TR' },
     ProfileCycle: { x: 444, y: 105, side: 'right', name: 'G9 (Profile Cycle)',tag: 'G9' }
 };
+
+const DEFAULT_CARD_BADGES = {
+    LeftClick: 'M1',
+    G8: 'G8',
+    G7: 'G7',
+    DpiShift: 'DPI Shift',
+    Forward: 'G5',
+    Back: 'G4',
+    RightClick: 'M2',
+    TiltLeft: 'Tilt Left',
+    WheelUp: 'Scroll Up',
+    Middle: 'Wheel Click',
+    WheelDown: 'Scroll Down',
+    TiltRight: 'Tilt Right',
+    ProfileCycle: 'G9'
+};
+
+function getButtonDisplayName(btnId) {
+    if (state.customButtonNames && state.customButtonNames[btnId]) {
+        return state.customButtonNames[btnId];
+    }
+    const pt = DIAGRAM_POINTS[btnId];
+    return pt ? pt.name : btnId;
+}
+
+function getButtonHotspotTag(btnId) {
+    if (state.customButtonNames && state.customButtonNames[btnId]) {
+        return state.customButtonNames[btnId];
+    }
+    const pt = DIAGRAM_POINTS[btnId];
+    return pt ? (pt.tag || btnId) : btnId;
+}
 
 // Command Catalog Categories
 const CATALOG_DATA = [
@@ -176,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initProfileModalControls();
     initStageAndCards();
     initButtonContextMenu();
+    initButtonRenameModal();
     initOmmModal();
     initModalControls();
     initKeyboardGlobal();
@@ -285,6 +320,9 @@ function handleEngineMessage(msg) {
                         DIAGRAM_POINTS[btnId].y = msg.diagramPoints[btnId].y;
                     }
                 }
+            }
+            if (msg.buttonNames) {
+                state.customButtonNames = msg.buttonNames;
             }
 
             // Sync UI
@@ -472,6 +510,23 @@ function handleEngineMessage(msg) {
         case 'buttonStateChanged':
             // Flash button card and hotspot on physical mouse click
             flashButtonHardware(msg.btnId, msg.isDown);
+            break;
+
+        case 'buttonNameUpdated':
+            if (msg.buttonNames) {
+                state.customButtonNames = msg.buttonNames;
+            } else if (msg.btnId) {
+                if (msg.name) {
+                    state.customButtonNames[msg.btnId] = msg.name;
+                } else {
+                    delete state.customButtonNames[msg.btnId];
+                }
+            }
+            refreshCardsAndStage();
+            updateSvgLines();
+            if (state.selectedButton) {
+                selectButton(state.selectedButton);
+            }
             break;
 
         case 'shiftStateChanged':
@@ -927,11 +982,10 @@ function initStageAndCards() {
         const btnId = card.getAttribute('data-btn');
 
         card.addEventListener('click', () => {
+            selectButton(btnId);
             if ((btnId === 'LeftClick' || btnId === 'RightClick') && state.currentLayer === 'Normal') {
                 showToast('B-Shift Required', 'Left and Right Click can be remapped when the B-Shift toggle is ON.');
-                return;
             }
-            selectButton(btnId);
         });
 
         card.addEventListener('dblclick', () => {
@@ -1003,7 +1057,7 @@ function selectButton(btnId) {
         }
     });
 
-    // Update SVG active hotspot & lines
+    // Update SVG active hotspot, lines & text labels
     document.querySelectorAll('.svg-hotspot-circle').forEach(circle => {
         if (circle.getAttribute('data-btn') === btnId) {
             circle.classList.add('active');
@@ -1028,10 +1082,25 @@ function selectButton(btnId) {
         }
     });
 
+    document.querySelectorAll('.svg-hotspot-text').forEach(txt => {
+        if (txt.getAttribute('data-btn') === btnId) {
+            txt.classList.add('active');
+        } else {
+            txt.classList.remove('active');
+        }
+    });
+
+    document.querySelectorAll('.hotspot-group').forEach(grp => {
+        if (grp.getAttribute('data-btn') === btnId) {
+            grp.classList.add('active');
+        } else {
+            grp.classList.remove('active');
+        }
+    });
+
     // Update toolbar indicator
-    const info = DIAGRAM_POINTS[btnId] || { name: btnId };
     const curAction = getButtonAction(btnId);
-    document.getElementById('selectedTargetName').textContent = info.name;
+    document.getElementById('selectedTargetName').textContent = getButtonDisplayName(btnId);
     document.getElementById('selectedTargetAction').textContent = curAction ? curAction.Label : 'Default';
 }
 
@@ -1054,15 +1123,18 @@ function refreshCardsAndStage() {
         if (!actionEl) continue;
 
         const isPrimaryClick = (btnId === 'LeftClick' || btnId === 'RightClick');
+        const customName = (state.customButtonNames && state.customButtonNames[btnId]);
+        const badgeEl = card ? card.querySelector('.card-badge') : null;
 
         if (isPrimaryClick) {
-            const badgeEl = document.getElementById(`badge_${btnId}`);
+            const defaultTag = (btnId === 'LeftClick' ? 'M1' : 'M2');
+            const baseTag = customName || defaultTag;
             if (!isShiftActive) {
                 if (card) {
                     card.classList.add('primary-locked');
                     card.classList.remove('bshift-editable');
                 }
-                if (badgeEl) badgeEl.textContent = (btnId === 'LeftClick' ? 'M1 🔒' : 'M2 🔒');
+                if (badgeEl) badgeEl.textContent = `${baseTag} 🔒`;
                 actionEl.textContent = (btnId === 'LeftClick' ? 'Standard Left Click' : 'Standard Right Click');
                 continue;
             } else {
@@ -1071,7 +1143,11 @@ function refreshCardsAndStage() {
                     card.classList.add('bshift-editable');
                 }
                 const shiftNum = (state.currentLayer === 'GShift2') ? '2' : '1';
-                if (badgeEl) badgeEl.textContent = (btnId === 'LeftClick' ? `M1 ⚡${shiftNum}` : `M2 ⚡${shiftNum}`);
+                if (badgeEl) badgeEl.textContent = `${baseTag} ⚡${shiftNum}`;
+            }
+        } else {
+            if (badgeEl) {
+                badgeEl.textContent = customName || (DEFAULT_CARD_BADGES[btnId] || DIAGRAM_POINTS[btnId]?.tag || btnId);
             }
         }
 
@@ -1149,14 +1225,21 @@ function refreshCardsAndStage() {
 function flashButtonHardware(btnId, isDown) {
     const card = document.getElementById(`card_${btnId}`);
     const hotspot = document.querySelector(`.svg-hotspot-circle[data-btn="${btnId}"]`);
+    const line = document.querySelector(`.svg-leader-line[data-btn="${btnId}"]`);
+    const dot = document.querySelector(`.svg-anchor-dot[data-btn="${btnId}"]`);
+    const text = document.querySelector(`.svg-hotspot-text[data-btn="${btnId}"]`);
+    const group = document.querySelector(`.hotspot-group[data-btn="${btnId}"]`);
 
-    if (card) {
-        if (isDown) card.classList.add('flash-pressed');
-        else card.classList.remove('flash-pressed');
-    }
-    if (hotspot) {
-        if (isDown) hotspot.classList.add('flash-pressed');
-        else hotspot.classList.remove('flash-pressed');
+    const elements = [card, hotspot, line, dot, text, group];
+
+    elements.forEach(el => {
+        if (!el) return;
+        if (isDown) el.classList.add('flash-pressed');
+        else el.classList.remove('flash-pressed');
+    });
+
+    if (isDown) {
+        selectButton(btnId);
     }
 }
 
@@ -1233,7 +1316,7 @@ function updateSvgLines() {
 
         // Create Hotspot Circle & Tag
         const spotGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        spotGroup.setAttribute('class', `hotspot-group ${state.isCalibrating ? 'calibrating' : ''} ${isCardHovered ? 'drop-hover' : ''}`);
+        spotGroup.setAttribute('class', `hotspot-group ${isSelected ? 'active' : ''} ${state.isCalibrating ? 'calibrating' : ''} ${isCardHovered ? 'drop-hover' : ''}`);
         spotGroup.setAttribute('data-btn', btnId);
 
         // Outer glow circle
@@ -1253,18 +1336,15 @@ function updateSvgLines() {
         circle.setAttribute('class', `svg-hotspot-circle ${isSelected ? 'active' : ''} ${isCalibSelected ? 'calib-active' : ''} ${state.isDraggingPoint && isCalibSelected ? 'dragging' : ''} ${isCardHovered ? 'drop-hover' : ''}`);
         circle.setAttribute('data-btn', btnId);
 
-        // Tag label
+        // Tag label (Button Name on the button itself)
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', targetX);
-        text.setAttribute('y', targetY - (state.isCalibrating ? 12 : 9));
+        text.setAttribute('y', targetY - (state.isCalibrating ? 12 : 10));
         text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('class', state.isCalibrating ? 'svg-hotspot-tag' : '');
-        text.setAttribute('fill', state.isCalibrating ? '#fbbf24' : '#89b4fa');
-        text.setAttribute('font-size', state.isCalibrating ? '10px' : '9px');
-        text.setAttribute('font-family', 'Outfit, sans-serif');
-        text.setAttribute('font-weight', '700');
+        text.setAttribute('class', `svg-hotspot-text ${isSelected ? 'active' : ''} ${state.isCalibrating ? 'svg-hotspot-tag' : ''} ${isCardHovered ? 'drop-hover' : ''}`);
+        text.setAttribute('data-btn', btnId);
         text.setAttribute('pointer-events', 'none');
-        text.textContent = pt.tag || btnId;
+        text.textContent = getButtonHotspotTag(btnId);
 
         spotGroup.appendChild(circle);
         spotGroup.appendChild(text);
@@ -1289,11 +1369,10 @@ function updateSvgLines() {
             });
         } else {
             spotGroup.addEventListener('click', () => {
+                selectButton(btnId);
                 if ((btnId === 'LeftClick' || btnId === 'RightClick') && state.currentLayer === 'Normal') {
                     showToast('B-Shift Required', 'Left and Right Click can be remapped when the B-Shift toggle is ON.');
-                    return;
                 }
-                selectButton(btnId);
             });
 
             spotGroup.addEventListener('dblclick', () => {
@@ -1536,7 +1615,7 @@ function openButtonStudio(btnId) {
     state.modal.buttonId = btnId;
     const info = DIAGRAM_POINTS[btnId] || { name: btnId };
 
-    document.getElementById('modalTargetTitle').textContent = `BUTTON STUDIO — ${info.name.toUpperCase()}`;
+    document.getElementById('modalTargetTitle').textContent = `BUTTON STUDIO — ${getButtonDisplayName(btnId).toUpperCase()}`;
     document.getElementById('modalTargetMeta').textContent = `Profile: ${state.currentProfile} • Active Layer: ${state.currentLayer}`;
 
     const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
@@ -3388,10 +3467,20 @@ function escapeHtml(str) {
 // BUTTON CONTEXT MENU (Copy/Paste Mapping & Hardware F-Key Swapping)
 // ============================================================================
 function initButtonContextMenu() {
+    const ctxRename = document.getElementById('ctxBtnRename');
     const ctxCopy = document.getElementById('ctxBtnCopyMapping');
     const ctxPaste = document.getElementById('ctxBtnPasteMapping');
     const ctxRecord = document.getElementById('ctxBtnRecord');
     const ctxReset = document.getElementById('ctxBtnReset');
+
+    if (ctxRename) {
+        ctxRename.addEventListener('click', () => {
+            if (state.contextTargetButton) {
+                openButtonRenameModal(state.contextTargetButton);
+            }
+            closeButtonContextMenu();
+        });
+    }
 
     if (ctxCopy) {
         ctxCopy.addEventListener('click', () => {
@@ -3471,9 +3560,8 @@ function openButtonContextMenu(e, btnId) {
     closeProfileContextMenu();
 
     const header = document.getElementById('ctxBtnHeader');
-    const btnInfo = DIAGRAM_POINTS[btnId];
     if (header) {
-        header.textContent = `BUTTON: ${btnInfo ? btnInfo.name : btnId}`;
+        header.textContent = `BUTTON: ${getButtonDisplayName(btnId)}`;
     }
 
     const ctxPaste = document.getElementById('ctxBtnPasteMapping');
@@ -3744,5 +3832,127 @@ function handleOmmReset() {
     box.className = 'omm-status-box';
     if (icon) icon.textContent = '⚡';
     text.textContent = 'Ready. Click any button below to start 3-second countdown.';
+}
+
+// ============================================================================
+// BUTTON RENAMING MODAL & CUSTOM DISPLAY NAMES
+// ============================================================================
+function initButtonRenameModal() {
+    const btnSave = document.getElementById('btnSaveRenameModal');
+    const btnReset = document.getElementById('btnResetRenameModal');
+    const btnCancel = document.getElementById('btnCancelRenameModal');
+    const btnClose = document.getElementById('btnCloseRenameModal');
+    const input = document.getElementById('txtButtonCustomName');
+    const modal = document.getElementById('buttonRenameModal');
+
+    if (btnSave) btnSave.addEventListener('click', saveButtonRenameModal);
+    if (btnReset) btnReset.addEventListener('click', resetToDefaultButtonRenameModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeButtonRenameModal);
+    if (btnClose) btnClose.addEventListener('click', closeButtonRenameModal);
+
+    if (input) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveButtonRenameModal();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeButtonRenameModal();
+            }
+        });
+    }
+
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeButtonRenameModal();
+            }
+        });
+    }
+}
+
+function openButtonRenameModal(btnId) {
+    if (!btnId) return;
+    state.renameTargetButton = btnId;
+
+    const modal = document.getElementById('buttonRenameModal');
+    if (!modal) return;
+
+    const currentCustom = (state.customButtonNames && state.customButtonNames[btnId]) || '';
+    const defInfo = DIAGRAM_POINTS[btnId] || { name: btnId, tag: btnId };
+
+    const titleEl = document.getElementById('renameModalTitle');
+    const subEl = document.getElementById('renameModalSubtitle');
+    const input = document.getElementById('txtButtonCustomName');
+
+    if (titleEl) titleEl.textContent = `RENAME BUTTON — ${defInfo.tag || btnId}`;
+    if (subEl) subEl.textContent = `Original: ${defInfo.name}`;
+    if (input) {
+        input.value = currentCustom;
+        input.placeholder = `e.g. ${defInfo.tag || btnId}`;
+    }
+
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+
+    setTimeout(() => {
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    }, 100);
+}
+
+function closeButtonRenameModal() {
+    const modal = document.getElementById('buttonRenameModal');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+    }
+}
+
+function saveButtonRenameModal() {
+    if (!state.renameTargetButton) return;
+    const input = document.getElementById('txtButtonCustomName');
+    const newName = input ? input.value.trim() : '';
+    setButtonCustomName(state.renameTargetButton, newName);
+    closeButtonRenameModal();
+}
+
+function resetToDefaultButtonRenameModal() {
+    if (!state.renameTargetButton) return;
+    setButtonCustomName(state.renameTargetButton, '');
+    closeButtonRenameModal();
+}
+
+function setButtonCustomName(btnId, newName) {
+    if (!btnId) return;
+    newName = (newName || '').trim();
+
+    if (!state.customButtonNames) {
+        state.customButtonNames = {};
+    }
+
+    if (newName) {
+        state.customButtonNames[btnId] = newName;
+    } else {
+        delete state.customButtonNames[btnId];
+    }
+
+    // Send IPC to AutoHotkey v2 backend
+    sendToAhk({
+        action: 'setButtonName',
+        btnId: btnId,
+        name: newName
+    });
+
+    // Immediately update UI
+    refreshCardsAndStage();
+    updateSvgLines();
+    if (state.selectedButton === btnId) {
+        selectButton(btnId);
+    }
+
+    showToast('Button Renamed', newName ? `Renamed to "${newName}"` : `Restored ${btnId} to default name`);
 }
 

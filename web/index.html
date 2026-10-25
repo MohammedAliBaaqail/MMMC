@@ -741,6 +741,39 @@
         </div>
     </div>
 
+    <!-- Button Rename Modal -->
+    <div class="modal-backdrop" id="buttonRenameModal" style="display: none;">
+        <div class="modal-dialog rename-dialog" style="max-width: 440px;">
+            <div class="modal-header">
+                <div class="modal-header-titles">
+                    <span class="modal-title" id="renameModalTitle">RENAME BUTTON</span>
+                    <span class="modal-subtitle" id="renameModalSubtitle">Set custom display label</span>
+                </div>
+                <button class="modal-close-btn" id="btnCloseRenameModal">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 20px 24px;">
+                <div style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary);">
+                    Enter a custom display name. This name will appear on the mouse diagram, button card, and status headers:
+                </div>
+                <div class="config-input-group" style="margin-bottom: 16px;">
+                    <label class="config-label" for="txtButtonCustomName">Button Name</label>
+                    <input type="text" class="config-input" id="txtButtonCustomName" maxlength="24" placeholder="e.g. Sniper, Mute, G9..." style="font-size: 14px; font-weight: 600; padding: 10px 14px; background: rgba(16, 18, 28, 0.8); border: 1px solid var(--border-subtle); border-radius: 8px; color: #fff; width: 100%; box-sizing: border-box;" />
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                    <span>💡</span>
+                    <span>Tip: Leave blank or click "Reset to Default" to restore the original factory name.</span>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid var(--border-subtle);">
+                <button class="modal-btn cancel" id="btnResetRenameModal" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">↺ Reset to Default</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="modal-btn cancel" id="btnCancelRenameModal">Cancel</button>
+                    <button class="modal-btn save" id="btnSaveRenameModal">✔ Save Name</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Toast / OSD -->
     <div class="studio-toast" id="studioToast">
         <div class="toast-title" id="toastTitle">Notification</div>
@@ -752,6 +785,11 @@
         <div class="ctx-header" id="ctxBtnHeader">
             BUTTON: G8
         </div>
+        <div class="ctx-item" id="ctxBtnRename">
+            <span class="ctx-icon">✏️</span>
+            <span class="ctx-text">Rename Button Display Name...</span>
+        </div>
+        <div class="ctx-divider"></div>
         <div class="ctx-item" id="ctxBtnCopyMapping">
             <span class="ctx-icon">📋</span>
             <span class="ctx-text">Copy Button Mapping</span>

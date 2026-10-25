@@ -838,8 +838,10 @@ class ProfileEngine {
             if (DllCall("gdiplus\GdiplusStartup", "Ptr*", &token, "Ptr", si.Ptr, "Ptr", 0) != 0)
                 return false
 
+            pathBuf := Buffer(520, 0)
+            StrPut(fullPath, pathBuf, "UTF-16")
             index := 0
-            hIcon := DllCall("shell32\ExtractAssociatedIcon", "Ptr", 0, "Str", fullPath, "Short*", &index, "Ptr")
+            hIcon := DllCall("shell32\ExtractAssociatedIcon", "Ptr", 0, "Ptr", pathBuf.Ptr, "Short*", &index, "Ptr")
             if (hIcon) {
                 pBitmap := 0
                 DllCall("gdiplus\GdipCreateBitmapFromHICON", "Ptr", hIcon, "Ptr*", &pBitmap)

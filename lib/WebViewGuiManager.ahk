@@ -424,6 +424,20 @@ class WebViewGuiManager {
             case "resetButtonDefault":
                 this.HandleResetButtonDefault(req)
 
+            case "setButtonName":
+                btnId := req.Has("btnId") ? req["btnId"] : ""
+                customName := req.Has("name") ? Trim(req["name"]) : ""
+                if (btnId != "") {
+                    this.SaveButtonName(btnId, customName)
+                    this.PostMessage(Map(
+                        "type", "buttonNameUpdated",
+                        "btnId", btnId,
+                        "name", customName,
+                        "buttonNames", this.LoadButtonNames()
+                    ))
+                    OSD.Show("Button Renamed", (customName != "" ? customName : btnId))
+                }
+
             case "toggleRapidFire":
                 ProfileEngine.ToggleRapidFire()
                 this.PostMessage(Map(
@@ -503,7 +517,8 @@ class WebViewGuiManager {
                 "showOSD", OSD.Enabled ? true : false,
                 "mappings", mappings,
                 "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport(),
-                "diagramPoints", diagPoints
+                "diagramPoints", diagPoints,
+                "buttonNames", this.LoadButtonNames()
             )
             this.Log("SendInitialState: calling PostMessage...")
             this.PostMessage(stateObj)
@@ -1062,6 +1077,32 @@ class WebViewGuiManager {
                 IniWrite(String(defPt["x"]), iniPath, "DiagramPoints", btnId . "_X")
                 IniWrite(String(defPt["y"]), iniPath, "DiagramPoints", btnId . "_Y")
             }
+        }
+    }
+
+    static LoadButtonNames() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        out := Map()
+        for btnId, defPt in this.DefaultDiagramPoints {
+            try {
+                val := IniRead(iniPath, "ButtonNames", btnId, "")
+                if (val != "")
+                    out[btnId] := val
+            }
+        }
+        return out
+    }
+
+    static SaveButtonName(btnId, customName) {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try {
+            if (customName = "") {
+                try IniDelete(iniPath, "ButtonNames", btnId)
+            } else {
+                IniWrite(customName, iniPath, "ButtonNames", btnId)
+            }
+        } catch as err {
+            this.Log("Error saving button name: " . err.Message)
         }
     }
 
