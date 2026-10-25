@@ -1,0 +1,12 @@
+# Application settings (user-specific mappings and profiles)
+settings.ini
+*.ini.bak
+
+# Runtime logs
+*.log
+webview_debug.log
+startup.log
+error.log
+
+# Scratch / temporary test files
+scratch/
