@@ -218,6 +218,10 @@ class GuiManager {
         "G-Shift 1 Modifier",                      { Type: "Special", Cmd: "GShift1", Label: "B-Shift 1 Layer" },
         "G-Shift 2 Modifier",                      { Type: "Special", Cmd: "GShift2", Label: "B-Shift 2 Layer" },
         "G-Shift Layer Modifier",                  { Type: "Special", Cmd: "GShift", Label: "B-Shift Layer" },
+        "Alt Key",                                 { Type: "Send", Cmd: "{Alt}", Label: "Alt" },
+        "Shift Key",                               { Type: "Send", Cmd: "{Shift}", Label: "Shift" },
+        "Ctrl Key",                                { Type: "Send", Cmd: "{Ctrl}", Label: "Ctrl" },
+        "Win Key",                                 { Type: "Send", Cmd: "{LWin}", Label: "Win" },
         "[Custom Key Combination]",                { Type: "Custom", Cmd: "", Label: "Custom Combo" },
         "[Raw Command String / Macro]",            { Type: "Raw", Cmd: "", Label: "Raw Macro" }
     )
@@ -230,6 +234,7 @@ class GuiManager {
         "F13","F14","F15","F16","F17","F18","F19","F20","F21","F22","F23","F24",
         "Space","Enter","Escape","Tab","Backspace","Delete","Insert",
         "Home","End","PgUp","PgDn","Up","Down","Left","Right","PrintScreen",
+        "Alt","Shift","Ctrl","LWin",
         "LButton","MButton","RButton"
     ]
 
@@ -1658,10 +1663,10 @@ class GuiManager {
             return ""
 
         switch kName {
-            case "Control", "Ctrl", "LCtrl", "RCtrl": return "Ctrl"
-            case "Shift", "LShift", "RShift":         return "Shift"
-            case "Alt", "LAlt", "RAlt":               return "Alt"
-            case "LWin", "RWin":                     return "Win"
+            case "Control", "Ctrl", "LControl", "RControl", "LCtrl", "RCtrl": return "Ctrl"
+            case "Shift", "LShift", "RShift":                                 return "Shift"
+            case "Alt", "LAlt", "RAlt":                                       return "Alt"
+            case "Win", "LWin", "RWin":                                       return "Win"
         }
 
         if (StrLen(kName) = 1)

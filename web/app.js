@@ -1467,6 +1467,12 @@ function initModalControls() {
     document.getElementById('btnInjectMClick').addEventListener('click', () => injectMouseButton('MButton'));
     document.getElementById('btnInjectRClick').addEventListener('click', () => injectMouseButton('RButton'));
 
+    // Tab 1: Modifier key injections (Alt, Shift, Ctrl, Win)
+    document.getElementById('btnInjectAlt')?.addEventListener('click', () => injectModifierKey('Alt', 'Alt'));
+    document.getElementById('btnInjectShift')?.addEventListener('click', () => injectModifierKey('Shift', 'Shift'));
+    document.getElementById('btnInjectCtrl')?.addEventListener('click', () => injectModifierKey('Ctrl', 'Ctrl'));
+    document.getElementById('btnInjectWin')?.addEventListener('click', () => injectModifierKey('LWin', 'Win'));
+
     // Tab 1: Mode change explain
     document.getElementById('singlePlaybackMode').addEventListener('change', (e) => {
         state.modal.singleAction.PlayType = e.target.value;
@@ -1715,6 +1721,26 @@ function injectMouseButton(mouseBtn) {
     showToast('Injected', `Mouse ${niceName} assigned`);
 }
 
+// Inject standalone modifier keys (Alt, Shift, Ctrl, Win) into Tab 1
+function injectModifierKey(modKey, niceName) {
+    state.modal.singleAction = {
+        Type: 'Send',
+        Cmd: `{${modKey}}`,
+        Label: niceName,
+        PlayType: document.getElementById('singlePlaybackMode').value,
+        RepeatInterval: parseInt(document.getElementById('singleRepeatDelay').value) || 50
+    };
+
+    updateSinglePreview();
+    stopRecordSingleKey();
+    const pBox = document.getElementById('singlePreviewBox');
+    if (pBox) {
+        pBox.classList.add('success');
+        setTimeout(() => pBox.classList.remove('success'), 600);
+    }
+    showToast('Modifier Assigned', `Button mapped to ${niceName}`);
+}
+
 // ============================================================================
 // TAB 2: ADVANCED MACRO SEQUENCER & INJECTIONS
 // ============================================================================
@@ -1940,10 +1966,15 @@ function buildComboFromEvent(e) {
     let prefix = '';
     let labelPrefix = '';
 
-    if (e.ctrlKey)  { prefix += '^'; labelPrefix += 'Ctrl + '; }
-    if (e.altKey)   { prefix += '!'; labelPrefix += 'Alt + '; }
-    if (e.shiftKey) { prefix += '+'; labelPrefix += 'Shift + '; }
-    if (e.metaKey)  { prefix += '#'; labelPrefix += 'Win + '; }
+    const isCtrl = (e.key === 'Control');
+    const isAlt = (e.key === 'Alt');
+    const isShift = (e.key === 'Shift');
+    const isWin = (e.key === 'Meta');
+
+    if (e.ctrlKey && !isCtrl)   { prefix += '^'; labelPrefix += 'Ctrl + '; }
+    if (e.altKey && !isAlt)     { prefix += '!'; labelPrefix += 'Alt + '; }
+    if (e.shiftKey && !isShift) { prefix += '+'; labelPrefix += 'Shift + '; }
+    if (e.metaKey && !isWin)    { prefix += '#'; labelPrefix += 'Win + '; }
 
     const ahkKey = convertJsKeyToAhk(e.key, e.shiftKey);
     const niceKey = formatKeyNice(ahkKey);

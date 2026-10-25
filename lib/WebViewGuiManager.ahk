@@ -724,10 +724,10 @@ class WebViewGuiManager {
             return ""
 
         switch kName {
-            case "Control", "Ctrl", "LCtrl", "RCtrl": return "Ctrl"
-            case "Shift", "LShift", "RShift":         return "Shift"
-            case "Alt", "LAlt", "RAlt":               return "Alt"
-            case "LWin", "RWin":                     return "Win"
+            case "Control", "Ctrl", "LControl", "RControl", "LCtrl", "RCtrl": return "Ctrl"
+            case "Shift", "LShift", "RShift":                                 return "Shift"
+            case "Alt", "LAlt", "RAlt":                                       return "Alt"
+            case "Win", "LWin", "RWin":                                       return "Win"
         }
 
         switch kName {
@@ -818,24 +818,47 @@ class WebViewGuiManager {
 
     static OnSingleKeyUp(vk, sc) {
         kName := this.NormalizeKey(vk, sc)
-        if (kName != "") {
-            if (this.RecKeysDown.Has(kName))
-                this.RecKeysDown.Delete(kName)
-            if (this.RecModifiers.Has(kName)) {
-                this.RecModifiers.Delete(kName)
+        if (kName = "")
+            return
+
+        wasModifier := (kName = "Ctrl" || kName = "Alt" || kName = "Shift" || kName = "Win")
+        hadModifier := this.RecModifiers.Has(kName)
+
+        if (this.RecKeysDown.Has(kName))
+            this.RecKeysDown.Delete(kName)
+
+        ; If no non-modifier key was captured yet and a modifier was released:
+        ; Allow a single modifier like only Alt or only Shift to be mapped!
+        if (this.RecCapturedResult = "" && wasModifier && hadModifier) {
+            mods := this.RecModifiers.Clone()
+            res := this.BuildSingleCombo(mods, kName)
+            this.RecCapturedResult := res
+
+            this.PostMessage(Map(
+                "type", "singleKeyRecorded",
+                "ahkCmd", res.Cmd,
+                "niceLabel", res.Label
+            ))
+
+            this.RecModifiers.Clear()
+            this.StopRecording()
+            return
+        }
+
+        if (this.RecModifiers.Has(kName)) {
+            this.RecModifiers.Delete(kName)
+            this.PostMessage(Map(
+                "type", "modifierStateChanged",
+                "ctrl", this.RecModifiers.Has("Ctrl") ? true : false,
+                "alt", this.RecModifiers.Has("Alt") ? true : false,
+                "shift", this.RecModifiers.Has("Shift") ? true : false,
+                "win", this.RecModifiers.Has("Win") ? true : false
+            ))
+            if (this.RecCapturedResult = "") {
                 this.PostMessage(Map(
-                    "type", "modifierStateChanged",
-                    "ctrl", this.RecModifiers.Has("Ctrl") ? true : false,
-                    "alt", this.RecModifiers.Has("Alt") ? true : false,
-                    "shift", this.RecModifiers.Has("Shift") ? true : false,
-                    "win", this.RecModifiers.Has("Win") ? true : false
+                    "type", "liveKeyPreview",
+                    "preview", this.BuildModifierPreview()
                 ))
-                if (this.RecCapturedResult = "") {
-                    this.PostMessage(Map(
-                        "type", "liveKeyPreview",
-                        "preview", this.BuildModifierPreview()
-                    ))
-                }
             }
         }
 
@@ -854,25 +877,31 @@ class WebViewGuiManager {
     static BuildSingleCombo(mods, keyName) {
         prefix := ""
         lbl := ""
-        if (mods.Has("Ctrl")) {
+
+        isCtrlKey := (keyName = "Ctrl" || keyName = "LControl" || keyName = "RControl")
+        isAltKey := (keyName = "Alt" || keyName = "LAlt" || keyName = "RAlt")
+        isShiftKey := (keyName = "Shift" || keyName = "LShift" || keyName = "RShift")
+        isWinKey := (keyName = "Win" || keyName = "LWin" || keyName = "RWin")
+
+        if (mods.Has("Ctrl") && !isCtrlKey) {
             prefix .= "^"
             lbl .= "Ctrl + "
         }
-        if (mods.Has("Alt")) {
+        if (mods.Has("Alt") && !isAltKey) {
             prefix .= "!"
             lbl .= "Alt + "
         }
-        if (mods.Has("Shift")) {
+        if (mods.Has("Shift") && !isShiftKey) {
             prefix .= "+"
             lbl .= "Shift + "
         }
-        if (mods.Has("Win")) {
+        if (mods.Has("Win") && !isWinKey) {
             prefix .= "#"
             lbl .= "Win + "
         }
 
-        niceKey := (StrLen(keyName) = 1) ? StrUpper(keyName) : keyName
-        ahkKey := (StrLen(keyName) = 1) ? StrLower(keyName) : keyName
+        niceKey := isWinKey ? "Win" : (isCtrlKey ? "Ctrl" : (isAltKey ? "Alt" : (isShiftKey ? "Shift" : ((StrLen(keyName) = 1) ? StrUpper(keyName) : keyName))))
+        ahkKey := isWinKey ? "LWin" : (isCtrlKey ? "Ctrl" : (isAltKey ? "Alt" : (isShiftKey ? "Shift" : ((StrLen(keyName) = 1) ? StrLower(keyName) : keyName))))
 
         cmd := prefix . "{" . ahkKey . "}"
         lbl := lbl . niceKey
@@ -889,7 +918,19 @@ class WebViewGuiManager {
             lbl .= "Shift + "
         if (this.RecModifiers.Has("Win"))
             lbl .= "Win + "
-        return (lbl != "") ? (lbl . "...") : ""
+
+        if (lbl != "") {
+            if (this.RecModifiers.Count = 1) {
+                firstMod := ""
+                for k in this.RecModifiers {
+                    firstMod := k
+                    break
+                }
+                return "[ " . firstMod . " ] (Release to map alone, or press combo key)"
+            }
+            return lbl . "..."
+        }
+        return ""
     }
 
     static OnMacroKeyDown(vk, sc) {

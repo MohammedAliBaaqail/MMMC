@@ -41312,3 +41312,3710 @@
       "GShift":{
         "Cmd":"GShift1",
         ... (len=7694)
+2026-10-25 23:18:07 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:18:07 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:18:09 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:18:09 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:18:42 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:18:42 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:18:44 | AutoSwitch: Antigravity IDE.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:18:44 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:18:48 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:18:48 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:18:50 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:18:50 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:18:53 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:18:53 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:18:54 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:18:54 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:18:56 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:18:56 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:19:06 | Received IPC: {"action":"getRunningApps"}
+2026-10-25 23:19:06 | PostMessage: {
+  "apps":[
+    {
+      "hasIcon":1,
+      "icon":"ACShadows",
+      "process":... (len=1360)
+2026-10-25 23:19:13 | Received IPC: {"action":"addProfile","name":"ACShadows","targetExe":"ACShadows.exe","icon":"auto","switchOnHover":false}
+2026-10-25 23:19:13 | PostMessage: {
+  "currentProfile":"Desktop",
+  "mappings":{
+    "ACShadows":{
+      "Back":{
+... (len=51399)
+2026-10-25 23:19:13 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6931)
+2026-10-25 23:19:23 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:19:23 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-25 23:19:23 | PostMessage: {
+  "ahkCmd":"{e}",
+  "niceLabel":"E",
+  "type":"singleKeyRecorded"
+}... (len=69)
+2026-10-25 23:19:25 | Received IPC: {"action":"saveMapping","profile":"ACShadows","btnId":"TiltLeft","layer":"Normal","actionObj":{"Type":"Send","Cmd":"{e}","Label":"E","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-25 23:19:25 | PostMessage: {
+  "btnId":"TiltLeft",
+  "mapping":{
+    "GShift":{
+      "Cmd":"#{Left}",
+    ... (len=536)
+2026-10-25 23:19:25 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:19:25 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:21:02 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-25 23:21:02 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:21:04 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:21:05 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:21:19 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:21:19 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:21:21 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-25 23:21:21 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6912)
+2026-10-25 23:21:23 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: ACShadows)
+2026-10-25 23:21:23 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:21:24 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:21:24 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:21:24 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-25 23:21:24 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6912)
+2026-10-25 23:21:25 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: ACShadows)
+2026-10-25 23:21:25 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:21:58 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:21:58 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:21:58 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:21:59 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:02 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:22:02 | PostMessage: {
+  "isShift":1,
+  "shiftName":"GShift1",
+  "type":"shiftStateChanged"
+}... (len=72)
+2026-10-25 23:22:02 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:03 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:03 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:03 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:03 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:22:03 | PostMessage: {
+  "isShift":0,
+  "shiftName":"GShift1",
+  "type":"shiftStateChanged"
+}... (len=72)
+2026-10-25 23:22:04 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:22:04 | PostMessage: {
+  "isShift":1,
+  "shiftName":"GShift1",
+  "type":"shiftStateChanged"
+}... (len=72)
+2026-10-25 23:22:04 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:04 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:04 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:04 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:05 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:05 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:05 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:22:05 | PostMessage: {
+  "isShift":0,
+  "shiftName":"GShift1",
+  "type":"shiftStateChanged"
+}... (len=72)
+2026-10-25 23:22:09 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:22:09 | PostMessage: {
+  "isShift":1,
+  "shiftName":"GShift1",
+  "type":"shiftStateChanged"
+}... (len=72)
+2026-10-25 23:22:09 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:09 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:09 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:09 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:22:09 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:22:09 | PostMessage: {
+  "isShift":0,
+  "shiftName":"GShift1",
+  "type":"shiftStateChanged"
+}... (len=72)
+2026-10-25 23:23:55 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:23:59 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:24:04 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:24:11 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:25:00 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:25:00 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:25:07 | AutoSwitch: Antigravity IDE.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:25:07 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:25:08 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:25:08 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:25:12 | AutoSwitch: Antigravity IDE.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:25:12 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:25:13 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:25:13 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:25:48 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:25:48 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:25:49 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-25 23:25:49 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6912)
+2026-10-25 23:26:04 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: ACShadows)
+2026-10-25 23:26:04 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:26:23 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:26:23 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:26:24 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-25 23:26:24 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6912)
+2026-10-25 23:40:20 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-25 23:40:20 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:40:21 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:40:21 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:40:33 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:40:33 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:40:35 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:40:35 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:40:48 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Vivaldi)
+2026-10-25 23:40:48 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6912)
+2026-10-25 23:42:26 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: ACShadows)
+2026-10-25 23:42:26 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:42:27 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Vivaldi)
+2026-10-25 23:42:27 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6912)
+2026-10-25 23:48:54 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: ACShadows)
+2026-10-25 23:48:54 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:48:54 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:48:54 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:48:54 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-25 23:48:54 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6912)
+2026-10-25 23:49:00 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:49:00 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-25 23:49:00 | PostMessage: {
+  "ahkCmd":"{q}",
+  "niceLabel":"Q",
+  "type":"singleKeyRecorded"
+}... (len=69)
+2026-10-25 23:49:00 | Received IPC: {"action":"saveMapping","profile":"ACShadows","btnId":"Forward","layer":"Normal","actionObj":{"Type":"Send","Cmd":"{q}","Label":"Q","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-25 23:49:01 | PostMessage: {
+  "btnId":"Forward",
+  "mapping":{
+    "GShift":{
+      "Cmd":"^w",
+      "Lab... (len=526)
+2026-10-25 23:49:01 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:49:01 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:49:02 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:49:02 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:49:04 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:04 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:04 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:04 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:05 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:05 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:05 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:05 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:05 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:05 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:05 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:05 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:06 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:06 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:06 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:06 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:06 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:06 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:07 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:07 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:08 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:08 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:08 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:08 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:08 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:08 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:08 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:08 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:08 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:08 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:08 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:09 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:09 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:09 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:09 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:09 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:09 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:09 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:10 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: ACShadows)
+2026-10-25 23:49:10 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:49:10 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:49:10 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:49:10 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-25 23:49:10 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6893)
+2026-10-25 23:49:16 | Received IPC: {"action":"saveMapping","profile":"ACShadows","btnId":"G7","layer":"Normal","actionObj":{"Type":"Send","Cmd":"{MButton}","Label":"Middle Click","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-25 23:49:16 | PostMessage: {
+  "btnId":"G7",
+  "mapping":{
+    "GShift":{
+      "Cmd":"#{Down}",
+      "Lab... (len=549)
+2026-10-25 23:49:19 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:49:19 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-25 23:49:20 | PostMessage: {
+  "ahkCmd":"{Tab}",
+  "niceLabel":"Tab",
+  "type":"singleKeyRecorded"
+}... (len=73)
+2026-10-25 23:49:23 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-25 23:49:23 | PostMessage: {
+  "ahkCmd":"{i}",
+  "niceLabel":"I",
+  "type":"singleKeyRecorded"
+}... (len=69)
+2026-10-25 23:49:24 | Received IPC: {"action":"saveMapping","profile":"ACShadows","btnId":"G8","layer":"Normal","actionObj":{"Type":"Send","Cmd":"{i}","Label":"I","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-25 23:49:24 | PostMessage: {
+  "btnId":"G8",
+  "mapping":{
+    "GShift":{
+      "Cmd":"#{Up}",
+      "Label... (len=526)
+2026-10-25 23:49:24 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:49:24 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:49:26 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:26 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:27 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:27 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:28 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:49:28 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:49:30 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:30 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:49:40 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: ACShadows)
+2026-10-25 23:49:40 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:49:40 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Vivaldi)
+2026-10-25 23:49:40 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6870)
+2026-10-25 23:49:42 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:49:42 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-25 23:49:43 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:43 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:43 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:43 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:49:43 | Received IPC: {"action":"saveMapping","profile":"ACShadows","btnId":"Back","layer":"Normal","actionObj":{"Type":"Send","Cmd":"!{Left}","Label":"Browser Back","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-25 23:49:43 | PostMessage: {
+  "btnId":"Back",
+  "mapping":{
+    "GShift":{
+      "Cmd":"^+t",
+      "Label... (len=536)
+2026-10-25 23:49:43 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:49:43 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:49:44 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:49:44 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-25 23:49:44 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:44 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:45 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:45 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:49:45 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:45 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:45 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:45 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:49:47 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:47 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:48 | PostMessage: {
+  "ahkCmd":"!{s}",
+  "niceLabel":"Alt + S",
+  "type":"singleKeyRecorded"
+}... (len=76)
+2026-10-25 23:49:48 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:50 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-25 23:49:50 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:50 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:50 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:50 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:49:51 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:51 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:51 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:51 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:51 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:51 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:51 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:51 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:51 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:51 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:51 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:51 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:51 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:51 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:51 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:51 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"Alt + ...",
+  "type":"liveKeyPreview"
+}... (len=54)
+2026-10-25 23:49:52 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:49:52 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:49:52 | Received IPC: {"action":"saveMapping","profile":"ACShadows","btnId":"Back","layer":"Normal","actionObj":{"Type":"Send","Cmd":"!{s}","Label":"Alt + S","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-25 23:49:53 | PostMessage: {
+  "btnId":"Back",
+  "mapping":{
+    "GShift":{
+      "Cmd":"^+t",
+      "Label... (len=528)
+2026-10-25 23:49:53 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:49:53 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:50:02 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-25 23:50:02 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:50:03 | Received IPC: {"action":"selectProfile","profile":"ACShadows"}
+2026-10-25 23:50:03 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6862)
+2026-10-25 23:50:04 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:50:04 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-25 23:50:05 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":1,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:05 | PostMessage: {
+  "preview":"Shift + ...",
+  "type":"liveKeyPreview"
+}... (len=56)
+2026-10-25 23:50:05 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:05 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:50:05 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":1,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:05 | PostMessage: {
+  "preview":"Shift + ...",
+  "type":"liveKeyPreview"
+}... (len=56)
+2026-10-25 23:50:05 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:05 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:50:05 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":1,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:05 | PostMessage: {
+  "preview":"Shift + ...",
+  "type":"liveKeyPreview"
+}... (len=56)
+2026-10-25 23:50:05 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:05 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:50:05 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":1,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:05 | PostMessage: {
+  "preview":"Shift + ...",
+  "type":"liveKeyPreview"
+}... (len=56)
+2026-10-25 23:50:06 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:06 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:50:06 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":1,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:06 | PostMessage: {
+  "preview":"Shift + ...",
+  "type":"liveKeyPreview"
+}... (len=56)
+2026-10-25 23:50:06 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:06 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:50:06 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":1,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:06 | PostMessage: {
+  "preview":"Shift + ...",
+  "type":"liveKeyPreview"
+}... (len=56)
+2026-10-25 23:50:06 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:06 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:50:06 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":1,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:06 | PostMessage: {
+  "preview":"Shift + ...",
+  "type":"liveKeyPreview"
+}... (len=56)
+2026-10-25 23:50:06 | PostMessage: {
+  "alt":0,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-25 23:50:06 | PostMessage: {
+  "preview":"",
+  "type":"liveKeyPreview"
+}... (len=45)
+2026-10-25 23:50:06 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:50:08 | Received IPC: {"action":"startRecording","mode":"macro","defDelay":50,"realDelays":false}
+2026-10-25 23:50:08 | PostMessage: {
+  "action":"Down",
+  "delay":50,
+  "key":"Alt",
+  "type":"macroStepRecorded"
+}... (len=80)
+2026-10-25 23:50:08 | PostMessage: {
+  "action":"Up",
+  "delay":50,
+  "key":"Alt",
+  "type":"macroStepRecorded"
+}... (len=78)
+2026-10-25 23:50:09 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:50:09 | Received IPC: {"action":"saveMapping","profile":"ACShadows","btnId":"Back","layer":"Normal","actionObj":{"Type":"Macro","Cmd":"Macro","Label":"Macro (2 steps)","PlayType":"NoRepeat","RepeatInterval":50,"Steps":[{"Action":"Down","Key":"Alt","Delay":50},{"Action":"Up","Key":"Alt","Delay":50}],"SeqPress":[{"Action":"Down","Key":"Alt","Delay":50},{"Action":"Up","Key":"Alt","Delay":50}],"SeqHold":[],"SeqRelease":[]}}
+2026-10-25 23:50:09 | PostMessage: {
+  "btnId":"Back",
+  "mapping":{
+    "GShift":{
+      "Cmd":"^+t",
+      "Label... (len=953)
+2026-10-25 23:50:09 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:50:09 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:50:10 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-25 23:50:10 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:50:10 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-25 23:50:10 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=7335)
+2026-10-25 23:50:12 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:50:12 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:50:12 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:50:12 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:50:12 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:50:13 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:50:13 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:50:13 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-25 23:50:15 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: ACShadows)
+2026-10-25 23:50:15 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:50:15 | AutoSwitch: Antigravity IDE.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:50:15 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:50:17 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-25 23:50:17 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:50:17 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:50:17 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:50:17 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-25 23:50:17 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=7335)
+2026-10-25 23:50:18 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:50:20 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:50:20 | Received IPC: {"action":"stopRecording"}
+2026-10-25 23:50:20 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: ACShadows)
+2026-10-25 23:50:20 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-25 23:50:21 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-25 23:50:21 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-25 23:50:49 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-25 23:50:49 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=7335)
+2026-10-25 23:50:54 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:50:54 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:51:29 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:51:32 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:00 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:01 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:03 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:03 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:04 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:05 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:13 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:52:13 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:52:15 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:15 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:21 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:22 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:31 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:31 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:52:35 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:52:35 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:52:36 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:52:36 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:53:01 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-25 23:53:01 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-25 23:53:05 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-25 23:53:05 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-25 23:53:07 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-25 23:53:07 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-25 23:53:24 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:53:24 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-25 23:53:24 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:25 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:25 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:26 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:26 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:27 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:34 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:34 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:35 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:35 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:35 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:36 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:36 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:53:37 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-25 23:59:55 | Init: GUI created, HWND=2560742, calling CreateControllerAsync with PID=27068
+2026-10-25 23:59:56 | OnControllerCreated: Success! CoreWebView2 ptr=84181360214016
+2026-10-25 23:59:56 | Navigating to: file:///E:/OBM-AHK/web/index.html
+2026-10-25 23:59:57 | Received IPC: {"action":"getInitialState"}
+2026-10-25 23:59:57 | SendInitialState: gathering mappings and profiles...
+2026-10-25 23:59:57 | SendInitialState: mappings gathered, building stateObj...
+2026-10-25 23:59:57 | SendInitialState: calling PostMessage...
+2026-10-25 23:59:57 | PostMessage: {
+  "alwaysOnTop":0,
+  "autoSwitch":1,
+  "diagramPoints":{
+    "Back":{
+      "x... (len=52836)
+2026-10-25 23:59:57 | SendInitialState: done!
+2026-10-26 00:00:00 | Received IPC: {"action":"selectProfile","profile":"ACShadows"}
+2026-10-26 00:00:00 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=7335)
+2026-10-26 00:00:01 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:00:02 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:00:04 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-26 00:00:04 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-26 00:00:04 | PostMessage: {
+  "preview":"[ Alt ] (Release to map alone, or press combo key)",
+  "type":"li... (len=95)
+2026-10-26 00:00:04 | PostMessage: {
+  "ahkCmd":"{Alt}",
+  "niceLabel":"Alt",
+  "type":"singleKeyRecorded"
+}... (len=73)
+2026-10-26 00:00:05 | Received IPC: {"action":"saveMapping","profile":"ACShadows","btnId":"Back","layer":"Normal","actionObj":{"Type":"Send","Cmd":"{Alt}","Label":"Alt","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-26 00:00:05 | PostMessage: {
+  "btnId":"Back",
+  "mapping":{
+    "GShift":{
+      "Cmd":"^+t",
+      "Label... (len=525)
+2026-10-26 00:00:05 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:00:05 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:00:06 | AutoSwitch: Antigravity IDE.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:00:06 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:00:06 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-26 00:00:06 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:00:06 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-26 00:00:06 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:00:06 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-26 00:00:06 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:00:06 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-26 00:00:06 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:00:08 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-26 00:00:08 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6859)
+2026-10-26 00:00:10 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:10 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:10 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:11 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:11 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:11 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:11 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:00:11 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:00:12 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:13 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:13 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:13 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:17 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:17 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:19 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:20 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:20 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:21 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:28 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:29 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:29 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:29 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:30 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:30 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:36 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:36 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:36 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:36 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:36 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:36 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:41 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:42 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:42 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:42 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:00:42 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:00:42 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:01:02 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:01:02 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:01:07 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:01:07 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:01:07 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:01:07 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:01:07 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:01:07 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:01:12 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:01:12 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:01:14 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:01:14 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:01:20 | PostMessage: {
+  "btnId":"G7",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:01:20 | PostMessage: {
+  "btnId":"G7",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:01:25 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:01:25 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:01:33 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:01:33 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:01:36 | AutoSwitch: Antigravity IDE.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:01:36 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:01:36 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-26 00:01:36 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6859)
+2026-10-26 00:01:38 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:01:39 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-26 00:01:41 | PostMessage: {
+  "ahkCmd":"{h}",
+  "niceLabel":"H",
+  "type":"singleKeyRecorded"
+}... (len=69)
+2026-10-26 00:01:41 | Received IPC: {"action":"saveMapping","profile":"ACShadows","btnId":"DpiShift","layer":"Normal","actionObj":{"Type":"Send","Cmd":"{h}","Label":"H","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-26 00:01:41 | PostMessage: {
+  "btnId":"DpiShift",
+  "mapping":{
+    "GShift":{
+      "Cmd":"",
+      "Labe... (len=515)
+2026-10-26 00:01:41 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:01:41 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:01:44 | PostMessage: {
+  "btnId":"DpiShift",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:01:44 | PostMessage: {
+  "btnId":"DpiShift",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:01:45 | PostMessage: {
+  "btnId":"DpiShift",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:01:46 | PostMessage: {
+  "btnId":"DpiShift",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:01:54 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:01:55 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:01:55 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:01:56 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:04:25 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:04:25 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:04:28 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-26 00:04:28 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6851)
+2026-10-26 00:04:28 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:04:28 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:04:59 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-26 00:04:59 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6851)
+2026-10-26 00:13:42 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:13:42 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:13:48 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-26 00:13:48 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6851)
+2026-10-26 00:14:01 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:14:01 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:14:04 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-26 00:14:04 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6851)
+2026-10-26 00:14:09 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:14:09 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:14:57 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-26 00:14:57 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6851)
+2026-10-26 00:15:11 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:15:11 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:15:12 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-26 00:15:12 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6851)
+2026-10-26 00:15:20 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:15:20 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:15:22 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-26 00:15:22 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6851)
+2026-10-26 00:15:30 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:15:30 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:15:49 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-26 00:15:49 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6851)
+2026-10-26 00:15:58 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:15:58 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:16:04 | AutoSwitch: ACShadows.exe (focus) -> Switch to Profile: ACShadows (was: Desktop)
+2026-10-26 00:16:04 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6851)
+2026-10-26 00:16:29 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: ACShadows)
+2026-10-26 00:16:29 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:16:29 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-26 00:16:29 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:16:30 | AutoSwitch: MSIAfterburner.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-26 00:16:30 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:16:58 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Desktop)
+2026-10-26 00:16:58 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6917)
+2026-10-26 00:17:06 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: GoWEDay-Steam)
+2026-10-26 00:17:06 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:17:07 | AutoSwitch: GoWEDay-Steam.exe (hover) -> Switch to Profile: GoWEDay-Steam (was: Desktop)
+2026-10-26 00:17:07 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6917)
+2026-10-26 00:17:08 | AutoSwitch: Antigravity IDE.exe (default hover) -> Switch to Profile: Desktop (was: GoWEDay-Steam)
+2026-10-26 00:17:08 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:17:10 | Received IPC: {"action":"selectProfile","profile":"GoWEDay-Steam"}
+2026-10-26 00:17:10 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6917)
+2026-10-26 00:17:10 | Received IPC: {"action":"getRunningApps"}
+2026-10-26 00:17:10 | PostMessage: {
+  "apps":[
+    {
+      "hasIcon":1,
+      "icon":"Antigravity IDE",
+      "pro... (len=1401)
+2026-10-26 00:17:12 | Received IPC: {"action":"updateProfile","name":"GoWEDay-Steam","targetExe":"GoWEDay-Steam.exe","icon":"auto","switchOnHover":false}
+2026-10-26 00:17:12 | PostMessage: {
+  "currentProfile":"GoWEDay-Steam",
+  "mappings":{
+    "ACShadows":{
+      "Ba... (len=51325)
+2026-10-26 00:17:12 | AutoSwitch: Antigravity IDE.exe (default hover) -> Switch to Profile: Desktop (was: GoWEDay-Steam)
+2026-10-26 00:17:12 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:17:15 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Desktop)
+2026-10-26 00:17:15 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6917)
+2026-10-26 00:17:56 | AutoSwitch: Antigravity IDE.exe (default hover) -> Switch to Profile: Desktop (was: GoWEDay-Steam)
+2026-10-26 00:17:56 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:17:58 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-26 00:17:58 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:18:00 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-26 00:18:00 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:18:00 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-26 00:18:00 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:18:18 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Vivaldi)
+2026-10-26 00:18:18 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6917)
+2026-10-26 00:18:18 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: GoWEDay-Steam)
+2026-10-26 00:18:18 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:18:19 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Vivaldi)
+2026-10-26 00:18:19 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6917)
+2026-10-26 00:20:26 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: GoWEDay-Steam)
+2026-10-26 00:20:26 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:20:26 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Vivaldi)
+2026-10-26 00:20:26 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6917)
+2026-10-26 00:20:30 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:20:30 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-26 00:20:31 | PostMessage: {
+  "ahkCmd":"{f}",
+  "niceLabel":"F",
+  "type":"singleKeyRecorded"
+}... (len=69)
+2026-10-26 00:20:32 | Received IPC: {"action":"saveMapping","profile":"GoWEDay-Steam","btnId":"Forward","layer":"Normal","actionObj":{"Type":"Send","Cmd":"{f}","Label":"F","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-26 00:20:32 | PostMessage: {
+  "btnId":"Forward",
+  "mapping":{
+    "GShift":{
+      "Cmd":"^w",
+      "Lab... (len=530)
+2026-10-26 00:20:32 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:20:32 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:20:36 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:20:36 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-26 00:20:37 | PostMessage: {
+  "ahkCmd":"{e}",
+  "niceLabel":"E",
+  "type":"singleKeyRecorded"
+}... (len=69)
+2026-10-26 00:20:38 | Received IPC: {"action":"saveMapping","profile":"GoWEDay-Steam","btnId":"TiltLeft","layer":"Normal","actionObj":{"Type":"Send","Cmd":"{e}","Label":"E","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-26 00:20:38 | PostMessage: {
+  "btnId":"TiltLeft",
+  "mapping":{
+    "GShift":{
+      "Cmd":"#{Left}",
+    ... (len=540)
+2026-10-26 00:20:38 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:20:38 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:20:38 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: GoWEDay-Steam)
+2026-10-26 00:20:38 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:20:38 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Vivaldi)
+2026-10-26 00:20:38 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6879)
+2026-10-26 00:20:39 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:39 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:40 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:40 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:40 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:41 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:41 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:41 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:41 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:41 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:41 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:42 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:42 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:42 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:42 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:42 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:43 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:43 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:43 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:43 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:43 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:43 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:44 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:44 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:44 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:44 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:45 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:45 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:45 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:46 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:56 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:56 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:56 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:56 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:57 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:57 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:57 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:57 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:58 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:58 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:58 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:58 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:58 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:58 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:58 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:58 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:59 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:59 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:59 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:59 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:59 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:59 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:59 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:20:59 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:21:00 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:21:00 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:22:54 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: GoWEDay-Steam)
+2026-10-26 00:22:54 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:22:54 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-26 00:22:54 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:22:56 | Received IPC: {"action":"selectProfile","profile":"GoWEDay-Steam"}
+2026-10-26 00:22:56 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6879)
+2026-10-26 00:22:59 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:22:59 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-26 00:22:59 | PostMessage: {
+  "alt":1,
+  "ctrl":0,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-26 00:22:59 | PostMessage: {
+  "preview":"[ Alt ] (Release to map alone, or press combo key)",
+  "type":"li... (len=95)
+2026-10-26 00:22:59 | PostMessage: {
+  "ahkCmd":"{Alt}",
+  "niceLabel":"Alt",
+  "type":"singleKeyRecorded"
+}... (len=73)
+2026-10-26 00:23:00 | Received IPC: {"action":"saveMapping","profile":"GoWEDay-Steam","btnId":"G8","layer":"Normal","actionObj":{"Type":"Send","Cmd":"{Alt}","Label":"Alt","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-26 00:23:00 | PostMessage: {
+  "btnId":"G8",
+  "mapping":{
+    "GShift":{
+      "Cmd":"#{Up}",
+      "Label... (len=534)
+2026-10-26 00:23:00 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:23:00 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:23:00 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: GoWEDay-Steam)
+2026-10-26 00:23:00 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:23:00 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Desktop)
+2026-10-26 00:23:00 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6865)
+2026-10-26 00:23:01 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:02 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:05 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:07 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:15 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:16 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:16 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:16 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:17 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:17 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:17 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:17 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:23:25 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: GoWEDay-Steam)
+2026-10-26 00:23:25 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:23:25 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-26 00:23:25 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:23:25 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Desktop)
+2026-10-26 00:23:25 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6865)
+2026-10-26 00:23:27 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:23:27 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-26 00:23:28 | PostMessage: {
+  "ahkCmd":"^{LControl}",
+  "niceLabel":"Ctrl + LControl",
+  "type":"singleKey... (len=91)
+2026-10-26 00:23:30 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-26 00:23:30 | PostMessage: {
+  "ahkCmd":"^{LControl}",
+  "niceLabel":"Ctrl + LControl",
+  "type":"singleKey... (len=91)
+2026-10-26 00:23:34 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:23:35 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-26 00:23:35 | PostMessage: {
+  "ahkCmd":"^{LControl}",
+  "niceLabel":"Ctrl + LControl",
+  "type":"singleKey... (len=91)
+2026-10-26 00:23:36 | Received IPC: {"action":"saveMapping","profile":"GoWEDay-Steam","btnId":"Back","layer":"Normal","actionObj":{"Type":"Send","Cmd":"^{LControl}","Label":"Ctrl + LControl","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-26 00:23:36 | PostMessage: {
+  "btnId":"Back",
+  "mapping":{
+    "GShift":{
+      "Cmd":"^+t",
+      "Label... (len=547)
+2026-10-26 00:23:36 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:23:36 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:23:40 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:40 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:40 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:41 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:41 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:41 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:41 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:41 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:41 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:41 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:41 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:42 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:23:43 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: GoWEDay-Steam)
+2026-10-26 00:23:43 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:23:43 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Vivaldi)
+2026-10-26 00:23:43 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6872)
+2026-10-26 00:23:44 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:23:44 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-26 00:23:45 | PostMessage: {
+  "ahkCmd":"^{RControl}",
+  "niceLabel":"Ctrl + RControl",
+  "type":"singleKey... (len=91)
+2026-10-26 00:23:47 | AutoSwitch: SnippingTool.exe (default hover) -> Switch to Profile: Desktop (was: GoWEDay-Steam)
+2026-10-26 00:23:47 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:23:48 | AutoSwitch: vivaldi.exe (hover) -> Switch to Profile: Vivaldi (was: Desktop)
+2026-10-26 00:23:48 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=9483)
+2026-10-26 00:23:49 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: Vivaldi)
+2026-10-26 00:23:49 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7694)
+2026-10-26 00:24:05 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:06 | Received IPC: {"action":"startRecording","mode":"macro","defDelay":50,"realDelays":false}
+2026-10-26 00:24:06 | PostMessage: {
+  "action":"Down",
+  "delay":50,
+  "key":"LControl",
+  "type":"macroStepRecord... (len=85)
+2026-10-26 00:24:06 | PostMessage: {
+  "action":"Up",
+  "delay":50,
+  "key":"LControl",
+  "type":"macroStepRecorded... (len=83)
+2026-10-26 00:24:07 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:07 | Received IPC: {"action":"saveMapping","profile":"Desktop","btnId":"Back","layer":"Normal","actionObj":{"Type":"Macro","Cmd":"Macro","Label":"Macro (2 steps)","PlayType":"NoRepeat","RepeatInterval":50,"Steps":[{"Action":"Down","Key":"LControl","Delay":50},{"Action":"Up","Key":"LControl","Delay":50}],"SeqPress":[{"Action":"Down","Key":"LControl","Delay":50},{"Action":"Up","Key":"LControl","Delay":50}],"SeqHold":[],"SeqRelease":[]}}
+2026-10-26 00:24:07 | PostMessage: {
+  "btnId":"Back",
+  "mapping":{
+    "GShift":{
+      "Cmd":"GShift1",
+      "L... (len=985)
+2026-10-26 00:24:07 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:07 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:08 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Desktop)
+2026-10-26 00:24:08 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6872)
+2026-10-26 00:24:10 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:10 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:10 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:10 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:13 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:13 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:13 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:13 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:13 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:13 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:14 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:14 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:14 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:14 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:14 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:14 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:14 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:14 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:14 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:15 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:15 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:15 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:15 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:15 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:16 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:17 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:17 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:18 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: GoWEDay-Steam)
+2026-10-26 00:24:18 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=8162)
+2026-10-26 00:24:23 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:25 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:26 | Received IPC: {"action":"saveMapping","profile":"Desktop","btnId":"Back","layer":"Normal","actionObj":{"Type":"Special","Cmd":"GShift1","Label":"? B-Shift 1 Layer","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-26 00:24:26 | PostMessage: {
+  "btnId":"Back",
+  "mapping":{
+    "GShift":{
+      "Cmd":"GShift1",
+      "L... (len=556)
+2026-10-26 00:24:26 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:26 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:27 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:27 | PostMessage: {
+  "isShift":1,
+  "shiftName":"GShift1",
+  "type":"shiftStateChanged"
+}... (len=72)
+2026-10-26 00:24:28 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:28 | PostMessage: {
+  "isShift":0,
+  "shiftName":"GShift1",
+  "type":"shiftStateChanged"
+}... (len=72)
+2026-10-26 00:24:29 | Received IPC: {"action":"selectProfile","profile":"GoWEDay-Steam"}
+2026-10-26 00:24:29 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6872)
+2026-10-26 00:24:30 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:30 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-26 00:24:31 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:32 | Received IPC: {"action":"startRecording","mode":"macro","defDelay":50,"realDelays":false}
+2026-10-26 00:24:32 | PostMessage: {
+  "action":"Down",
+  "delay":50,
+  "key":"LControl",
+  "type":"macroStepRecord... (len=85)
+2026-10-26 00:24:32 | PostMessage: {
+  "action":"Up",
+  "delay":50,
+  "key":"LControl",
+  "type":"macroStepRecorded... (len=83)
+2026-10-26 00:24:33 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:33 | Received IPC: {"action":"saveMapping","profile":"GoWEDay-Steam","btnId":"Back","layer":"Normal","actionObj":{"Type":"Macro","Cmd":"Macro","Label":"Macro (2 steps)","PlayType":"NoRepeat","RepeatInterval":50,"Steps":[{"Action":"Down","Key":"LControl","Delay":50},{"Action":"Up","Key":"LControl","Delay":50}],"SeqPress":[{"Action":"Down","Key":"LControl","Delay":50},{"Action":"Up","Key":"LControl","Delay":50}],"SeqHold":[],"SeqRelease":[]}}
+2026-10-26 00:24:33 | PostMessage: {
+  "btnId":"Back",
+  "mapping":{
+    "GShift":{
+      "Cmd":"^+t",
+      "Label... (len=977)
+2026-10-26 00:24:33 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:33 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:24:36 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:36 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:37 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:38 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:39 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:39 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:39 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:39 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:41 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:24:43 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:24:51 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:51 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:51 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:54 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:24:55 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:24:56 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:56 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:24:58 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:24:58 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:25:06 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:25:07 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:25:13 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:25:14 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:25:14 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:25:14 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:25:14 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:25:14 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:25:14 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:25:15 | PostMessage: {
+  "btnId":"Forward",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=68)
+2026-10-26 00:25:31 | PostMessage: {
+  "btnId":"G8",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:25:31 | PostMessage: {
+  "btnId":"G8",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=63)
+2026-10-26 00:25:36 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:25:37 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:25:37 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:25:37 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:25:38 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:25:38 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:25:38 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:25:38 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:25:41 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:25:42 | PostMessage: {
+  "btnId":"TiltLeft",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=69)
+2026-10-26 00:25:43 | PostMessage: {
+  "btnId":"TiltRight",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=70)
+2026-10-26 00:25:43 | PostMessage: {
+  "btnId":"TiltRight",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=70)
+2026-10-26 00:25:44 | PostMessage: {
+  "btnId":"TiltRight",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=70)
+2026-10-26 00:25:44 | PostMessage: {
+  "btnId":"TiltRight",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=70)
+2026-10-26 00:25:44 | PostMessage: {
+  "btnId":"TiltRight",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=70)
+2026-10-26 00:25:44 | PostMessage: {
+  "btnId":"TiltRight",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=70)
+2026-10-26 00:26:15 | Init: GUI created, HWND=8393058, calling CreateControllerAsync with PID=21200
+2026-10-26 00:26:15 | OnControllerCreated: Success! CoreWebView2 ptr=36318244667392
+2026-10-26 00:26:15 | Navigating to: file:///E:/OBM-AHK/web/index.html
+2026-10-26 00:26:17 | Received IPC: {"action":"getInitialState"}
+2026-10-26 00:26:17 | SendInitialState: gathering mappings and profiles...
+2026-10-26 00:26:17 | SendInitialState: mappings gathered, building stateObj...
+2026-10-26 00:26:17 | SendInitialState: calling PostMessage...
+2026-10-26 00:26:17 | PostMessage: {
+  "alwaysOnTop":0,
+  "autoSwitch":1,
+  "diagramPoints":{
+    "Back":{
+      "x... (len=52776)
+2026-10-26 00:26:17 | SendInitialState: done!
+2026-10-26 00:26:19 | Received IPC: {"action":"selectProfile","profile":"GoWEDay-Steam"}
+2026-10-26 00:26:19 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=7350)
+2026-10-26 00:26:22 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:26:23 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:26:25 | Received IPC: {"action":"startRecording","mode":"single"}
+2026-10-26 00:26:25 | PostMessage: {
+  "alt":0,
+  "ctrl":1,
+  "shift":0,
+  "type":"modifierStateChanged",
+  "win":0... (len=82)
+2026-10-26 00:26:25 | PostMessage: {
+  "preview":"[ Ctrl ] (Release to map alone, or press combo key)",
+  "type":"l... (len=96)
+2026-10-26 00:26:25 | PostMessage: {
+  "ahkCmd":"{Ctrl}",
+  "niceLabel":"Ctrl",
+  "type":"singleKeyRecorded"
+}... (len=75)
+2026-10-26 00:26:26 | Received IPC: {"action":"saveMapping","profile":"GoWEDay-Steam","btnId":"Back","layer":"Normal","actionObj":{"Type":"Send","Cmd":"{Ctrl}","Label":"Ctrl","PlayType":"NoRepeat","RepeatInterval":50}}
+2026-10-26 00:26:26 | PostMessage: {
+  "btnId":"Back",
+  "mapping":{
+    "GShift":{
+      "Cmd":"^+t",
+      "Label... (len=531)
+2026-10-26 00:26:26 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:26:26 | Received IPC: {"action":"stopRecording"}
+2026-10-26 00:26:27 | AutoSwitch: explorer.exe (default hover) -> Switch to Profile: Desktop (was: GoWEDay-Steam)
+2026-10-26 00:26:27 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7685)
+2026-10-26 00:26:30 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Desktop)
+2026-10-26 00:26:30 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6856)
+2026-10-26 00:26:32 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:26:32 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:26:32 | PostMessage: {
+  "btnId":"Back",
+  "isDown":1,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:26:33 | PostMessage: {
+  "btnId":"Back",
+  "isDown":0,
+  "type":"buttonStateChanged"
+}... (len=65)
+2026-10-26 00:26:33 | AutoSwitch: StartMenuExperienceHost.exe (default hover) -> Switch to Profile: Desktop (was: GoWEDay-Steam)
+2026-10-26 00:26:33 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"GShift1",
+        ... (len=7685)
+2026-10-26 00:26:34 | AutoSwitch: GoWEDay-Steam.exe (focus) -> Switch to Profile: GoWEDay-Steam (was: Desktop)
+2026-10-26 00:26:34 | PostMessage: {
+  "mappings":{
+    "Back":{
+      "GShift":{
+        "Cmd":"^+t",
+        "Lab... (len=6856)
