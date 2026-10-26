@@ -2556,8 +2556,9 @@ body.calibrating-mode .btn-card.calib-selected::after {
 
 .injection-btn-row {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    gap: 14px;
+    gap: 10px;
 }
 
 .mouse-inject-btn {

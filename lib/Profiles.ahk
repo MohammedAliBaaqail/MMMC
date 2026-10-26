@@ -1486,10 +1486,12 @@ class ProfileEngine {
             return m[1]
             
         ; Standard single brace keys: {Space}, {Enter}, {Tab}, {Escape}, {Delete}, {F1}-{F24}, etc.
-        ; (Exclude scroll wheel or multi-count like {Volume_Down 2})
+        ; (Exclude scroll wheel, double/triple clicks, or multi-count like {Volume_Down 2})
         if (RegExMatch(cmd, "i)^\{([A-Za-z0-9_]+)\}$", &m)) {
             k := m[1]
-            if (k != "WheelUp" && k != "WheelDown" && !InStr(k, "Volume_") && !InStr(k, "Media_"))
+            if (k != "WheelUp" && k != "WheelDown" && k != "WheelLeft" && k != "WheelRight"
+                && k != "DoubleClick" && k != "TripleClick"
+                && !InStr(k, "Volume_") && !InStr(k, "Media_"))
                 return k
         }
         
@@ -1502,6 +1504,12 @@ class ProfileEngine {
 
     static ExecuteActionDown(act, btnId) {
         if ((act.Type = "Send" || act.Type = "Default") && act.Cmd != "") {
+            ; One-shot clicks and wheel actions must execute once immediately without holding state
+            if (act.Cmd = "{DoubleClick}" || act.Cmd = "{LButton 2}" || act.Cmd = "{TripleClick}" || act.Cmd = "{LButton 3}"
+                || act.Cmd = "{WheelUp}" || act.Cmd = "{WheelDown}" || act.Cmd = "{WheelLeft}" || act.Cmd = "{WheelRight}") {
+                this.ExecuteActionOnce(act)
+                return
+            }
             holdKey := this.GetHoldableKey(act.Cmd)
             if (holdKey != "") {
                 this.ActiveHeldButtons[btnId] := "{" . holdKey . " up}"
@@ -1512,7 +1520,9 @@ class ProfileEngine {
             if (RegExMatch(act.Cmd, "i)^([!^#]+)\{?([A-Za-z0-9_]+)\}?$", &modKeyMatch)) {
                 mods := modKeyMatch[1]
                 k := modKeyMatch[2]
-                if (k != "WheelUp" && k != "WheelDown" && !InStr(k, "Volume_") && !InStr(k, "Media_")) {
+                if (k != "WheelUp" && k != "WheelDown" && k != "WheelLeft" && k != "WheelRight"
+                    && k != "DoubleClick" && k != "TripleClick"
+                    && !InStr(k, "Volume_") && !InStr(k, "Media_")) {
                     if (StrLen(k) = 1 && !InStr(mods, "+"))
                         k := StrLower(k)
                     this.ActiveHeldButtons[btnId] := "{" . k . " up}"
@@ -1580,7 +1590,11 @@ class ProfileEngine {
 
     static ExecuteActionOnce(act) {
         if ((act.Type = "Send" || act.Type = "Default") && act.Cmd != "") {
-            if (act.Cmd = "{WheelUp}" || act.Cmd = "{WheelDown}") {
+            if (act.Cmd = "{DoubleClick}" || act.Cmd = "{LButton 2}") {
+                Click(2)
+            } else if (act.Cmd = "{TripleClick}" || act.Cmd = "{LButton 3}") {
+                Click(3)
+            } else if (act.Cmd = "{WheelUp}" || act.Cmd = "{WheelDown}" || act.Cmd = "{WheelLeft}" || act.Cmd = "{WheelRight}") {
                 Send("{Blind}" . act.Cmd)
             } else {
                 cmd := this.NormalizeSendCmd(act.Cmd)
@@ -1604,6 +1618,13 @@ class ProfileEngine {
             return
         for step in steps {
             k := step.Key
+            if (k = "DoubleClick") {
+                Click(2)
+                continue
+            } else if (k = "TripleClick") {
+                Click(3)
+                continue
+            }
             if (StrLen(k) = 1 && !InStr(k, "+")) {
                 k := StrLower(k)
             }

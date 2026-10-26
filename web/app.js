@@ -212,22 +212,65 @@ const CATALOG_DATA = [
         icon: getSvgIcon('mouse'),
         items: [
             { name: 'Left Click', type: 'Send', cmd: '{LButton}', label: 'Left Click', badge: '' },
-            { name: 'Middle Click', type: 'Send', cmd: '{MButton}', label: 'Middle Click', badge: '' },
             { name: 'Right Click', type: 'Send', cmd: '{RButton}', label: 'Right Click', badge: '' },
-            { name: 'Default Scroll Up', type: 'Send', cmd: '{WheelUp}', label: 'Default Scroll Up', badge: '' },
-            { name: 'Default Scroll Down', type: 'Send', cmd: '{WheelDown}', label: 'Default Scroll Down', badge: '' }
+            { name: 'Middle Click', type: 'Send', cmd: '{MButton}', label: 'Middle Click', badge: '' },
+            { name: 'Double Click', type: 'Send', cmd: '{DoubleClick}', label: 'Double Click', badge: '2x Click' },
+            { name: 'Triple Click', type: 'Send', cmd: '{TripleClick}', label: 'Triple Click', badge: '3x Click' },
+            { name: 'Mouse Back (Button 4)', type: 'Send', cmd: '{XButton1}', label: 'Mouse Back', badge: 'Mouse 4' },
+            { name: 'Mouse Forward (Button 5)', type: 'Send', cmd: '{XButton2}', label: 'Mouse Forward', badge: 'Mouse 5' },
+            { name: 'Default Scroll Up', type: 'Send', cmd: '{WheelUp}', label: 'Default Scroll Up', badge: 'Scroll Up' },
+            { name: 'Default Scroll Down', type: 'Send', cmd: '{WheelDown}', label: 'Default Scroll Down', badge: 'Scroll Down' },
+            { name: 'Scroll Left (Tilt)', type: 'Send', cmd: '{WheelLeft}', label: 'Scroll Left', badge: 'Tilt Left' },
+            { name: 'Scroll Right (Tilt)', type: 'Send', cmd: '{WheelRight}', label: 'Scroll Right', badge: 'Tilt Right' }
         ]
     },
     {
-        name: 'Media & Volume',
-        icon: getSvgIcon('volume-2'),
+        name: 'Windows & Productivity',
+        icon: getSvgIcon('layout-grid'),
         items: [
-            { name: 'Volume Up', type: 'Send', cmd: '{Volume_Up 2}', label: 'Volume Up', badge: '' },
-            { name: 'Volume Down', type: 'Send', cmd: '{Volume_Down 2}', label: 'Volume Down', badge: '' },
-            { name: 'Mute Audio', type: 'Send', cmd: '{Volume_Mute}', label: 'Mute Audio', badge: '' },
-            { name: 'Play / Pause', type: 'Send', cmd: '{Media_Play_Pause}', label: 'Play / Pause', badge: '' },
-            { name: 'Next Track', type: 'Send', cmd: '{Media_Next}', label: 'Next Track', badge: '' },
-            { name: 'Previous Track', type: 'Send', cmd: '{Media_Prev}', label: 'Previous Track', badge: '' }
+            { name: 'File Explorer', type: 'Send', cmd: '#e', label: 'File Explorer', badge: 'Win+E' },
+            { name: 'Clipboard History', type: 'Send', cmd: '#v', label: 'Clipboard History', badge: 'Win+V' },
+            { name: 'Snipping Tool (Screenshot)', type: 'Send', cmd: '#+s', label: 'Snipping Tool', badge: 'Win+Shift+S' },
+            { name: 'Windows Search', type: 'Send', cmd: '#s', label: 'Windows Search', badge: 'Win+S' },
+            { name: 'Task View / Timeline', type: 'Send', cmd: '#{Tab}', label: 'Task View', badge: 'Win+Tab' },
+            { name: 'Show Desktop', type: 'Send', cmd: '#d', label: 'Show Desktop', badge: 'Win+D' },
+            { name: 'Lock Workstation', type: 'Send', cmd: '#l', label: 'Lock PC', badge: 'Win+L' },
+            { name: 'Run Dialog', type: 'Send', cmd: '#r', label: 'Run Dialog', badge: 'Win+R' },
+            { name: 'Action Center', type: 'Send', cmd: '#a', label: 'Action Center', badge: 'Win+A' },
+            { name: 'Emoji & Symbol Picker', type: 'Send', cmd: '#{.}', label: 'Emoji Picker', badge: 'Win+.' },
+            { name: 'Close Active Window', type: 'Send', cmd: '!{F4}', label: 'Close Window', badge: 'Alt+F4' },
+            { name: 'Task Switcher', type: 'Send', cmd: '!{Tab}', label: 'Task Switcher', badge: 'Alt+Tab' },
+            { name: 'Next Virtual Desktop', type: 'Send', cmd: '^#{Right}', label: 'Next Desktop', badge: 'Ctrl+Win+Right' },
+            { name: 'Prev Virtual Desktop', type: 'Send', cmd: '^#{Left}', label: 'Prev Desktop', badge: 'Ctrl+Win+Left' },
+            { name: 'Move Window to Next Monitor', type: 'Send', cmd: '#+{Right}', label: 'Move Next Monitor', badge: 'Win+Shift+Right' },
+            { name: 'Move Window to Prev Monitor', type: 'Send', cmd: '#+{Left}', label: 'Move Prev Monitor', badge: 'Win+Shift+Left' },
+            { name: 'Maximize Window', type: 'Send', cmd: '#{Up}', label: 'Maximize Win', badge: 'Win+Up' },
+            { name: 'Minimize Window', type: 'Send', cmd: '#{Down}', label: 'Minimize Win', badge: 'Win+Down' },
+            { name: 'Snap Window Left', type: 'Send', cmd: '#{Left}', label: 'Snap Win Left', badge: 'Win+Left' },
+            { name: 'Snap Window Right', type: 'Send', cmd: '#{Right}', label: 'Snap Win Right', badge: 'Win+Right' }
+        ]
+    },
+    {
+        name: 'Shortcuts & Editing',
+        icon: getSvgIcon('scissors'),
+        items: [
+            { name: 'Copy', type: 'Send', cmd: '^c', label: 'Copy', badge: 'Ctrl+C' },
+            { name: 'Cut', type: 'Send', cmd: '^x', label: 'Cut', badge: 'Ctrl+X' },
+            { name: 'Paste', type: 'Send', cmd: '^v', label: 'Paste', badge: 'Ctrl+V' },
+            { name: 'Paste as Plain Text', type: 'Send', cmd: '^+v', label: 'Paste Plain Text', badge: 'Ctrl+Shift+V' },
+            { name: 'Undo', type: 'Send', cmd: '^z', label: 'Undo', badge: 'Ctrl+Z' },
+            { name: 'Redo', type: 'Send', cmd: '^y', label: 'Redo', badge: 'Ctrl+Y' },
+            { name: 'Select All', type: 'Send', cmd: '^a', label: 'Select All', badge: 'Ctrl+A' },
+            { name: 'Find', type: 'Send', cmd: '^f', label: 'Find', badge: 'Ctrl+F' },
+            { name: 'Find & Replace', type: 'Send', cmd: '^h', label: 'Find & Replace', badge: 'Ctrl+H' },
+            { name: 'Save', type: 'Send', cmd: '^s', label: 'Save', badge: 'Ctrl+S' },
+            { name: 'Save As', type: 'Send', cmd: '^+s', label: 'Save As', badge: 'Ctrl+Shift+S' },
+            { name: 'Print', type: 'Send', cmd: '^p', label: 'Print', badge: 'Ctrl+P' },
+            { name: 'New File / Window', type: 'Send', cmd: '^n', label: 'New File', badge: 'Ctrl+N' },
+            { name: 'Delete Key', type: 'Send', cmd: '{Delete}', label: 'Delete', badge: 'Del' },
+            { name: 'Enter Key', type: 'Send', cmd: '{Enter}', label: 'Enter', badge: 'Enter' },
+            { name: 'Escape Key', type: 'Send', cmd: '{Escape}', label: 'Escape', badge: 'Esc' },
+            { name: 'Spacebar', type: 'Send', cmd: '{Space}', label: 'Spacebar', badge: 'Space' }
         ]
     },
     {
@@ -241,43 +284,50 @@ const CATALOG_DATA = [
             { name: 'Reopen Closed Tab', type: 'Send', cmd: '^+t', label: 'Reopen Tab', badge: 'Ctrl+Shift+T' },
             { name: 'Next Browser Tab', type: 'Send', cmd: '^{Tab}', label: 'Next Tab', badge: 'Ctrl+Tab' },
             { name: 'Prev Browser Tab', type: 'Send', cmd: '^+{Tab}', label: 'Prev Tab', badge: 'Ctrl+Shift+Tab' },
-            { name: 'Refresh Page', type: 'Send', cmd: '{F5}', label: 'Refresh Page', badge: 'F5' }
+            { name: 'Refresh Page', type: 'Send', cmd: '{F5}', label: 'Refresh Page', badge: 'F5' },
+            { name: 'Hard Refresh (Bypass Cache)', type: 'Send', cmd: '^{F5}', label: 'Hard Refresh', badge: 'Ctrl+F5' },
+            { name: 'Bookmark Page', type: 'Send', cmd: '^d', label: 'Bookmark Page', badge: 'Ctrl+D' },
+            { name: 'Downloads Manager', type: 'Send', cmd: '^j', label: 'Downloads', badge: 'Ctrl+J' },
+            { name: 'Browsing History', type: 'Send', cmd: '^h', label: 'History', badge: 'Ctrl+H' },
+            { name: 'Zoom In', type: 'Send', cmd: '^{+}', label: 'Zoom In', badge: 'Ctrl++' },
+            { name: 'Zoom Out', type: 'Send', cmd: '^-', label: 'Zoom Out', badge: 'Ctrl+-' },
+            { name: 'Reset Zoom (100%)', type: 'Send', cmd: '^0', label: 'Reset Zoom', badge: 'Ctrl+0' }
         ]
     },
     {
-        name: 'Shortcuts & Editing',
-        icon: getSvgIcon('scissors'),
+        name: 'Media & Volume',
+        icon: getSvgIcon('volume-2'),
         items: [
-            { name: 'Cut', type: 'Send', cmd: '^x', label: 'Cut', badge: 'Ctrl+X' },
-            { name: 'Undo', type: 'Send', cmd: '^z', label: 'Undo', badge: 'Ctrl+Z' },
-            { name: 'Redo', type: 'Send', cmd: '^y', label: 'Redo', badge: 'Ctrl+Y' },
-            { name: 'Save', type: 'Send', cmd: '^s', label: 'Save', badge: 'Ctrl+S' },
-            { name: 'Select All', type: 'Send', cmd: '^a', label: 'Select All', badge: 'Ctrl+A' },
-            { name: 'Find', type: 'Send', cmd: '^f', label: 'Find', badge: 'Ctrl+F' },
-            { name: 'Copy', type: 'Send', cmd: '^c', label: 'Copy', badge: 'Ctrl+C' },
-            { name: 'Paste', type: 'Send', cmd: '^v', label: 'Paste', badge: 'Ctrl+V' }
+            { name: 'Volume Up', type: 'Send', cmd: '{Volume_Up 2}', label: 'Volume Up', badge: 'Vol+' },
+            { name: 'Volume Down', type: 'Send', cmd: '{Volume_Down 2}', label: 'Volume Down', badge: 'Vol-' },
+            { name: 'Mute Audio', type: 'Send', cmd: '{Volume_Mute}', label: 'Mute Audio', badge: 'Mute' },
+            { name: 'Play / Pause', type: 'Send', cmd: '{Media_Play_Pause}', label: 'Play / Pause', badge: 'Play/Pause' },
+            { name: 'Next Track', type: 'Send', cmd: '{Media_Next}', label: 'Next Track', badge: 'Next' },
+            { name: 'Previous Track', type: 'Send', cmd: '{Media_Prev}', label: 'Previous Track', badge: 'Prev' },
+            { name: 'Stop Playback', type: 'Send', cmd: '{Media_Stop}', label: 'Stop Media', badge: 'Stop' }
         ]
     },
     {
-        name: 'Windows Management',
-        icon: getSvgIcon('layout-grid'),
+        name: 'Gaming & Communication',
+        icon: getSvgIcon('gamepad-2'),
         items: [
-            { name: 'Task View', type: 'Send', cmd: '#{Tab}', label: 'Task View', badge: 'Win+Tab' },
-            { name: 'Show Desktop', type: 'Send', cmd: '#d', label: 'Show Desktop', badge: 'Win+D' },
-            { name: 'Maximize Window', type: 'Send', cmd: '#{Up}', label: 'Maximize Win', badge: 'Win+Up' },
-            { name: 'Minimize Window', type: 'Send', cmd: '#{Down}', label: 'Minimize Win', badge: 'Win+Down' },
-            { name: 'Snap Window Left', type: 'Send', cmd: '#{Left}', label: 'Snap Win Left', badge: 'Win+Left' },
-            { name: 'Snap Window Right', type: 'Send', cmd: '#{Right}', label: 'Snap Win Right', badge: 'Win+Right' }
+            { name: 'Discord Mute Microphone', type: 'Send', cmd: '^+m', label: 'Discord Mute', badge: 'Ctrl+Shift+M' },
+            { name: 'Discord Deafen Audio', type: 'Send', cmd: '^+d', label: 'Discord Deafen', badge: 'Ctrl+Shift+D' },
+            { name: 'In-Game Screenshot (Steam)', type: 'Send', cmd: '{F12}', label: 'Game Screenshot', badge: 'F12' },
+            { name: 'Quick Save Game', type: 'Send', cmd: '{F5}', label: 'Quick Save', badge: 'F5' },
+            { name: 'Quick Load Game', type: 'Send', cmd: '{F9}', label: 'Quick Load', badge: 'F9' },
+            { name: 'Xbox Game Bar / Overlay', type: 'Send', cmd: '#g', label: 'Xbox Game Bar', badge: 'Win+G' },
+            { name: 'GeForce Experience Overlay', type: 'Send', cmd: '!z', label: 'GeForce Overlay', badge: 'Alt+Z' }
         ]
     },
     {
         name: 'Device & B-Shift Layers',
         icon: getSvgIcon('zap'),
         items: [
-            { name: 'B-Shift 1 Modifier', type: 'Special', cmd: 'GShift1', label: 'B-Shift 1 Layer', badge: '' },
-            { name: 'B-Shift 2 Modifier', type: 'Special', cmd: 'GShift2', label: 'B-Shift 2 Layer', badge: '' },
-            { name: 'Onboard Profile Cycle', type: 'Special', cmd: 'CycleProfile', label: 'Next Profile', badge: '' },
-            { name: 'Toggle Rapid-Fire', type: 'Special', cmd: 'ToggleRapidFire', label: 'Toggle Rapid Fire', badge: '' }
+            { name: 'B-Shift 1 Modifier', type: 'Special', cmd: 'GShift1', label: 'B-Shift 1 Layer', badge: 'Shift 1' },
+            { name: 'B-Shift 2 Modifier', type: 'Special', cmd: 'GShift2', label: 'B-Shift 2 Layer', badge: 'Shift 2' },
+            { name: 'Onboard Profile Cycle', type: 'Special', cmd: 'CycleProfile', label: 'Next Profile', badge: 'Cycle' },
+            { name: 'Toggle Rapid-Fire', type: 'Special', cmd: 'ToggleRapidFire', label: 'Toggle Rapid Fire', badge: 'Rapid' }
         ]
     }
 ];
@@ -2217,9 +2267,10 @@ function initModalControls() {
     });
 
     // Tab 1: Mouse button injections
-    document.getElementById('btnInjectLClick').addEventListener('click', () => injectMouseButton('LButton'));
-    document.getElementById('btnInjectMClick').addEventListener('click', () => injectMouseButton('MButton'));
-    document.getElementById('btnInjectRClick').addEventListener('click', () => injectMouseButton('RButton'));
+    document.getElementById('btnInjectLClick')?.addEventListener('click', () => injectMouseButton('LButton'));
+    document.getElementById('btnInjectMClick')?.addEventListener('click', () => injectMouseButton('MButton'));
+    document.getElementById('btnInjectRClick')?.addEventListener('click', () => injectMouseButton('RButton'));
+    document.getElementById('btnInjectDClick')?.addEventListener('click', () => injectMouseButton('DoubleClick'));
 
     // Tab 1: Playback Mode Segmented Switcher (Matches Macro Section)
     const singleTypeButtons = [
@@ -2711,7 +2762,15 @@ function injectMouseButton(mouseBtn) {
         }
     }
 
-    const mouseNames = { LButton: 'Left Click', MButton: 'Middle Click', RButton: 'Right Click' };
+    const mouseNames = {
+        LButton: 'Left Click',
+        MButton: 'Middle Click',
+        RButton: 'Right Click',
+        DoubleClick: 'Double Click',
+        TripleClick: 'Triple Click',
+        XButton1: 'Mouse Back (Mouse 4)',
+        XButton2: 'Mouse Forward (Mouse 5)'
+    };
     const niceMouse = mouseNames[mouseBtn] || mouseBtn;
 
     let finalCmd = '';
@@ -3326,21 +3385,34 @@ function isMouseKey(key) {
     const k = (key || '').toLowerCase();
     return k === 'lbutton' || k === 'rbutton' || k === 'mbutton' ||
            k === 'wheelup' || k === 'wheeldown' ||
+           k === 'doubleclick' || k === 'tripleclick' ||
+           k === 'xbutton1' || k === 'xbutton2' ||
            k === 'left' || k === 'right' || k === 'middle';
 }
 
 function renderGhubMouseSvg(mouseKey) {
-    const isLeft = (mouseKey === 'LButton' || mouseKey === 'Left');
-    const isRight = (mouseKey === 'RButton' || mouseKey === 'Right');
-    const isMiddle = (mouseKey === 'MButton' || mouseKey === 'Middle' || mouseKey === 'WheelUp' || mouseKey === 'WheelDown');
+    const k = (mouseKey || '').toLowerCase();
+    const isLeft = (k === 'lbutton' || k === 'left' || k === 'doubleclick' || k === 'tripleclick');
+    const isRight = (k === 'rbutton' || k === 'right');
+    const isMiddle = (k === 'mbutton' || k === 'middle' || k === 'wheelup' || k === 'wheeldown');
+    const isSide1 = (k === 'xbutton1');
+    const isSide2 = (k === 'xbutton2');
 
     const leftFill = isLeft ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.05)';
     const rightFill = isRight ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.05)';
     const wheelFill = isMiddle ? 'var(--accent-shift)' : 'rgba(255, 255, 255, 0.08)';
+    const side1Fill = isSide1 ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.05)';
+    const side2Fill = isSide2 ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.05)';
 
     const leftStroke = isLeft ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.25)';
     const rightStroke = isRight ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.25)';
     const wheelStroke = isMiddle ? 'var(--accent-shift)' : 'rgba(255, 255, 255, 0.25)';
+
+    const extraLabel = (k === 'doubleclick') ? '<text x="10" y="36" font-size="9" font-weight="900" fill="var(--accent-cyan)" text-anchor="middle">2X</text>'
+                     : (k === 'tripleclick') ? '<text x="10" y="36" font-size="9" font-weight="900" fill="var(--accent-cyan)" text-anchor="middle">3X</text>'
+                     : (k === 'xbutton1') ? '<text x="16" y="36" font-size="8" font-weight="900" fill="var(--accent-cyan)" text-anchor="middle">M4</text>'
+                     : (k === 'xbutton2') ? '<text x="16" y="36" font-size="8" font-weight="900" fill="var(--accent-cyan)" text-anchor="middle">M5</text>'
+                     : '';
 
     return `
     <svg class="ghub-mouse-svg" width="28" height="42" viewBox="0 0 32 46" fill="none">
@@ -3352,6 +3424,10 @@ function renderGhubMouseSvg(mouseKey) {
         <path d="M 17 3 C 23.5 3 28 8 28 17 L 17 17 Z" fill="${rightFill}" stroke="${rightStroke}" stroke-width="1.4"/>
         <!-- Scroll Wheel -->
         <rect x="14" y="6" width="4" height="8" rx="2" fill="${wheelFill}" stroke="${wheelStroke}" stroke-width="1.2"/>
+        <!-- Thumb Buttons on Left Side -->
+        <path d="M 2 20 L 2 24 L 0 23 L 0 21 Z" fill="${side2Fill}" stroke="rgba(255, 255, 255, 0.3)" stroke-width="1"/>
+        <path d="M 2 25 L 2 29 L 0 28 L 0 26 Z" fill="${side1Fill}" stroke="rgba(255, 255, 255, 0.3)" stroke-width="1"/>
+        ${extraLabel}
     </svg>
     `;
 }
