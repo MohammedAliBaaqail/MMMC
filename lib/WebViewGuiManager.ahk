@@ -82,7 +82,7 @@ class WebViewGuiManager {
 
         ; Create GUI
         opt := "+Resize -MaximizeBox " . (this.IsAlwaysOnTop ? "+AlwaysOnTop" : "-AlwaysOnTop")
-        g := Gui(opt, "Logitech G502 X — Advanced Studio")
+        g := Gui(opt, "My Mouse My Choice")
         g.BackColor := "0b0d14"
         g.MarginX := 0
         g.MarginY := 0
@@ -300,10 +300,12 @@ class WebViewGuiManager {
                     pExe := req.Has("targetExe") ? req["targetExe"] : ""
                     pIcon := req.Has("icon") ? req["icon"] : "auto"
                     pHover := req.Has("switchOnHover") ? (req["switchOnHover"] ? true : false) : false
-                    if (ProfileEngine.AddProfile(pName, pExe, pIcon, pHover)) {
+                    pOsdIconOnly := req.Has("osdIconOnly") ? (req["osdIconOnly"] ? true : false) : false
+                    if (ProfileEngine.AddProfile(pName, pExe, pIcon, pHover, pOsdIconOnly)) {
                         this.SendProfilesUpdated()
                         ProfileEngine.SetProfile(pName)
-                        OSD.Show("Profile Created: " . pName, pExe != "" ? "Bound to: " . pExe : "Default Bindings")
+                        if (!pOsdIconOnly)
+                            OSD.Show("Profile Created: " . pName, pExe != "" ? "Bound to: " . pExe : "Default Bindings")
                     }
                 }
 
@@ -322,9 +324,14 @@ class WebViewGuiManager {
                     pExe := req.Has("targetExe") ? req["targetExe"] : ""
                     pIcon := req.Has("icon") ? req["icon"] : ""
                     pHover := req.Has("switchOnHover") ? (req["switchOnHover"] ? true : false) : -1
-                    if (ProfileEngine.UpdateProfile(pName, pExe, pIcon, pHover)) {
+                    pOsdIconOnly := req.Has("osdIconOnly") ? (req["osdIconOnly"] ? true : false) : -1
+                    if (ProfileEngine.UpdateProfile(pName, pExe, pIcon, pHover, pOsdIconOnly)) {
                         this.SendProfilesUpdated()
-                        OSD.Show("Profile Updated: " . pName, pExe != "" ? "App: " . pExe : "No Exe")
+                        if (ProfileEngine.CurrentProfile == pName && pOsdIconOnly == 1) {
+                            OSD.ShowIcon(ProfileEngine.GetProfileIconPath(pName))
+                        } else {
+                            OSD.Show("Profile Updated: " . pName, pExe != "" ? "App: " . pExe : "No Exe")
+                        }
                     }
                 }
 
@@ -578,6 +585,29 @@ class WebViewGuiManager {
                     OSD.Show("Mouse Preset Deleted", "Removed custom mouse option")
                 }
 
+            case "saveCustomActionPreset":
+                if (req.Has("preset")) {
+                    presets := this.SaveCustomActionPreset(req["preset"])
+                    this.PostMessage(Map(
+                        "type", "customActionPresetsUpdated",
+                        "presets", presets
+                    ))
+                    OSD.Show("Preset Saved", "Added to Custom Presets in catalog")
+                }
+
+            case "deleteCustomActionPreset":
+                if (req.Has("id")) {
+                    presets := this.DeleteCustomActionPreset(req["id"])
+                    this.PostMessage(Map(
+                        "type", "customActionPresetsUpdated",
+                        "presets", presets
+                    ))
+                    OSD.Show("Preset Deleted", "Removed from Custom Presets")
+                }
+
+            case "startQuickRemap":
+                QuickRemap.Start()
+
             case "importFullBackup":
                 backupData := req.Has("backup") ? req["backup"] : ""
                 mode := req.Has("mode") ? req["mode"] : "replace"
@@ -592,7 +622,7 @@ class WebViewGuiManager {
 
             case "exportBackupToFile":
                 jsonContent := req.Has("jsonContent") ? req["jsonContent"] : ""
-                defaultName := "OBM_G502X_Backup_" . FormatTime(, "yyyy-MM-dd") . ".json"
+                defaultName := "MyMouseMyChoice_Backup_" . FormatTime(, "yyyy-MM-dd") . ".json"
                 selectedFile := FileSelect("S16", defaultName, "Export Studio Backup", "JSON Files (*.json);;All Files (*.*)")
                 if (selectedFile != "") {
                     if (!InStr(selectedFile, ".json"))
@@ -626,13 +656,14 @@ class WebViewGuiManager {
 
             profilesList := []
             for p in ProfileEngine.Profiles {
-                meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), SwitchOnHover: false, Desc: p . " Profile" }
+                meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), SwitchOnHover: false, OsdIconOnly: false, Desc: p . " Profile" }
                 profilesList.Push(Map(
                     "name", p,
                     "targetExe", meta.TargetExe,
                     "icon", meta.Icon,
                     "isDefault", meta.IsDefault ? true : false,
                     "switchOnHover", (meta.HasOwnProp("SwitchOnHover") && meta.SwitchOnHover) ? true : false,
+                    "osdIconOnly", (meta.HasOwnProp("OsdIconOnly") && meta.OsdIconOnly) ? true : false,
                     "desc", meta.HasOwnProp("Desc") ? meta.Desc : p . " Profile"
                 ))
             }
@@ -656,6 +687,7 @@ class WebViewGuiManager {
                 "mouseImage", this.LoadMouseImage(),
                 "customButtons", ProfileEngine.LoadCustomButtons(),
                 "customMousePresets", this.LoadCustomMousePresets(),
+                "customActionPresets", this.LoadCustomActionPresets(),
                 "rawIni", FileExist(A_ScriptDir . "\settings.ini") ? FileRead(A_ScriptDir . "\settings.ini", "UTF-8") : ""
             )
             this.Log("SendInitialState: calling PostMessage...")
@@ -669,13 +701,14 @@ class WebViewGuiManager {
     static SendProfilesUpdated() {
         profilesList := []
         for p in ProfileEngine.Profiles {
-            meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), SwitchOnHover: false, Desc: p . " Profile" }
+            meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), SwitchOnHover: false, OsdIconOnly: false, Desc: p . " Profile" }
             profilesList.Push(Map(
                 "name", p,
                 "targetExe", meta.TargetExe,
                 "icon", meta.Icon,
                 "isDefault", meta.IsDefault ? true : false,
                 "switchOnHover", (meta.HasOwnProp("SwitchOnHover") && meta.SwitchOnHover) ? true : false,
+                "osdIconOnly", (meta.HasOwnProp("OsdIconOnly") && meta.OsdIconOnly) ? true : false,
                 "desc", meta.HasOwnProp("Desc") ? meta.Desc : p . " Profile"
             ))
         }
@@ -897,6 +930,67 @@ class WebViewGuiManager {
     }
 
     static NormalizeKey(vk, sc) {
+        ; 1. Hardware Virtual Key codes for letters A-Z (completely immune to Arabic/international layouts!)
+        if (vk >= 0x41 && vk <= 0x5A)
+            return Chr(vk)
+
+        ; 2. Digits 0-9
+        if (vk >= 0x30 && vk <= 0x39)
+            return Chr(vk)
+
+        ; 3. Numpad digits 0-9
+        if (vk >= 0x60 && vk <= 0x69)
+            return "Numpad" . (vk - 0x60)
+
+        ; 4. Function keys F1 - F24
+        if (vk >= 0x70 && vk <= 0x87)
+            return "F" . (vk - 0x6F)
+
+        ; 5. Specific virtual keys with standard English names
+        switch vk {
+            case 0x11, 0xA2, 0xA3: return "Ctrl"
+            case 0x10, 0xA0, 0xA1: return "Shift"
+            case 0x12, 0xA4, 0xA5: return "Alt"
+            case 0x5B, 0x5C:       return "Win"
+            case 0x1B:             return "Escape"
+            case 0x20:             return "Space"
+            case 0x09:             return "Tab"
+            case 0x0D:             return "Enter"
+            case 0x08:             return "Backspace"
+            case 0x2E:             return "Delete"
+            case 0x2D:             return "Insert"
+            case 0x24:             return "Home"
+            case 0x23:             return "End"
+            case 0x21:             return "PgUp"
+            case 0x22:             return "PgDn"
+            case 0x26:             return "Up"
+            case 0x28:             return "Down"
+            case 0x25:             return "Left"
+            case 0x27:             return "Right"
+            case 0x14:             return "CapsLock"
+            case 0x90:             return "NumLock"
+            case 0x91:             return "ScrollLock"
+            case 0x2C:             return "PrintScreen"
+            case 0x13:             return "Pause"
+            case 0x6A:             return "NumpadMult"
+            case 0x6B:             return "NumpadAdd"
+            case 0x6D:             return "NumpadSub"
+            case 0x6E:             return "NumpadDot"
+            case 0x6F:             return "NumpadDiv"
+            case 0xBA:             return ";"
+            case 0xBB:             return "="
+            case 0xBC:             return ","
+            case 0xBD:             return "-"
+            case 0xBE:             return "."
+            case 0xBF:             return "/"
+            case 0xC0:             return "``"
+            case 0xDB:             return "["
+            case 0xDC:             return "\"
+            case 0xDD:             return "]"
+            case 0xDE:             return "'"
+        }
+
+        ; Fallback to GetKeyName
         kName := GetKeyName(Format("vk{:02x}sc{:03x}", vk, sc))
         if (kName = "")
             return ""
@@ -906,24 +1000,6 @@ class WebViewGuiManager {
             case "Shift", "LShift", "RShift":                                 return "Shift"
             case "Alt", "LAlt", "RAlt":                                       return "Alt"
             case "Win", "LWin", "RWin":                                       return "Win"
-        }
-
-        switch kName {
-            case "Escape":     return "Escape"
-            case "Space":      return "Space"
-            case "Tab":        return "Tab"
-            case "Enter":      return "Enter"
-            case "Backspace":  return "Backspace"
-            case "Delete":     return "Delete"
-            case "Insert":     return "Insert"
-            case "Home":       return "Home"
-            case "End":        return "End"
-            case "PgUp":       return "PgUp"
-            case "PgDn":       return "PgDn"
-            case "Up":         return "Up"
-            case "Down":       return "Down"
-            case "Left":       return "Left"
-            case "Right":      return "Right"
         }
 
         return kName
@@ -1513,6 +1589,149 @@ class WebViewGuiManager {
         return this.LoadCustomMousePresets()
     }
 
+    static LoadCustomActionPresets() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        out := []
+        try {
+            listStr := IniRead(iniPath, "ActionPresets", "List", "")
+            if (listStr = "") {
+                return out
+            }
+            pIds := StrSplit(listStr, ",")
+            for _, pId in pIds {
+                pId := Trim(pId)
+                if (pId = "") {
+                    continue
+                }
+                secName := "ActionPreset_" . pId
+                name := IniRead(iniPath, secName, "Name", pId)
+                label := IniRead(iniPath, secName, "Label", name)
+                type := IniRead(iniPath, secName, "Type", "Send")
+                cmd := IniRead(iniPath, secName, "Cmd", "")
+                playType := IniRead(iniPath, secName, "PlayType", "NoRepeat")
+                repeatInterval := Integer(IniRead(iniPath, secName, "RepeatInterval", "50"))
+                color := IniRead(iniPath, secName, "Color", "none")
+
+                presetMap := Map(
+                    "id", pId,
+                    "name", name,
+                    "label", label,
+                    "type", type,
+                    "cmd", cmd,
+                    "playType", playType,
+                    "repeatInterval", repeatInterval,
+                    "color", color
+                )
+
+                for _, jsonKey in ["Steps", "SeqPress", "SeqHold", "SeqRelease"] {
+                    lowerKey := StrLower(SubStr(jsonKey, 1, 1)) . SubStr(jsonKey, 2)
+                    rawVal := IniRead(iniPath, secName, jsonKey, "")
+                    val := []
+                    if (rawVal != "") {
+                        if (SubStr(rawVal, 1, 1) = "[") {
+                            try val := JSON.parse(rawVal)
+                        } else {
+                            try val := ProfileEngine.DeserializeSteps(rawVal)
+                        }
+                    }
+                    if (!IsObject(val))
+                        val := []
+                    exportVal := this.ExportSteps(val)
+                    presetMap[jsonKey] := exportVal
+                    presetMap[lowerKey] := exportVal
+                }
+                out.Push(presetMap)
+            }
+        } catch as err {
+            this.Log("Error loading custom action presets: " . err.Message)
+        }
+        return out
+    }
+
+    static SaveCustomActionPreset(presetObj) {
+        iniPath := A_ScriptDir . "\settings.ini"
+        pId := presetObj.Has("id") && presetObj["id"] != "" ? presetObj["id"] : ("act_" . A_TickCount)
+        name := presetObj.Has("name") && presetObj["name"] != "" ? presetObj["name"] : (presetObj.Has("label") ? presetObj["label"] : "Custom Preset")
+        label := presetObj.Has("label") && presetObj["label"] != "" ? presetObj["label"] : name
+        type := presetObj.Has("type") ? presetObj["type"] : (presetObj.Has("Type") ? presetObj["Type"] : "Send")
+        cmd := presetObj.Has("cmd") ? presetObj["cmd"] : (presetObj.Has("Cmd") ? presetObj["Cmd"] : "")
+        playType := presetObj.Has("playType") ? presetObj["playType"] : (presetObj.Has("PlayType") ? presetObj["PlayType"] : "NoRepeat")
+        repeatInterval := presetObj.Has("repeatInterval") ? presetObj["repeatInterval"] : (presetObj.Has("RepeatInterval") ? presetObj["RepeatInterval"] : 50)
+        color := presetObj.Has("color") ? presetObj["color"] : (presetObj.Has("Color") ? presetObj["Color"] : "none")
+
+        secName := "ActionPreset_" . pId
+        try IniWrite(name, iniPath, secName, "Name")
+        try IniWrite(label, iniPath, secName, "Label")
+        try IniWrite(type, iniPath, secName, "Type")
+        try IniWrite(cmd, iniPath, secName, "Cmd")
+        try IniWrite(playType, iniPath, secName, "PlayType")
+        try IniWrite(String(repeatInterval), iniPath, secName, "RepeatInterval")
+        try IniWrite(color, iniPath, secName, "Color")
+
+        for _, jsonKey in ["Steps", "SeqPress", "SeqHold", "SeqRelease"] {
+            lowerKey := StrLower(SubStr(jsonKey, 1, 1)) . SubStr(jsonKey, 2)
+            stepsVal := ""
+            if (presetObj.Has(jsonKey))
+                stepsVal := presetObj[jsonKey]
+            else if (presetObj.Has(lowerKey))
+                stepsVal := presetObj[lowerKey]
+
+            stepsStr := ""
+            if (IsObject(stepsVal) && stepsVal.Length > 0) {
+                stepsStr := ProfileEngine.SerializeSteps(stepsVal)
+            } else if (Type(stepsVal) = "String" && stepsVal != "") {
+                if (SubStr(Trim(stepsVal), 1, 1) = "[") {
+                    try {
+                        parsedObj := JSON.parse(stepsVal)
+                        stepsStr := ProfileEngine.SerializeSteps(parsedObj)
+                    } catch {
+                        stepsStr := ""
+                    }
+                } else {
+                    stepsStr := stepsVal
+                }
+            }
+            try IniWrite(stepsStr, iniPath, secName, jsonKey)
+        }
+
+        ; Update ActionPresets List
+        listStr := ""
+        try listStr := IniRead(iniPath, "ActionPresets", "List", "")
+        pIds := StrSplit(listStr, ",")
+        found := false
+        for _, id in pIds {
+            if (Trim(id) = pId) {
+                found := true
+                break
+            }
+        }
+        if (!found) {
+            newList := (listStr != "" ? listStr . "," : "") . pId
+            try IniWrite(newList, iniPath, "ActionPresets", "List")
+        }
+
+        return this.LoadCustomActionPresets()
+    }
+
+    static DeleteCustomActionPreset(presetId) {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try IniDelete(iniPath, "ActionPreset_" . presetId)
+
+        listStr := ""
+        try listStr := IniRead(iniPath, "ActionPresets", "List", "")
+        pIds := StrSplit(listStr, ",")
+        newList := ""
+        for _, id in pIds {
+            id := Trim(id)
+            if (id != "" && id != presetId) {
+                newList := (newList != "" ? (newList . ",") : "") . id
+            }
+        }
+        try IniWrite(newList, iniPath, "ActionPresets", "List")
+
+        return this.LoadCustomActionPresets()
+    }
+
     ; =========================================================================
     ; DATA NORMALIZATION & SERIALIZATION
     ; =========================================================================
@@ -1564,11 +1783,27 @@ class WebViewGuiManager {
         if (!IsObject(steps))
             return out
         for s in steps {
-            out.Push(Map(
-                "Action", s.HasOwnProp("Action") ? s.Action : "Down",
-                "Key", s.HasOwnProp("Key") ? s.Key : "",
-                "Delay", s.HasOwnProp("Delay") ? s.Delay : 50
-            ))
+            if (!IsObject(s))
+                continue
+            act := "Down"
+            key := ""
+            del := 50
+            if (Type(s) = "Map") {
+                act := s.Has("Action") ? s["Action"] : (s.Has("action") ? s["action"] : "Down")
+                key := s.Has("Key") ? s["Key"] : (s.Has("key") ? s["key"] : "")
+                del := s.Has("Delay") ? Integer(s["Delay"]) : (s.Has("delay") ? Integer(s["delay"]) : 50)
+            } else {
+                act := s.HasOwnProp("Action") ? s.Action : (s.HasOwnProp("action") ? s.action : "Down")
+                key := s.HasOwnProp("Key") ? s.Key : (s.HasOwnProp("key") ? s.key : "")
+                del := s.HasOwnProp("Delay") ? Integer(s.Delay) : (s.HasOwnProp("delay") ? Integer(s.delay) : 50)
+            }
+            if (key != "") {
+                out.Push(Map(
+                    "Action", act,
+                    "Key", key,
+                    "Delay", del
+                ))
+            }
         }
         return out
     }
@@ -1578,10 +1813,23 @@ class WebViewGuiManager {
         if (!IsObject(rawList))
             return out
         for s in rawList {
-            act := s.Has("Action") ? s["Action"] : "Down"
-            key := s.Has("Key") ? s["Key"] : ""
-            del := s.Has("Delay") ? Integer(s["Delay"]) : 50
-            out.Push({ Action: act, Key: key, Delay: del })
+            if (!IsObject(s))
+                continue
+            act := "Down"
+            key := ""
+            del := 50
+            if (Type(s) = "Map") {
+                act := s.Has("Action") ? s["Action"] : (s.Has("action") ? s["action"] : "Down")
+                key := s.Has("Key") ? s["Key"] : (s.Has("key") ? s["key"] : "")
+                del := s.Has("Delay") ? Integer(s["Delay"]) : (s.Has("delay") ? Integer(s["delay"]) : 50)
+            } else {
+                act := s.HasOwnProp("Action") ? s.Action : (s.HasOwnProp("action") ? s.action : "Down")
+                key := s.HasOwnProp("Key") ? s.Key : (s.HasOwnProp("key") ? s.key : "")
+                del := s.HasOwnProp("Delay") ? Integer(s.Delay) : (s.HasOwnProp("delay") ? Integer(s.delay) : 50)
+            }
+            if (key != "") {
+                out.Push({ Action: act, Key: key, Delay: del })
+            }
         }
         return out
     }
@@ -1735,6 +1983,9 @@ class WebViewGuiManager {
                     if (p.Has("switchOnHover")) {
                         IniWrite(p["switchOnHover"] ? "1" : "0", iniPath, sec, "SwitchOnHover")
                     }
+                    if (p.Has("osdIconOnly")) {
+                        IniWrite(p["osdIconOnly"] ? "1" : "0", iniPath, sec, "OsdIconOnly")
+                    }
                     if (p.Has("desc")) {
                         IniWrite(p["desc"], iniPath, sec, "Desc")
                     }
@@ -1840,7 +2091,16 @@ class WebViewGuiManager {
                 }
             }
 
-            ; 6. Reload engine
+            ; 6. Custom Action Presets (Macros & Combos)
+            if (backupObj.Has("customActionPresets") && IsObject(backupObj["customActionPresets"])) {
+                for _, preset in backupObj["customActionPresets"] {
+                    if (IsObject(preset)) {
+                        this.SaveCustomActionPreset(preset)
+                    }
+                }
+            }
+
+            ; 7. Reload engine
             ProfileEngine.Init(iniPath)
             return true
         } catch as err {

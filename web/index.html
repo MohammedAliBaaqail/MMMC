@@ -3,21 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logitech G502 X — Advanced Studio</title>
+    <title>My Mouse My Choice</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="dark-theme layer-normal">
+    <!-- Global SVG Icon Sprite (High-Quality Lucide Vectors) -->
+    <svg style="display:none;" id="svgSpriteDefs" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <symbol id="icon-archive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1" /> <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /> <path d="M10 12h4" /></symbol>
+            <symbol id="icon-arrow-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14" /> <path d="m19 12-7 7-7-7" /></symbol>
+            <symbol id="icon-arrow-left-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4" /> <path d="M4 7h16" /> <path d="m16 21 4-4-4-4" /> <path d="M20 17H4" /></symbol>
+            <symbol id="icon-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></symbol>
+            <symbol id="icon-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0" /> <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></symbol>
+            <symbol id="icon-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /> <path d="m3.3 7 8.7 5 8.7-5" /> <path d="M12 22V12" /></symbol>
+            <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></symbol>
+            <symbol id="icon-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></symbol>
+            <symbol id="icon-chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6" /></symbol>
+            <symbol id="icon-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /></symbol>
+            <symbol id="icon-clipboard-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></symbol>
+            <symbol id="icon-clipboard-paste" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 14h10" /> <path d="M16 4h2a2 2 0 0 1 2 2v1.344" /> <path d="m17 18 4-4-4-4" /> <path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 1.793-1.113" /> <rect x="8" y="2" width="8" height="4" rx="1" /></symbol>
+            <symbol id="icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /> <path d="M12 6v6l4 2" /></symbol>
+            <symbol id="icon-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6" /> <path d="m8 6-6 6 6 6" /></symbol>
+            <symbol id="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /> <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+            <symbol id="icon-crosshair" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /> <line x1="22" x2="18" y1="12" y2="12" /> <line x1="6" x2="2" y1="12" y2="12" /> <line x1="12" x2="12" y1="6" y2="2" /> <line x1="12" x2="12" y1="22" y2="18" /></symbol>
+            <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path d="m7 10 5 5 5-5" /></symbol>
+            <symbol id="icon-edit-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></symbol>
+            <symbol id="icon-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" /> <path d="M14 2v5a1 1 0 0 0 1 1h5" /> <path d="M10 9H8" /> <path d="M16 13H8" /> <path d="M16 17H8" /></symbol>
+            <symbol id="icon-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+            <symbol id="icon-folder-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10v6" /> <path d="M9 13h6" /> <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+            <symbol id="icon-gamepad-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="10" y1="11" y2="11" /> <line x1="8" x2="8" y1="9" y2="13" /> <line x1="15" x2="15.01" y1="12" y2="12" /> <line x1="18" x2="18.01" y1="10" y2="10" /> <path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z" /></symbol>
+            <symbol id="icon-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /></symbol>
+            <symbol id="icon-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /> <circle cx="9" cy="9" r="2" /> <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></symbol>
+            <symbol id="icon-keyboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8h.01" /> <path d="M12 12h.01" /> <path d="M14 8h.01" /> <path d="M16 12h.01" /> <path d="M18 8h.01" /> <path d="M6 8h.01" /> <path d="M7 16h10" /> <path d="M8 12h.01" /> <rect width="20" height="16" x="2" y="4" rx="2" /></symbol>
+            <symbol id="icon-laptop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5a2 2 0 0 1 2 2v8.526a2 2 0 0 0 .212.897l1.068 2.127a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45l1.068-2.127A2 2 0 0 0 4 15.526V7a2 2 0 0 1 2-2z" /> <path d="M20.054 15.987H3.946" /></symbol>
+            <symbol id="icon-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /> <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /> <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></symbol>
+            <symbol id="icon-layout-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /> <rect width="7" height="7" x="14" y="3" rx="1" /> <rect width="7" height="7" x="14" y="14" rx="1" /> <rect width="7" height="7" x="3" y="14" rx="1" /></symbol>
+            <symbol id="icon-lightbulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /> <path d="M9 18h6" /> <path d="M10 22h4" /></symbol>
+            <symbol id="icon-loader-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4" /> <path d="m16.2 7.8 2.9-2.9" /> <path d="M18 12h4" /> <path d="m16.2 16.2 2.9 2.9" /> <path d="M12 18v4" /> <path d="m4.9 19.1 2.9-2.9" /> <path d="M2 12h4" /> <path d="m4.9 4.9 2.9 2.9" /></symbol>
+            <symbol id="icon-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
+            <symbol id="icon-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2" /> <line x1="8" x2="16" y1="21" y2="21" /> <line x1="12" x2="12" y1="17" y2="21" /></symbol>
+            <symbol id="icon-mouse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="7" /> <path d="M12 6v4" /></symbol>
+            <symbol id="icon-music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/> <circle cx="6" cy="18" r="3"/> <circle cx="18" cy="16" r="3"/></symbol>
+            <symbol id="icon-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" /> <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" /> <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" /> <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" /> <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /></symbol>
+            <symbol id="icon-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5" /> <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" /></symbol>
+            <symbol id="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /> <path d="M12 5v14" /></symbol>
+            <symbol id="icon-refresh-cw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /> <path d="M21 3v5h-5" /> <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /> <path d="M8 16H3v5" /></symbol>
+            <symbol id="icon-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /> <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /> <path d="M7 3v4a1 1 0 0 0 1 1h7" /></symbol>
+            <symbol id="icon-scissors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3" /> <path d="M8.12 8.12 12 12" /> <path d="M20 4 8.12 15.88" /> <circle cx="6" cy="18" r="3" /> <path d="M14.8 14.8 20 20" /></symbol>
+            <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /> <circle cx="12" cy="12" r="3" /></symbol>
+            <symbol id="icon-shapes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z" /> <rect x="3" y="14" width="7" height="7" rx="1" /> <circle cx="17.5" cy="17.5" r="3.5" /></symbol>
+            <symbol id="icon-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></symbol>
+            <symbol id="icon-smartphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /> <path d="M12 18h.01" /></symbol>
+            <symbol id="icon-square" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /></symbol>
+            <symbol id="icon-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></symbol>
+            <symbol id="icon-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2" /> <line x1="12" x2="15" y1="14" y2="11" /> <circle cx="12" cy="14" r="8" /></symbol>
+            <symbol id="icon-trash-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
+            <symbol id="icon-type" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16" /> <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" /> <path d="M9 20h6" /></symbol>
+            <symbol id="icon-unlock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 9.9-1" /></symbol>
+            <symbol id="icon-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12" /> <path d="m17 8-5-5-5 5" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /></symbol>
+            <symbol id="icon-volume-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" /> <path d="M16 9a5 5 0 0 1 0 6" /> <path d="M19.364 18.364a9 9 0 0 0 0-12.728" /></symbol>
+            <symbol id="icon-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z" /></symbol>
+            <symbol id="icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></symbol>
+            <symbol id="icon-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z" /></symbol>
+        </defs>
+    </svg>
+
     <!-- Top Studio Header -->
     <header class="studio-header">
         <div class="header-left">
             <div class="brand-badge">
-                <img src="../assets/app.png" alt="Logitech G502 X" class="brand-app-icon">
+                <img src="../assets/app.png" alt="My Mouse My Choice" class="brand-app-icon">
                 <div class="brand-titles">
-                    <span class="brand-title">LOGITECH G502 X</span>
-                    <span class="brand-sub">INTERACTIVE STUDIO // ADVANCED CONTROL</span>
+                    <span class="brand-title">MY MOUSE MY CHOICE</span>
+                    <span class="brand-sub">CUSTOM MOUSE STUDIO // ADVANCED CONTROL</span>
                 </div>
             </div>
             
@@ -29,35 +90,40 @@
             <div class="status-indicator live-omm" id="btnOpenOmmModal" title="Open Onboard Memory Setup & F-Key Injector">
                 <span class="pulse-dot"></span>
                 <span class="status-text">OMM CONNECTED</span>
-                <span class="omm-setup-hint">⚡ SETUP</span>
+                <span class="omm-setup-hint"><svg class="svg-icon svg-icon-xs"><use href="#icon-zap"></use></svg> SETUP</span>
             </div>
             <div class="live-shift-badge" id="liveShiftBadge" style="display: none;">B-SHIFT: INACTIVE</div>
             
             <label class="always-top-check" title="Toggle On-Screen Notification Popups">
                 <input type="checkbox" id="chkShowOSD" checked>
                 <span class="check-custom"></span>
-                <span class="check-lbl">🔔 NOTIF</span>
+                <span class="check-lbl"><svg class="svg-icon svg-icon-sm"><use href="#icon-bell"></use></svg> NOTIF</span>
             </label>
 
             <label class="always-top-check" title="Keep Studio Window Always on Top">
                 <input type="checkbox" id="chkAlwaysOnTop">
                 <span class="check-custom"></span>
-                <span class="check-lbl">📌 TOP</span>
+                <span class="check-lbl"><svg class="svg-icon svg-icon-sm"><use href="#icon-pin"></use></svg> TOP</span>
             </label>
 
             <label class="always-top-check test-mode-check" id="lblMuteWhenFocused" title="Test Mode: While Studio window is in focus, mouse clicks only highlight on the diagram without triggering keystrokes or macros">
                 <input type="checkbox" id="chkMuteWhenFocused" checked>
                 <span class="check-custom"></span>
-                <span class="check-lbl">🛡️ TEST IN FOCUS</span>
+                <span class="check-lbl"><svg class="svg-icon svg-icon-sm"><use href="#icon-shield"></use></svg> TEST IN FOCUS</span>
             </label>
 
             <button type="button" class="header-settings-btn" id="btnHeaderSettings" title="Open Studio Settings, Layout Tools, and Calibration">
-                <span class="settings-btn-icon">⚙</span>
+                <span class="settings-btn-icon"><svg class="svg-icon"><use href="#icon-settings"></use></svg></span>
                 <span class="settings-btn-text">SETTINGS</span>
             </button>
 
+            <button type="button" class="header-action-btn quick-remap-header-btn" id="btnQuickRemap" title="Live Quick Remap: Press Ctrl+Shift+F1 anywhere in Windows to remap any mouse button instantly on the fly">
+                <span class="settings-btn-icon"><svg class="svg-icon"><use href="#icon-crosshair"></use></svg></span>
+                <span class="settings-btn-text">QUICK REMAP <span class="hotkey-pill">Ctrl+Shift+F1</span></span>
+            </button>
+
             <button type="button" class="header-backup-btn" id="btnOpenBackupModal" title="Import & Export all profiles, mouse layouts, macros, and options">
-                <span class="backup-btn-icon">⇄</span>
+                <span class="backup-btn-icon"><svg class="svg-icon"><use href="#icon-archive"></use></svg></span>
                 <span class="backup-btn-text">IMPORT / EXPORT</span>
             </button>
         </div>
@@ -85,10 +151,10 @@
                 </div>
 
                 <div class="lgs-action-btns">
-                    <button class="lgs-mini-btn" id="btnAddProfile" title="Add New Game / App Profile">＋</button>
-                    <button class="lgs-mini-btn" id="btnEditProfile" title="Configure Profile & Executable">⚙</button>
-                    <button class="lgs-mini-btn" id="btnLockProfile" title="Lock Profile (Freeze Auto-Switch)">🔓</button>
-                    <button class="lgs-mini-btn danger" id="btnDeleteProfile" title="Delete Profile">✕</button>
+                    <button class="lgs-mini-btn" id="btnAddProfile" title="Add New Game / App Profile (or press Ctrl+Shift+F2 in any app)"><svg class="svg-icon"><use href="#icon-plus"></use></svg></button>
+                    <button class="lgs-mini-btn" id="btnEditProfile" title="Configure Profile & Executable"><svg class="svg-icon"><use href="#icon-settings"></use></svg></button>
+                    <button class="lgs-mini-btn" id="btnLockProfile" title="Lock Profile (Freeze Auto-Switch)"><svg class="svg-icon" id="btnLockProfileIcon"><use href="#icon-unlock"></use></svg></button>
+                    <button class="lgs-mini-btn danger" id="btnDeleteProfile" title="Delete Profile"><svg class="svg-icon"><use href="#icon-trash-2"></use></svg></button>
                 </div>
             </div>
         </div>
@@ -140,15 +206,15 @@
                 </div>
                 <div class="stage-actions">
                     <button class="stage-btn primary" id="btnRecordSelected" title="Double click button to record immediately">
-                        <span class="btn-icon">⌨</span>
+                        <span class="btn-icon"><svg class="svg-icon"><use href="#icon-keyboard"></use></svg></span>
                         <span class="btn-text">Record / Customize</span>
                     </button>
                     <button class="stage-btn secondary" id="btnResetSelected" title="Reset selected button to profile default">
-                        <span class="btn-icon">↺</span>
+                        <span class="btn-icon"><svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg></span>
                         <span class="btn-text">Reset Default</span>
                     </button>
                     <button class="stage-btn settings-btn" id="btnOpenStudioSettings" title="Open Studio Settings, Calibration, Mouse Image, and Tools">
-                        <span class="btn-icon">⚙</span>
+                        <span class="btn-icon"><svg class="svg-icon"><use href="#icon-settings"></use></svg></span>
                         <span class="btn-text">Settings</span>
                     </button>
                 </div>
@@ -158,14 +224,14 @@
             <div class="calibration-panel" id="calibrationPanel" style="display: none;">
                 <div class="calib-header">
                     <div class="calib-title-wrap">
-                        <span class="calib-badge">🎯 POINTER CALIBRATION MODE</span>
+                        <span class="calib-badge"><svg class="svg-icon svg-icon-sm"><use href="#icon-crosshair"></use></svg> POINTER CALIBRATION MODE</span>
                         <span class="calib-hint">Drag any target dot directly on the mouse • Or click to reposition • Fine-tune with Arrow keys</span>
                     </div>
                     <div class="calib-header-actions">
-                        <button class="calib-btn save" id="btnSaveCalib" title="Save coordinates to settings.ini">💾 Save Calibration</button>
-                        <button class="calib-btn reset" id="btnResetSelectedCard" title="Reset selected button card position to default">↺ Reset Card</button>
-                        <button class="calib-btn reset" id="btnResetCalib" title="Reset all points to factory defaults">↺ Reset Defaults</button>
-                        <button class="calib-btn close" id="btnCloseCalib" title="Exit calibration mode">✕ Exit</button>
+                        <button class="calib-btn save" id="btnSaveCalib" title="Save coordinates to settings.ini"><svg class="svg-icon"><use href="#icon-save"></use></svg> Save Calibration</button>
+                        <button class="calib-btn reset" id="btnResetSelectedCard" title="Reset selected button card position to default"><svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg> Reset Card</button>
+                        <button class="calib-btn reset" id="btnResetCalib" title="Reset all points to factory defaults"><svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg> Reset Defaults</button>
+                        <button class="calib-btn close" id="btnCloseCalib" title="Exit calibration mode"><svg class="svg-icon"><use href="#icon-x"></use></svg> Exit</button>
                     </div>
                 </div>
 
@@ -206,10 +272,10 @@
                         DEFAULT
                     </button>
                     <button class="layer-pill-btn bshift1-btn" id="btnLayerBShift1" data-layer="GShift1">
-                        <span class="shift-bolt yellow">⚡</span> B-SHIFT 1
+                        <span class="shift-bolt yellow"><svg class="svg-icon svg-icon-xs"><use href="#icon-zap"></use></svg></span> B-SHIFT 1
                     </button>
                     <button class="layer-pill-btn bshift2-btn" id="btnLayerBShift2" data-layer="GShift2">
-                        <span class="shift-bolt magenta">⚡</span> B-SHIFT 2
+                        <span class="shift-bolt magenta"><svg class="svg-icon svg-icon-xs"><use href="#icon-zap"></use></svg></span> B-SHIFT 2
                     </button>
                 </div>
             </div>
@@ -224,16 +290,16 @@
                     <span class="modal-title" id="modalTargetTitle">BUTTON STUDIO — G8</span>
                     <span class="modal-subtitle" id="modalTargetMeta">Profile: Desktop • Layer: Default</span>
                 </div>
-                <button class="modal-close-btn" id="btnModalClose">✕</button>
+                <button class="modal-close-btn" id="btnModalClose"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
             </div>
 
             <!-- Modal Dual Mode Tabs -->
             <div class="modal-tabs">
                 <button class="modal-tab active" id="tabBtnSingle" data-tab="single">
-                    ⌨ Single / Keystroke Combination
+                    <svg class="svg-icon"><use href="#icon-keyboard"></use></svg> Single / Keystroke Combination
                 </button>
                 <button class="modal-tab" id="tabBtnMacro" data-tab="macro">
-                    🗂 Macro Recorder
+                    <svg class="svg-icon"><use href="#icon-layers"></use></svg> Macro Recorder
                 </button>
             </div>
 
@@ -283,6 +349,8 @@
                             </div>
                             <div class="ghub-setting-sub">Delay between each activation (repeat & toggle)</div>
                         </div>
+
+
                     </div>
                 </div>
 
@@ -304,10 +372,10 @@
                         <span class="rec-dot"></span> <span id="recordKeyBtnText">● Record Key</span>
                     </button>
                     <button type="button" class="action-pill secondary" id="btnClearRecordedKey" tabindex="-1">
-                        🗑 Clear Key
+                        <svg class="svg-icon"><use href="#icon-trash-2"></use></svg> Clear Key
                     </button>
                     <button type="button" class="action-pill accent" id="btnAssignBShiftStudio" tabindex="-1">
-                        ⚡ Assign B-Shift
+                        <svg class="svg-icon"><use href="#icon-zap"></use></svg> Assign B-Shift
                     </button>
                 </div>
 
@@ -438,6 +506,8 @@
                             </label>
                             <div class="ghub-setting-sub">Auto flip Down/Up when dragging between sections</div>
                         </div>
+
+
                     </div>
                 </div>
 
@@ -445,7 +515,7 @@
                 <div class="ghub-recording-banner" id="ghubRecordingBanner" style="display: none;">
                     <div class="ghub-rec-pulse-dot"></div>
                     <span class="ghub-rec-text">RECORDING IN PROGRESS — Press keys or mouse buttons to record into <strong id="ghubRecTargetSection">ON PRESS</strong></span>
-                    <button type="button" class="ghub-rec-stop-btn" id="btnGhubStopRec">⏹ STOP RECORDING (Esc)</button>
+                    <button type="button" class="ghub-rec-stop-btn" id="btnGhubStopRec"><svg class="svg-icon"><use href="#icon-square"></use></svg> STOP RECORDING (Esc)</button>
                 </div>
 
                 <!-- MAIN WORKSPACE -->
@@ -490,15 +560,15 @@
                 <!-- CONTEXT MENU POPOVER FOR ADDING ACTIONS -->
                 <div class="ghub-action-popover" id="ghubActionPopover" style="display: none;">
                     <button type="button" class="ghub-popover-row" data-action="record">
-                        <span class="ghub-popover-dot red">●</span>
+                        <span class="ghub-popover-dot red"><svg class="svg-icon svg-icon-xs" style="fill: currentColor;"><use href="#icon-circle"></use></svg></span>
                         <span class="ghub-popover-text">RECORD KEYSTROKES</span>
                     </button>
                     <button type="button" class="ghub-popover-row" data-action="text">
-                        <span class="ghub-popover-icon">🔤</span>
+                        <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-type"></use></svg></span>
                         <span class="ghub-popover-text">TYPE TEXT</span>
                     </button>
                     <div class="ghub-popover-row has-submenu" data-action="mouse-menu">
-                        <span class="ghub-popover-icon">🖱</span>
+                        <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-mouse"></use></svg></span>
                         <span class="ghub-popover-text">MOUSE ACTION</span>
                         <span class="ghub-popover-arrow">›</span>
                         <div class="ghub-submenu">
@@ -510,12 +580,12 @@
                         </div>
                     </div>
                     <button type="button" class="ghub-popover-row" data-action="delay">
-                        <span class="ghub-popover-icon">⏱</span>
+                        <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-timer"></use></svg></span>
                         <span class="ghub-popover-text">ADD DELAY</span>
                     </button>
                     <div class="ghub-popover-sep"></div>
                     <button type="button" class="ghub-popover-row danger" data-action="clear-section">
-                        <span class="ghub-popover-icon">🗑</span>
+                        <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-trash-2"></use></svg></span>
                         <span class="ghub-popover-text">CLEAR SECTION</span>
                     </button>
                 </div>
@@ -523,8 +593,34 @@
 
             <!-- Modal Action Footer -->
             <div class="modal-footer">
-                <button class="modal-btn save" id="btnModalSave">✔ Save & Apply</button>
-                <button class="modal-btn cancel" id="btnModalCancel">Cancel (Esc)</button>
+                <div class="modal-footer-left">
+                    <div id="singlePresetToggleWrap" class="modal-preset-toggle-row">
+                        <label class="switch-toggle" for="singleSavePresetSwitch">
+                            <input type="checkbox" id="singleSavePresetSwitch">
+                            <span class="switch-slider"></span>
+                        </label>
+                        <div class="switch-meta">
+                            <label class="switch-title" for="singleSavePresetSwitch">Save to Custom Presets</label>
+                            <span class="switch-desc">Save this combination to the Command Catalog under Custom</span>
+                        </div>
+                    </div>
+
+                    <div id="macroPresetToggleWrap" class="modal-preset-toggle-row" style="display: none;">
+                        <label class="switch-toggle" for="macroSavePresetSwitch">
+                            <input type="checkbox" id="macroSavePresetSwitch" checked>
+                            <span class="switch-slider"></span>
+                        </label>
+                        <div class="switch-meta">
+                            <label class="switch-title" for="macroSavePresetSwitch">Save to Custom Presets</label>
+                            <span class="switch-desc">Save this macro to the Command Catalog under Custom</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer-right">
+                    <button class="modal-btn save" id="btnModalSave"><svg class="svg-icon"><use href="#icon-check"></use></svg> Save & Apply</button>
+                    <button class="modal-btn cancel" id="btnModalCancel">Cancel (Esc)</button>
+                </div>
             </div>
         </div>
     </div>
@@ -537,7 +633,7 @@
                     <span class="modal-title" id="profileModalTitle">CREATE APP PROFILE</span>
                     <span class="modal-subtitle">Configure auto-switching application targets, icon branding, and open window bindings</span>
                 </div>
-                <button class="modal-close-btn" id="btnCloseProfileModal">✕</button>
+                <button class="modal-close-btn" id="btnCloseProfileModal"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
             </div>
 
             <div class="profile-modal-body fullpage-body">
@@ -550,7 +646,7 @@
 
                     <!-- Default Profile Lockout Notice (visible only when editing Default Desktop profile) -->
                     <div class="default-profile-notice" id="defaultProfileNotice" style="display: none;">
-                        <span class="notice-icon">⭐</span>
+                        <span class="notice-icon"><svg class="svg-icon"><use href="#icon-star"></use></svg></span>
                         <div class="notice-text">
                             <strong>System Default Profile</strong>
                             <p>This profile activates automatically whenever no specific app profile is focused. It cannot be bound to specific applications.</p>
@@ -562,10 +658,10 @@
                             <label for="profInputExe" class="form-lbl">Target Executable(s):</label>
                             <div class="app-pick-actions" id="appPickActions" style="display: flex; gap: 6px;">
                                 <button type="button" class="detect-app-btn" id="btnBrowseAppExe" title="Browse PC for an executable file">
-                                    <span class="detect-icon">📂</span> Browse .exe
+                                    <span class="detect-icon"><svg class="svg-icon"><use href="#icon-folder"></use></svg></span> Browse .exe
                                 </button>
                                 <button type="button" class="detect-app-btn" id="btnDetectRunningApps" title="Refresh list of open windows">
-                                    <span class="detect-icon">🔄</span> Rescan Apps
+                                    <span class="detect-icon"><svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg></span> Rescan Apps
                                 </button>
                             </div>
                         </div>
@@ -587,51 +683,65 @@
                         </div>
                     </div>
 
+                    <!-- Option: Icon-Only Notification (HUD) -->
+                    <div class="form-group mb-14" id="profOsdIconOnlyGroup">
+                        <div class="hover-switch-option">
+                            <label class="switch-toggle" for="profInputOsdIconOnly">
+                                <input type="checkbox" id="profInputOsdIconOnly">
+                                <span class="switch-slider"></span>
+                            </label>
+                            <div class="switch-meta">
+                                <label class="switch-title" for="profInputOsdIconOnly">Icon-Only Notification</label>
+                                <span class="switch-desc" id="profOsdIconOnlyDesc">Show only the app icon with no text in the floating on-screen display</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="form-group mb-14">
                         <label class="form-lbl">Profile Icon:</label>
                         <div class="icon-preset-strip" id="iconPresetStrip">
                             <div class="icon-preset-item active" data-icon="auto" title="Default: Actual Application Icon (Extracted from exe or window)">
-                                <span class="preset-preview auto" id="presetPreviewAuto">⚡</span>
+                                <span class="preset-preview auto" id="presetPreviewAuto"><svg class="svg-icon"><use href="#icon-zap"></use></svg></span>
                                 <span class="preset-name">App Icon</span>
                             </div>
                             <div class="icon-preset-item" data-icon="game" title="Gaming">
-                                <span class="preset-preview game">🎮</span>
+                                <span class="preset-preview game"><svg class="svg-icon"><use href="#icon-gamepad-2"></use></svg></span>
                                 <span class="preset-name">Game</span>
                             </div>
                             <div class="icon-preset-item" data-icon="code" title="VS Code / Programming">
-                                <span class="preset-preview code">💻</span>
+                                <span class="preset-preview code"><svg class="svg-icon"><use href="#icon-code"></use></svg></span>
                                 <span class="preset-name">Code</span>
                             </div>
                             <div class="icon-preset-item" data-icon="chrome" title="Browser">
-                                <span class="preset-preview chrome">🌐</span>
+                                <span class="preset-preview chrome"><svg class="svg-icon"><use href="#icon-globe"></use></svg></span>
                                 <span class="preset-name">Browser</span>
                             </div>
                             <div class="icon-preset-item" data-icon="media" title="Media & Music">
-                                <span class="preset-preview media">🎵</span>
+                                <span class="preset-preview media"><svg class="svg-icon"><use href="#icon-music"></use></svg></span>
                                 <span class="preset-name">Media</span>
                             </div>
                             <div class="icon-preset-item" data-icon="photoshop" title="Creative / Design">
-                                <span class="preset-preview ps">🎨</span>
+                                <span class="preset-preview ps"><svg class="svg-icon"><use href="#icon-palette"></use></svg></span>
                                 <span class="preset-name">Creative</span>
                             </div>
                             <div class="icon-preset-item" data-icon="blender" title="Blender 3D">
-                                <span class="preset-preview blender">🟠</span>
+                                <span class="preset-preview blender"><svg class="svg-icon"><use href="#icon-box"></use></svg></span>
                                 <span class="preset-name">Blender</span>
                             </div>
                             <div class="icon-preset-item" data-icon="bluestack" title="BlueStacks / Emulator">
-                                <span class="preset-preview bluestack">📱</span>
+                                <span class="preset-preview bluestack"><svg class="svg-icon"><use href="#icon-smartphone"></use></svg></span>
                                 <span class="preset-name">Emulator</span>
                             </div>
                             <div class="icon-preset-item" data-icon="generic" title="Utility / Tools">
-                                <span class="preset-preview gear">⚙</span>
+                                <span class="preset-preview gear"><svg class="svg-icon"><use href="#icon-wrench"></use></svg></span>
                                 <span class="preset-name">Utility</span>
                             </div>
                             <div class="icon-preset-item" data-icon="desktop" title="Desktop / System">
-                                <span class="preset-preview desktop">🖥️</span>
+                                <span class="preset-preview desktop"><svg class="svg-icon"><use href="#icon-monitor"></use></svg></span>
                                 <span class="preset-name">Desktop</span>
                             </div>
                             <div class="icon-preset-item" id="btnBrowseCustomIcon" data-icon="custom-browse" title="Browse Custom Image File (.png, .ico, .jpg)">
-                                <span class="preset-preview custom">📁</span>
+                                <span class="preset-preview custom"><svg class="svg-icon"><use href="#icon-folder-plus"></use></svg></span>
                                 <span class="preset-name">Custom...</span>
                             </div>
                         </div>
@@ -639,7 +749,7 @@
 
                     <!-- Auto-Switching Info Card -->
                     <div class="profile-tips-card">
-                        <div class="tip-title">⚡ Real-Time Auto-Switch & Hover</div>
+                        <div class="tip-title"><svg class="svg-icon svg-icon-sm"><use href="#icon-zap"></use></svg> Real-Time Auto-Switch & Hover</div>
                         <div class="tip-body">Profiles switch automatically when bound apps receive focus. Enable <strong>Switch on Mouse Hover</strong> to activate this profile the moment your cursor enters its window without clicking!</div>
                     </div>
                 </div>
@@ -658,7 +768,7 @@
 
                     <!-- Default Profile Lockout Message on Right Panel -->
                     <div class="windows-locked-banner" id="windowsLockedBanner" style="display: none;">
-                        <span class="locked-icon">🔒</span>
+                        <span class="locked-icon"><svg class="svg-icon"><use href="#icon-lock"></use></svg></span>
                         <div class="locked-msg">
                             <strong>Applications Cannot Be Assigned to Desktop</strong>
                             <p>The Default Profile is the primary fallback for Windows whenever no other custom application profile matches. To bind controls to specific applications, create a new profile or select a custom app profile.</p>
@@ -673,7 +783,7 @@
             </div>
 
             <div class="modal-footer">
-                <button class="modal-btn save" id="btnSaveProfileModal">✔ Save Profile</button>
+                <button class="modal-btn save" id="btnSaveProfileModal"><svg class="svg-icon"><use href="#icon-check"></use></svg> Save Profile</button>
                 <button class="modal-btn cancel" id="btnCancelProfileModal">Cancel</button>
             </div>
         </div>
@@ -684,22 +794,22 @@
         <div class="omm-modal-dialog">
             <div class="modal-header">
                 <div class="modal-header-titles">
-                    <span class="modal-title">⚡ ONBOARD MEMORY SETUP & VIRTUAL KEY INJECTOR</span>
+                    <span class="modal-title"><svg class="svg-icon"><use href="#icon-zap"></use></svg> ONBOARD MEMORY SETUP & VIRTUAL KEY INJECTOR</span>
                     <span class="modal-subtitle">Inject virtual F13–F21 keys into Logitech Onboard Memory Manager (OMM)</span>
                 </div>
-                <button class="modal-close-btn" id="btnCloseOmmModal">✕</button>
+                <button class="modal-close-btn" id="btnCloseOmmModal"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
             </div>
 
             <div class="omm-modal-body" style="padding: 20px 24px; overflow-y: auto;">
                 <!-- Instructions Banner -->
                 <div class="omm-guide-banner">
                     <div class="omm-guide-title">
-                        <span>📋</span> HOW TO CONFIGURE IN LOGITECH ONBOARD MEMORY MANAGER (OMM):
+                        <span><svg class="svg-icon svg-icon-sm"><use href="#icon-clipboard-list"></use></svg></span> HOW TO CONFIGURE IN LOGITECH ONBOARD MEMORY MANAGER (OMM):
                     </div>
                     <div class="omm-steps-list">
                         <div><strong>1.</strong> Open Logitech Onboard Memory Manager (<strong>OMM.exe</strong>).</div>
-                        <div><strong>2.</strong> Click the mouse button you want to configure and select <strong>Keystroke ➔ Record</strong>.</div>
-                        <div><strong>3.</strong> Click the matching <strong>"⚡ Inject Key"</strong> button below — a 3-second countdown will start with audio beeps.</div>
+                        <div><strong>2.</strong> Click the mouse button you want to configure and select <strong>Keystroke &rarr; Record</strong>.</div>
+                        <div><strong>3.</strong> Click the matching <strong>"<svg class='svg-icon svg-icon-xs'><use href='#icon-zap'></use></svg> Inject Key"</strong> button below — a 3-second countdown will start with audio beeps.</div>
                         <div><strong>4.</strong> Switch focus back to OMM during the countdown. The virtual F-key will be automatically typed!</div>
                         <div><strong>5.</strong> Save to mouse onboard memory and close OMM. The button is now fully unlocked for Studio customization!</div>
                     </div>
@@ -707,7 +817,7 @@
 
                 <!-- Live Countdown & Status Box -->
                 <div class="omm-status-box" id="ommStatusBox">
-                    <span class="omm-status-icon" id="ommStatusIcon">⚡</span>
+                    <span class="omm-status-icon" id="ommStatusIcon"><svg class="svg-icon"><use href="#icon-zap"></use></svg></span>
                     <span class="omm-status-text" id="ommStatusText">Ready. Click any button below to start 3-second countdown.</span>
                 </div>
 
@@ -718,8 +828,8 @@
             </div>
 
             <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 24px;">
-                <span style="font-size: 11px; color: var(--text-muted);">
-                    💡 Physical keyboards lack F13-F24 keys. This assistant injects them virtually to eliminate conflicts with normal typing.
+                <span style="font-size: 11px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px;">
+                    <svg class="svg-icon svg-icon-xs"><use href="#icon-lightbulb"></use></svg> Physical keyboards lack F13-F24 keys. This assistant injects them virtually to eliminate conflicts with normal typing.
                 </span>
                 <button class="modal-btn cancel" id="btnDoneOmmModal">Done</button>
             </div>
@@ -734,7 +844,7 @@
                     <span class="modal-title" id="renameModalTitle">RENAME BUTTON</span>
                     <span class="modal-subtitle" id="renameModalSubtitle">Set custom display label</span>
                 </div>
-                <button class="modal-close-btn" id="btnCloseRenameModal">✕</button>
+                <button class="modal-close-btn" id="btnCloseRenameModal"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
             </div>
             <div class="modal-body" style="padding: 20px 24px;">
                 <div style="margin-bottom: 12px; font-size: 13px; color: var(--text-secondary);">
@@ -745,15 +855,15 @@
                     <input type="text" class="config-input" id="txtButtonCustomName" maxlength="24" placeholder="e.g. Sniper, Mute, G9..." style="font-size: 14px; font-weight: 600; padding: 10px 14px; background: rgba(16, 18, 28, 0.8); border: 1px solid var(--border-subtle); border-radius: 8px; color: #fff; width: 100%; box-sizing: border-box;" />
                 </div>
                 <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
-                    <span>💡</span>
+                    <span><svg class="svg-icon svg-icon-xs"><use href="#icon-lightbulb"></use></svg></span>
                     <span>Tip: Leave blank or click "Reset to Default" to restore the original factory name.</span>
                 </div>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid var(--border-subtle);">
-                <button class="modal-btn cancel" id="btnResetRenameModal" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">↺ Reset to Default</button>
+                <button class="modal-btn cancel" id="btnResetRenameModal" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);"><svg class="svg-icon svg-icon-xs"><use href="#icon-refresh-cw"></use></svg> Reset to Default</button>
                 <div style="display: flex; gap: 10px;">
                     <button class="modal-btn cancel" id="btnCancelRenameModal">Cancel</button>
-                    <button class="modal-btn save" id="btnSaveRenameModal">✔ Save Name</button>
+                    <button class="modal-btn save" id="btnSaveRenameModal"><svg class="svg-icon"><use href="#icon-check"></use></svg> Save Name</button>
                 </div>
             </div>
         </div>
@@ -767,7 +877,7 @@
                     <span class="modal-title">MOUSE MODEL & DIAGRAM IMAGE</span>
                     <span class="modal-subtitle">Select a popular gaming mouse preset or upload a custom image</span>
                 </div>
-                <button type="button" class="modal-close-btn" id="btnCloseMouseImageModal">✕</button>
+                <button type="button" class="modal-close-btn" id="btnCloseMouseImageModal"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
             </div>
             <div class="modal-body" style="padding: 18px 24px; overflow-y: auto; flex: 1;">
                 
@@ -792,10 +902,10 @@
                         <div id="presetSelectedDesc" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">Hybrid optical-mechanical switches, sniper paddle, and dual-mode tilt wheel.</div>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button type="button" class="modal-btn save" id="btnApplyPresetImage" style="padding: 7px 14px; font-size: 12px; font-weight: 700;">
-                                ✔ Apply Image Only
+                                <svg class="svg-icon"><use href="#icon-check"></use></svg> Apply Image Only
                             </button>
                             <button type="button" class="modal-btn save" id="btnApplyPresetWithLayout" style="padding: 7px 14px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #06b6d4, #3b82f6); border: none;">
-                                ⚡ Apply Image & Recommended Layout
+                                <svg class="svg-icon"><use href="#icon-zap"></use></svg> Apply Image & Recommended Layout
                             </button>
                         </div>
                     </div>
@@ -809,13 +919,13 @@
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <input type="file" id="mouseImageFileInput" accept="image/png, image/jpeg, image/webp, image/svg+xml" style="display: none;">
                         <button type="button" class="modal-btn" id="btnBrowseMouseImage" style="flex: 1.2; min-width: 180px; background: rgba(6, 182, 212, 0.14); border: 1px solid rgba(6, 182, 212, 0.35); color: #38bdf8; font-size: 12px; font-weight: 600; padding: 9px 12px;">
-                            ➕ Add Custom Mouse (Image)...
+                            <svg class="svg-icon"><use href="#icon-plus"></use></svg> Add Custom Mouse (Image)...
                         </button>
                         <button type="button" class="modal-btn" id="btnSaveCurrentAsPreset" style="flex: 1.2; min-width: 180px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border-subtle); color: #e2e8f0; font-size: 12px; font-weight: 600; padding: 9px 12px;">
-                            💾 Save Current Layout as Preset
+                            <svg class="svg-icon"><use href="#icon-save"></use></svg> Save Current Layout as Preset
                         </button>
                         <button type="button" class="modal-btn cancel" id="btnResetMouseImage" style="background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25); font-size: 12px; font-weight: 600; padding: 9px 12px;">
-                            ↺ Reset Factory Default
+                            <svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg> Reset Factory Default
                         </button>
                     </div>
                 </div>
@@ -835,7 +945,7 @@
                     <span class="modal-title">SAVE AS NEW MOUSE OPTION</span>
                     <span class="modal-subtitle">Save custom image and layout permanently in preset gallery</span>
                 </div>
-                <button type="button" class="modal-close-btn" id="btnCloseNewMousePresetModal">✕</button>
+                <button type="button" class="modal-close-btn" id="btnCloseNewMousePresetModal"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
             </div>
             <div class="modal-body" style="padding: 20px 24px;">
                 <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 16px;">
@@ -853,13 +963,14 @@
                     </label>
                     <input type="text" id="txtNewPresetBadge" class="config-input" placeholder="Custom" maxlength="20" style="width:100%; box-sizing:border-box; padding:9px 12px; background:rgba(16,18,28,0.8); border:1px solid var(--border-subtle); border-radius:8px; color:#fff; font-size:13px; font-weight:600;">
                 </div>
-                <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">
-                    💡 This mouse model will be permanently saved into your preset gallery. You can switch between it and other mice with one click at any time.
+                <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4; display: flex; align-items: flex-start; gap: 6px;">
+                    <svg class="svg-icon svg-icon-xs" style="margin-top: 2px;"><use href="#icon-lightbulb"></use></svg>
+                    <span>This mouse model will be permanently saved into your preset gallery. You can switch between it and other mice with one click at any time.</span>
                 </div>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border-subtle);">
                 <button type="button" class="modal-btn cancel" id="btnCancelNewMousePreset">Cancel</button>
-                <button type="button" class="modal-btn save" id="btnConfirmSaveNewMousePreset">💾 Save New Mouse Option</button>
+                <button type="button" class="modal-btn save" id="btnConfirmSaveNewMousePreset"><svg class="svg-icon"><use href="#icon-save"></use></svg> Save New Mouse Option</button>
             </div>
         </div>
     </div>
@@ -872,7 +983,7 @@
                     <span class="modal-title" id="btnConfigModalTitle">ADD MOUSE BUTTON</span>
                     <span class="modal-subtitle">Configure button identifier, layout column, and hardware key</span>
                 </div>
-                <button type="button" class="modal-close-btn" id="btnCloseButtonConfigModal">✕</button>
+                <button type="button" class="modal-close-btn" id="btnCloseButtonConfigModal"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
             </div>
             <div class="modal-body" style="padding: 20px 24px;">
                 <form id="buttonConfigForm" onsubmit="return false;">
@@ -935,14 +1046,14 @@
                     </div>
 
                     <div style="font-size: 12px; color: var(--text-muted); display:flex; align-items:center; gap:6px;">
-                        <span>💡</span>
+                        <span><svg class="svg-icon svg-icon-xs"><use href="#icon-lightbulb"></use></svg></span>
                         <span>Tip: Target dot position on the mouse image and card position can be calibrated in Calibration Mode.</span>
                     </div>
                 </form>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--border-subtle);">
                 <button type="button" class="modal-btn cancel" id="btnCancelButtonConfig">Cancel</button>
-                <button type="button" class="modal-btn save" id="btnSaveButtonConfig">✔ Save Button</button>
+                <button type="button" class="modal-btn save" id="btnSaveButtonConfig"><svg class="svg-icon"><use href="#icon-check"></use></svg> Save Button</button>
             </div>
         </div>
     </div>
@@ -952,10 +1063,10 @@
         <div class="modal-dialog settings-dialog">
             <div class="modal-header">
                 <div class="modal-header-titles">
-                    <span class="modal-title">⚙ STUDIO SETTINGS & TOOLS</span>
+                    <span class="modal-title"><svg class="svg-icon"><use href="#icon-settings"></use></svg> STUDIO SETTINGS & TOOLS</span>
                     <span class="modal-subtitle">Configure mouse layout, pointer calibration, hardware F-keys, backups, and app behavior</span>
                 </div>
-                <button type="button" class="modal-close-btn" id="btnSettingsModalClose" title="Close Settings">✕</button>
+                <button type="button" class="modal-close-btn" id="btnSettingsModalClose" title="Close Settings"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
             </div>
 
             <div class="settings-modal-body">
@@ -965,7 +1076,7 @@
                     <!-- Tile 1: Mouse Image & Models -->
                     <div class="settings-card" id="cardSettingsMouseImg">
                         <div class="settings-card-header">
-                            <div class="settings-card-icon img-icon">🖼️</div>
+                            <div class="settings-card-icon img-icon"><svg class="svg-icon"><use href="#icon-image"></use></svg></div>
                             <div class="settings-card-content">
                                 <div class="settings-card-title">Mouse Diagram & Presets</div>
                                 <div class="settings-card-desc">Choose from popular gaming mice (G502 X, G604, G Pro X, Basilisk, Naga, Rival 5) or upload your own diagram.</div>
@@ -980,7 +1091,7 @@
                     <!-- Tile 2: Add Custom Button -->
                     <div class="settings-card" id="cardSettingsAddBtn">
                         <div class="settings-card-header">
-                            <div class="settings-card-icon add-icon">➕</div>
+                            <div class="settings-card-icon add-icon"><svg class="svg-icon"><use href="#icon-plus"></use></svg></div>
                             <div class="settings-card-content">
                                 <div class="settings-card-title">Custom Mouse Buttons</div>
                                 <div class="settings-card-desc">Add new physical or virtual buttons to the layout with custom callout tags and virtual F-key assignments.</div>
@@ -995,7 +1106,7 @@
                     <!-- Tile 3: Pointer Calibration -->
                     <div class="settings-card" id="cardSettingsCalibrate">
                         <div class="settings-card-header">
-                            <div class="settings-card-icon calib-icon">🎯</div>
+                            <div class="settings-card-icon calib-icon"><svg class="svg-icon"><use href="#icon-crosshair"></use></svg></div>
                             <div class="settings-card-content">
                                 <div class="settings-card-title">Pointer & Card Alignment</div>
                                 <div class="settings-card-desc">Manually adjust target hotspot dots and callout card positions directly on the diagram with pixel precision.</div>
@@ -1010,7 +1121,7 @@
                     <!-- Tile 4: Logitech OMM Setup -->
                     <div class="settings-card" id="cardSettingsOmm">
                         <div class="settings-card-header">
-                            <div class="settings-card-icon omm-icon">⚡</div>
+                            <div class="settings-card-icon omm-icon"><svg class="svg-icon"><use href="#icon-zap"></use></svg></div>
                             <div class="settings-card-content">
                                 <div class="settings-card-title">Logitech OMM Integration</div>
                                 <div class="settings-card-desc">Setup Logitech Onboard Memory Manager and inject virtual F13–F24 keys for hardware button interception.</div>
@@ -1029,7 +1140,7 @@
                     <!-- Tile 5: Backup & Restore -->
                     <div class="settings-card" id="cardSettingsBackup">
                         <div class="settings-card-header">
-                            <div class="settings-card-icon backup-icon">⇄</div>
+                            <div class="settings-card-icon backup-icon"><svg class="svg-icon"><use href="#icon-archive"></use></svg></div>
                             <div class="settings-card-content">
                                 <div class="settings-card-title">Backup & Restore Studio</div>
                                 <div class="settings-card-desc">Export or import all your app profiles, macros, custom mouse layouts, and preferences to a portable backup file.</div>
@@ -1044,7 +1155,7 @@
                     <!-- Tile 6: App Behavior Quick Toggles -->
                     <div class="settings-card preferences-tile">
                         <div class="settings-card-header">
-                            <div class="settings-card-icon pref-icon">🛡️</div>
+                            <div class="settings-card-icon pref-icon"><svg class="svg-icon"><use href="#icon-shield"></use></svg></div>
                             <div class="settings-card-content">
                                 <div class="settings-card-title">Studio Focus & Safety</div>
                                 <div class="settings-card-desc">Control action execution while the Studio window has focus and configure notifications.</div>
@@ -1054,17 +1165,17 @@
                             <label class="settings-pill-toggle" title="Prevent actions from triggering when Studio is focused">
                                 <input type="checkbox" id="chkSettingsMute" checked>
                                 <span class="pill-dot"></span>
-                                <span>🛡️ Test in Focus</span>
+                                <span><svg class="svg-icon svg-icon-xs"><use href="#icon-shield"></use></svg> Test in Focus</span>
                             </label>
                             <label class="settings-pill-toggle" title="Show on-screen notification HUD for profile switches">
                                 <input type="checkbox" id="chkSettingsOSD" checked>
                                 <span class="pill-dot"></span>
-                                <span>🔔 Notifications</span>
+                                <span><svg class="svg-icon svg-icon-xs"><use href="#icon-bell"></use></svg> Notifications</span>
                             </label>
                             <label class="settings-pill-toggle" title="Keep Studio window pinned above other windows">
                                 <input type="checkbox" id="chkSettingsTop">
                                 <span class="pill-dot"></span>
-                                <span>📌 Always On Top</span>
+                                <span><svg class="svg-icon svg-icon-xs"><use href="#icon-pin"></use></svg> Always On Top</span>
                             </label>
                         </div>
                     </div>
@@ -1073,7 +1184,7 @@
 
             <div class="modal-footer" style="padding: 12px 24px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end;">
                 <button type="button" class="action-pill primary" id="btnSettingsCloseFooter">
-                    ✔ Done
+                    <svg class="svg-icon"><use href="#icon-check"></use></svg> Done
                 </button>
             </div>
         </div>
@@ -1087,16 +1198,16 @@
                     <span class="modal-title">BACKUP & RESTORE — IMPORT / EXPORT</span>
                     <span class="modal-subtitle">Export or restore all profiles, macros, custom mouse layouts, and system options</span>
                 </div>
-                <button type="button" class="modal-close-btn" id="btnCloseBackupModal">✕</button>
+                <button type="button" class="modal-close-btn" id="btnCloseBackupModal"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
             </div>
 
             <!-- Modal Segmented Navigation Tabs -->
             <div class="modal-tabs" style="display: flex; border-bottom: 1px solid var(--border-subtle); background: rgba(0,0,0,0.3);">
                 <button type="button" class="modal-tab active" id="tabBackupExport" style="flex: 1; padding: 12px; font-weight: 700; font-size: 13px; cursor: pointer; background: transparent; border: none; color: #fff; border-bottom: 2px solid var(--accent-cyan); display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <span>📤 Export Everything</span>
+                    <svg class="svg-icon svg-icon-sm"><use href="#icon-upload"></use></svg> <span>Export Everything</span>
                 </button>
                 <button type="button" class="modal-tab" id="tabBackupImport" style="flex: 1; padding: 12px; font-weight: 700; font-size: 13px; cursor: pointer; background: transparent; border: none; color: var(--text-muted); border-bottom: 2px solid transparent; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <span>📥 Import & Restore</span>
+                    <svg class="svg-icon svg-icon-sm"><use href="#icon-download"></use></svg> <span>Import & Restore</span>
                 </button>
             </div>
 
@@ -1113,17 +1224,17 @@
 
                 <div style="background: rgba(16, 18, 28, 0.7); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px;">
                     <div style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-                        <span>📦</span> Complete JSON Studio Backup
+                        <span><svg class="svg-icon"><use href="#icon-archive"></use></svg></span> Complete JSON Studio Backup
                     </div>
                     <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 14px;">
                         Exports everything into a single, comprehensive JSON file: all profiles, keybinds, multi-step macros, custom button coordinates, mouse image, permanent mouse gallery presets, and app preferences.
                     </div>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button type="button" class="modal-btn save" id="btnDownloadJsonBackup" style="flex: 1.5; padding: 10px 16px; font-size: 13px; font-weight: 700; background: linear-gradient(135deg, #06b6d4, #3b82f6); border: none;">
-                            📥 Download JSON Backup
+                            <svg class="svg-icon"><use href="#icon-download"></use></svg> Download JSON Backup
                         </button>
                         <button type="button" class="modal-btn" id="btnSaveJsonViaDialog" style="flex: 1.2; padding: 10px 14px; font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); color: #e2e8f0;">
-                            💾 Save via Windows Dialog...
+                            <svg class="svg-icon"><use href="#icon-save"></use></svg> Save via Windows Dialog...
                         </button>
                     </div>
                 </div>
@@ -1135,7 +1246,7 @@
                             <div style="font-size: 11px; color: var(--text-muted);">Direct download of your active AutoHotkey configuration INI file</div>
                         </div>
                         <button type="button" class="modal-btn" id="btnDownloadIniBackup" style="padding: 7px 14px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: #cbd5e1;">
-                            📄 Download settings.ini
+                            <svg class="svg-icon svg-icon-xs"><use href="#icon-file-text"></use></svg> Download settings.ini
                         </button>
                     </div>
                 </div>
@@ -1145,7 +1256,7 @@
             <div class="modal-body" id="panelBackupImport" style="padding: 20px 24px; overflow-y: auto; max-height: 65vh; display: none;">
                 <!-- Drag & Drop Zone -->
                 <div id="backupDropZone" style="border: 2px dashed rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.04); border-radius: 12px; padding: 24px 20px; text-align: center; cursor: pointer; transition: all 0.2s ease; margin-bottom: 16px;">
-                    <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
+                    <div style="margin-bottom: 8px;"><svg class="svg-icon svg-icon-xl" style="width:36px; height:36px;"><use href="#icon-folder"></use></svg></div>
                     <div style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px;">Drop JSON or INI backup file here</div>
                     <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Supports complete studio backups (.json) and settings.ini files</div>
                     <div style="display: flex; gap: 8px; justify-content: center;">
@@ -1163,14 +1274,14 @@
                 <div id="backupInspectCard" style="display: none; background: rgba(16, 18, 28, 0.85); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span id="backupInspectIcon" style="font-size: 20px;">📄</span>
+                            <span id="backupInspectIcon" style="display:inline-flex; align-items:center;"><svg class="svg-icon"><use href="#icon-file-text"></use></svg></span>
                             <div>
                                 <div id="backupInspectFileName" style="font-size: 13px; font-weight: 700; color: #fff;">backup.json</div>
                                 <div id="backupInspectFileSize" style="font-size: 11px; color: var(--text-muted);">0 KB</div>
                             </div>
                         </div>
                         <span id="backupInspectBadge" style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: rgba(166, 227, 161, 0.15); color: #a6e3a1; border: 1px solid rgba(166, 227, 161, 0.3);">
-                            ✔ Valid Backup
+                            <svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> Valid Backup
                         </span>
                     </div>
 
@@ -1200,7 +1311,7 @@
                 <!-- Restore Action Button -->
                 <div style="display: flex; justify-content: flex-end; gap: 10px;">
                     <button type="button" class="modal-btn save" id="btnApplyBackupImport" disabled style="padding: 10px 20px; font-size: 13px; font-weight: 700; background: linear-gradient(135deg, #10b981, #06b6d4); border: none; opacity: 0.5; cursor: not-allowed;">
-                        📥 Apply & Restore Configuration
+                        <svg class="svg-icon"><use href="#icon-download"></use></svg> Apply & Restore Configuration
                     </button>
                 </div>
             </div>
@@ -1223,31 +1334,31 @@
             BUTTON: G8
         </div>
         <div class="ctx-item" id="ctxBtnRename">
-            <span class="ctx-icon">✏️</span>
+            <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-edit-2"></use></svg></span>
             <span class="ctx-text">Rename Button Display Name...</span>
         </div>
         <div class="ctx-divider"></div>
         <div class="ctx-item" id="ctxBtnCopyMapping">
-            <span class="ctx-icon">📋</span>
+            <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-copy"></use></svg></span>
             <span class="ctx-text">Copy Button Mapping</span>
         </div>
         <div class="ctx-item" id="ctxBtnPasteMapping">
-            <span class="ctx-icon">📥</span>
+            <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-clipboard-paste"></use></svg></span>
             <span class="ctx-text" id="ctxBtnPasteText">Paste Button Mapping</span>
         </div>
         <div class="ctx-divider"></div>
         <div class="ctx-item" id="ctxBtnRecord">
-            <span class="ctx-icon">⌨</span>
+            <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-keyboard"></use></svg></span>
             <span class="ctx-text">Record / Customize...</span>
         </div>
         <div class="ctx-item" id="ctxBtnReset">
-            <span class="ctx-icon">↺</span>
+            <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg></span>
             <span class="ctx-text">Reset to Default</span>
         </div>
         <div class="ctx-divider" id="ctxBtnFKeyDivider"></div>
         <div class="ctx-item has-submenu" id="ctxBtnChangeFKey">
             <div class="ctx-item-left">
-                <span class="ctx-icon">⚡</span>
+                <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-zap"></use></svg></span>
                 <span class="ctx-text">Change Hardware Key</span>
             </div>
             <span class="ctx-arrow">▶</span>
@@ -1257,11 +1368,11 @@
         </div>
         <div class="ctx-divider"></div>
         <div class="ctx-item" id="ctxBtnConfigure">
-            <span class="ctx-icon">⚙</span>
+            <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-settings"></use></svg></span>
             <span class="ctx-text">Configure Button...</span>
         </div>
         <div class="ctx-item danger" id="ctxBtnDelete">
-            <span class="ctx-icon">✕</span>
+            <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-trash-2"></use></svg></span>
             <span class="ctx-text">Delete Button</span>
         </div>
     </div>
@@ -1269,25 +1380,25 @@
     <!-- Profile Right-Click Context Menu -->
     <div class="profile-context-menu" id="profileContextMenu" style="display: none;">
         <div class="ctx-item" id="ctxCopyMappings">
-            <span class="ctx-icon">📋</span>
+            <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-copy"></use></svg></span>
             <span class="ctx-text">Copy Mappings</span>
         </div>
         <div class="ctx-item" id="ctxPasteMappings">
-            <span class="ctx-icon">📥</span>
+            <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-clipboard-paste"></use></svg></span>
             <span class="ctx-text" id="ctxPasteText">Paste Mappings</span>
         </div>
         <div class="ctx-divider"></div>
         <div class="ctx-item" id="ctxEditProfile">
-            <span class="ctx-icon">⚙</span>
+            <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-settings"></use></svg></span>
             <span class="ctx-text">Edit Profile & Apps...</span>
         </div>
         <div class="ctx-item" id="ctxLockProfile">
-            <span class="ctx-icon" id="ctxLockIcon">🔒</span>
+            <span class="ctx-icon" id="ctxLockIcon"><svg class="svg-icon"><use href="#icon-lock"></use></svg></span>
             <span class="ctx-text" id="ctxLockText">Lock Profile</span>
         </div>
         <div class="ctx-divider"></div>
         <div class="ctx-item danger" id="ctxDeleteProfile">
-            <span class="ctx-icon">✕</span>
+            <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-trash-2"></use></svg></span>
             <span class="ctx-text">Delete Profile</span>
         </div>
     </div>

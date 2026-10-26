@@ -1,5 +1,5 @@
 ; =========================================================================
-; INNO SETUP SCRIPT FOR LOGITECH G502 X STUDIO
+; INNO SETUP SCRIPT FOR MY MOUSE MY CHOICE
 ; Produces a modern, professional Windows setup wizard with:
 ; - Desktop & Start Menu shortcuts
 ; - Optional Windows Startup boot option
@@ -7,10 +7,10 @@
 ; - Preserves existing user profiles and settings.ini across updates
 ; =========================================================================
 
-#define MyAppName "Logitech G502 X Studio"
+#define MyAppName "My Mouse My Choice"
 #define MyAppVersion "2.0"
 #define MyAppPublisher "OBM"
-#define MyAppExeName "G502X_Studio.exe"
+#define MyAppExeName "MyMouseMyChoice.exe"
 
 [Setup]
 AppId={{8F7D2B11-9A33-4E84-8E1A-7690C65A429E}
@@ -21,7 +21,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=dist
-OutputBaseFilename=G502X_Studio_Setup_v2.0
+OutputBaseFilename=MyMouseMyChoice_Setup_v2.0
 SetupIconFile=assets\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/ultra64
@@ -41,7 +41,8 @@ Name: "startupicon"; Description: "Start automatically when Windows boots"; Grou
 
 [Files]
 ; Main standalone binary
-Source: "G502X_Studio.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "MyMouseMyChoice.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "G502X_Studio.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 ; Web UI layer (HTML, CSS, modern JS modules, app icons)
 Source: "web\*"; DestDir: "{app}\web"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Assets (mouse hardware diagrams, presets, icon)

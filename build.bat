@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo ========================================================
-echo  Logitech G502 X Studio - Unified Build Pipeline
+echo  My Mouse My Choice - Unified Build Pipeline
 echo ========================================================
 echo.
 
@@ -12,12 +12,13 @@ set "AHK_COMPILER=%~dp0tools\Compiler\Ahk2Exe.exe"
 set "AHK_BASE=C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe"
 
 REM --- Close running instances so file is not locked ---
+taskkill /f /im MyMouseMyChoice.exe >nul 2>&1
 taskkill /f /im G502X_Studio.exe >nul 2>&1
 taskkill /f /im Ahk2Exe.exe >nul 2>&1
 ping 127.0.0.1 -n 2 >nul
 
 REM --- Step 1: Compile Standalone Executable ---
-echo [1/2] Compiling G502X_Studio.exe with Ahk2Exe...
+echo [1/2] Compiling MyMouseMyChoice.exe with Ahk2Exe...
 
 if not exist "%AHK_COMPILER%" (
     echo Error: Ahk2Exe compiler not found at "%AHK_COMPILER%"
@@ -31,7 +32,7 @@ if not exist "%AHK_BASE%" (
     exit /b 1
 )
 
-"%AHK_COMPILER%" /in "%~dp0G502X_Manager.ahk" /out "%~dp0G502X_Studio.exe" /icon "%~dp0assets\app.ico" /base "%AHK_BASE%" /silent
+"%AHK_COMPILER%" /in "%~dp0G502X_Manager.ahk" /out "%~dp0MyMouseMyChoice.exe" /icon "%~dp0assets\app.ico" /base "%AHK_BASE%" /silent
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
@@ -39,7 +40,8 @@ if %ERRORLEVEL% NEQ 0 (
     pause
     exit /b %ERRORLEVEL%
 )
-echo       Standalone binary created: G502X_Studio.exe
+copy /y "%~dp0MyMouseMyChoice.exe" "%~dp0G502X_Studio.exe" >nul
+echo       Standalone binary created: MyMouseMyChoice.exe (also synced G502X_Studio.exe)
 echo.
 
 REM --- Step 2: Build Windows Setup Installer ---
@@ -56,7 +58,7 @@ if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" (
 
 if not defined ISCC (
     echo Warning: Inno Setup compiler ISCC.exe was not found.
-    echo Standalone executable G502X_Studio.exe was built successfully,
+    echo Standalone executable MyMouseMyChoice.exe was built successfully,
     echo but installer setup could not be compiled.
     echo.
     pause
@@ -69,8 +71,8 @@ if %ERRORLEVEL% EQU 0 (
     echo.
     echo ========================================================
     echo  SUCCESS! Build Complete:
-    echo   1. Standalone EXE: G502X_Studio.exe
-    echo   2. Setup Installer: dist\G502X_Studio_Setup_v2.0.exe
+    echo   1. Standalone EXE: MyMouseMyChoice.exe
+    echo   2. Setup Installer: dist\MyMouseMyChoice_Setup_v2.0.exe
     echo ========================================================
 ) else (
     echo.

@@ -13,14 +13,17 @@ class ProfileEngine {
     static LastActiveProcess := ""
     static AutoSwitchTimerFn := ""
 
-    ; Profile Metadata: Map(profileName, { TargetExe: "...", Icon: "...", IsDefault: bool, SwitchOnHover: bool, Desc: "..." })
+    ; Profile Metadata: Map(profileName, { TargetExe: "...", Icon: "...", IsDefault: bool, SwitchOnHover: bool, OsdIconOnly: bool, Desc: "..." })
     static ProfileMetadata := Map(
-        "Desktop",      { TargetExe: "", Icon: "desktop", IsDefault: true, SwitchOnHover: false, Desc: "Default System & Desktop Profile" }
+        "Desktop",      { TargetExe: "", Icon: "desktop", IsDefault: true, SwitchOnHover: false, OsdIconOnly: false, Desc: "Default System & Desktop Profile" }
     )
 
     static IsGShiftActive := false
     static IsGShift1Active := false
     static IsGShift2Active := false
+    static ShiftHolders := Map()
+    static ButtonDispatchedLayer := Map()
+    static CurrentLayer => (this.IsGShift2Active ? "GShift2" : ((this.IsGShift1Active || this.IsGShiftActive) ? "GShift" : "Normal"))
     static OnShiftStateChanged := ""
     static RapidFireEnabled := false
     static RapidFireActive := false
@@ -50,6 +53,7 @@ class ProfileEngine {
     ; Callback for GUI updates
     static OnProfileChanged := ""
     static OnButtonStateChanged := ""
+    static OnProfilesListChanged := ""
 
     ; Default Mappings for all 4 profiles
     static DefaultMappings := Map(
@@ -103,7 +107,7 @@ class ProfileEngine {
         ; Load metadata for each profile
         for prof in this.Profiles {
             if (!this.ProfileMetadata.Has(prof)) {
-                this.ProfileMetadata[prof] := { TargetExe: "", Icon: (prof = "Desktop" ? "desktop" : "auto"), IsDefault: (prof = "Desktop"), SwitchOnHover: false, Desc: prof . " Profile" }
+                this.ProfileMetadata[prof] := { TargetExe: "", Icon: (prof = "Desktop" ? "desktop" : "auto"), IsDefault: (prof = "Desktop"), SwitchOnHover: false, OsdIconOnly: false, Desc: prof . " Profile" }
             }
             sec := "Profile_" . prof
             try {
@@ -111,12 +115,14 @@ class ProfileEngine {
                 savedIcon := IniRead(this.ConfigPath, sec, "Icon", this.ProfileMetadata[prof].Icon)
                 savedDef := (IniRead(this.ConfigPath, sec, "IsDefault", this.ProfileMetadata[prof].IsDefault ? "1" : "0") = "1")
                 savedHover := (IniRead(this.ConfigPath, sec, "SwitchOnHover", "0") = "1")
+                savedOsdIconOnly := (IniRead(this.ConfigPath, sec, "OsdIconOnly", "0") = "1")
                 this.ProfileMetadata[prof].TargetExe := savedExe
                 if (prof != "Desktop" && (savedIcon == "generic" || savedIcon == ""))
                     savedIcon := "auto"
                 this.ProfileMetadata[prof].Icon := savedIcon
                 this.ProfileMetadata[prof].IsDefault := savedDef
                 this.ProfileMetadata[prof].SwitchOnHover := savedHover
+                this.ProfileMetadata[prof].OsdIconOnly := savedOsdIconOnly
             }
             this.EnsureProfileIcon(prof, this.ProfileMetadata[prof].TargetExe)
         }
@@ -162,7 +168,7 @@ class ProfileEngine {
                 ; Load Normal
                 normType := IniRead(this.ConfigPath, section, "Normal_Type", def.Normal.Type)
                 normCmd  := IniRead(this.ConfigPath, section, "Normal_Cmd", def.Normal.Cmd)
-                normLbl  := IniRead(this.ConfigPath, section, "Normal_Label", def.Normal.Label)
+                normLbl  := this.CleanLabel(IniRead(this.ConfigPath, section, "Normal_Label", def.Normal.Label))
                 normPlay := IniRead(this.ConfigPath, section, "Normal_PlayType", "NoRepeat")
                 normInt  := Integer(IniRead(this.ConfigPath, section, "Normal_RepeatInterval", "50"))
                 normStepsStr    := IniRead(this.ConfigPath, section, "Normal_Steps", "")
@@ -173,7 +179,7 @@ class ProfileEngine {
                 ; Load GShift
                 gsType   := IniRead(this.ConfigPath, section, "GShift_Type", def.GShift.Type)
                 gsCmd    := IniRead(this.ConfigPath, section, "GShift_Cmd", def.GShift.Cmd)
-                gsLbl    := IniRead(this.ConfigPath, section, "GShift_Label", def.GShift.Label)
+                gsLbl    := this.CleanLabel(IniRead(this.ConfigPath, section, "GShift_Label", def.GShift.Label))
                 gsPlay   := IniRead(this.ConfigPath, section, "GShift_PlayType", "NoRepeat")
                 gsInt    := Integer(IniRead(this.ConfigPath, section, "GShift_RepeatInterval", "50"))
                 gsStepsStr    := IniRead(this.ConfigPath, section, "GShift_Steps", "")
@@ -184,7 +190,7 @@ class ProfileEngine {
                 ; Load GShift2
                 gs2Type   := IniRead(this.ConfigPath, section, "GShift2_Type", def.Normal.Type)
                 gs2Cmd    := IniRead(this.ConfigPath, section, "GShift2_Cmd", def.Normal.Cmd)
-                gs2Lbl    := IniRead(this.ConfigPath, section, "GShift2_Label", def.Normal.Label)
+                gs2Lbl    := this.CleanLabel(IniRead(this.ConfigPath, section, "GShift2_Label", def.Normal.Label))
                 gs2Play   := IniRead(this.ConfigPath, section, "GShift2_PlayType", "NoRepeat")
                 gs2Int    := Integer(IniRead(this.ConfigPath, section, "GShift2_RepeatInterval", "50"))
                 gs2StepsStr    := IniRead(this.ConfigPath, section, "GShift2_Steps", "")
@@ -220,6 +226,15 @@ class ProfileEngine {
                 }
             }
         }
+    }
+
+    static CleanLabel(str) {
+        if (!InStr(str, "<svg") && !InStr(str, "⚡") && !InStr(str, "? B-Shift"))
+            return str
+        cleaned := RegExReplace(str, "<svg[^>]*>.*?</svg>", "")
+        cleaned := RegExReplace(cleaned, "[⚡\?]", "")
+        cleaned := Trim(cleaned)
+        return (cleaned != "") ? cleaned : "B-Shift 1 Layer"
     }
 
     static SaveButtonLayer(profile, btnId, layer, actionObj) {
@@ -274,10 +289,25 @@ class ProfileEngine {
             return ""
         str := ""
         for i, s in stepArr {
-            actChar := (s.Action = "Down") ? "D" : "U"
-            del := s.HasOwnProp("Delay") ? s.Delay : 50
-            part := actChar . ":" . s.Key . ":" . del
-            str .= (i = 1 ? "" : "|") . part
+            if (!IsObject(s))
+                continue
+            act := "Down"
+            key := ""
+            del := 50
+            if (Type(s) = "Map") {
+                act := s.Has("Action") ? s["Action"] : (s.Has("action") ? s["action"] : "Down")
+                key := s.Has("Key") ? s["Key"] : (s.Has("key") ? s["key"] : "")
+                del := s.Has("Delay") ? Integer(s["Delay"]) : (s.Has("delay") ? Integer(s["delay"]) : 50)
+            } else {
+                act := s.HasOwnProp("Action") ? s.Action : (s.HasOwnProp("action") ? s.action : "Down")
+                key := s.HasOwnProp("Key") ? s.Key : (s.HasOwnProp("key") ? s.key : "")
+                del := s.HasOwnProp("Delay") ? Integer(s.Delay) : (s.HasOwnProp("delay") ? Integer(s.delay) : 50)
+            }
+            if (key = "")
+                continue
+            actChar := (act = "Down" || act = "D") ? "D" : "U"
+            part := actChar . ":" . key . ":" . del
+            str .= (str = "" ? "" : "|") . part
         }
         return str
     }
@@ -372,7 +402,12 @@ class ProfileEngine {
             if (p = profileName) {
                 this.StopAllRunningMacros()
                 this.CurrentProfile := p
-                OSD.Show("Profile: " . p, this.GetProfileDescription(p))
+                meta := this.ProfileMetadata.Has(p) ? this.ProfileMetadata[p] : ""
+                if (meta && meta.HasOwnProp("OsdIconOnly") && meta.OsdIconOnly) {
+                    OSD.ShowIcon(this.GetProfileIconPath(p))
+                } else {
+                    OSD.Show("Profile: " . p, this.GetProfileDescription(p))
+                }
                 fn := this.OnProfileChanged
                 if (fn)
                     fn(p)
@@ -416,6 +451,8 @@ class ProfileEngine {
         }
         this.ActiveHeldButtons.Clear()
         this.PhysicalButtonStates.Clear()
+        this.ShiftHolders.Clear()
+        this.ButtonDispatchedLayer.Clear()
     }
 
     static GetProfileDescription(p) {
@@ -589,13 +626,14 @@ class ProfileEngine {
                 IniWrite(meta.Icon, this.ConfigPath, sec, "Icon")
                 IniWrite(meta.IsDefault ? "1" : "0", this.ConfigPath, sec, "IsDefault")
                 IniWrite((meta.HasOwnProp("SwitchOnHover") && meta.SwitchOnHover) ? "1" : "0", this.ConfigPath, sec, "SwitchOnHover")
+                IniWrite((meta.HasOwnProp("OsdIconOnly") && meta.OsdIconOnly) ? "1" : "0", this.ConfigPath, sec, "OsdIconOnly")
                 if (meta.HasOwnProp("Desc"))
                     IniWrite(meta.Desc, this.ConfigPath, sec, "Desc")
             }
         }
     }
 
-    static AddProfile(name, targetExe := "", icon := "", switchOnHover := false) {
+    static AddProfile(name, targetExe := "", icon := "", switchOnHover := false, osdIconOnly := false) {
         name := Trim(name)
         if (name == "" || this.HasProfile(name))
             return false
@@ -604,7 +642,7 @@ class ProfileEngine {
         if (icon == "" || icon == "generic")
             icon := (name = "Desktop") ? "desktop" : "auto"
             
-        this.ProfileMetadata[name] := { TargetExe: targetExe, Icon: icon, IsDefault: false, SwitchOnHover: switchOnHover, Desc: name . " Profile" }
+        this.ProfileMetadata[name] := { TargetExe: targetExe, Icon: icon, IsDefault: false, SwitchOnHover: switchOnHover, OsdIconOnly: osdIconOnly, Desc: name . " Profile" }
         
         ; Initialize ActiveMappings for this profile by copying Desktop defaults
         this.ActiveMappings[name] := Map()
@@ -619,6 +657,9 @@ class ProfileEngine {
         
         this.SaveProfileConfig()
         this.EnsureProfileIcon(name, targetExe)
+        if (this.OnProfilesListChanged) {
+            try this.OnProfilesListChanged()
+        }
         return true
     }
 
@@ -647,10 +688,13 @@ class ProfileEngine {
             this.SetProfile("Desktop")
             
         this.SaveProfileConfig()
+        if (this.OnProfilesListChanged) {
+            try this.OnProfilesListChanged()
+        }
         return true
     }
 
-    static UpdateProfile(name, targetExe, icon := "", switchOnHover := -1) {
+    static UpdateProfile(name, targetExe, icon := "", switchOnHover := -1, osdIconOnly := -1) {
         name := Trim(name)
         if (!this.HasProfile(name))
             return false
@@ -660,17 +704,151 @@ class ProfileEngine {
             targetExe := ""
 
         if (!this.ProfileMetadata.Has(name))
-            this.ProfileMetadata[name] := { TargetExe: targetExe, Icon: (icon != "" ? icon : (name = "Desktop" ? "desktop" : "auto")), IsDefault: (name = "Desktop"), SwitchOnHover: false, Desc: name . " Profile" }
+            this.ProfileMetadata[name] := { TargetExe: targetExe, Icon: (icon != "" ? icon : (name = "Desktop" ? "desktop" : "auto")), IsDefault: (name = "Desktop"), SwitchOnHover: false, OsdIconOnly: (osdIconOnly != -1 ? (osdIconOnly ? true : false) : false), Desc: name . " Profile" }
         else {
             this.ProfileMetadata[name].TargetExe := targetExe
             if (icon != "")
                 this.ProfileMetadata[name].Icon := icon
             if (switchOnHover != -1)
                 this.ProfileMetadata[name].SwitchOnHover := switchOnHover ? true : false
+            if (osdIconOnly != -1)
+                this.ProfileMetadata[name].OsdIconOnly := osdIconOnly ? true : false
         }
         
         this.SaveProfileConfig()
         this.EnsureProfileIcon(name, targetExe)
+        if (this.OnProfilesListChanged) {
+            try this.OnProfilesListChanged()
+        }
+        return true
+    }
+
+    /**
+     * Creates a new profile bound to the currently focused application window.
+     * Triggered via global shortcut: Ctrl + Shift + F2
+     * Disallows duplicates, system processes, or unrecognized applications.
+     */
+    static CreateProfileFromFocusedWindow() {
+        activeHwnd := WinExist("A")
+        if (!activeHwnd) {
+            try SoundBeep(600, 100)
+            OSD.Show("No Active Window", "Could not detect focused application.", 2500)
+            return false
+        }
+
+        ; Do not create profile for My Mouse My Choice itself
+        guiHwnd := (HasProp(WebViewGuiManager, "MainGui") && WebViewGuiManager.MainGui != "") ? WebViewGuiManager.MainGui.Hwnd : 0
+        if (guiHwnd && (activeHwnd == guiHwnd || DllCall("IsChild", "ptr", guiHwnd, "ptr", activeHwnd))) {
+            try SoundBeep(600, 100)
+            OSD.Show("My Mouse My Choice Focused", "Switch to an external application window to create a profile.", 3000)
+            return false
+        }
+
+        classicHwnd := (HasProp(GuiManager, "MainGui") && GuiManager.MainGui != "") ? GuiManager.MainGui.Hwnd : 0
+        if (classicHwnd && (activeHwnd == classicHwnd || DllCall("IsChild", "ptr", classicHwnd, "ptr", activeHwnd))) {
+            try SoundBeep(600, 100)
+            OSD.Show("My Mouse My Choice Focused", "Switch to an external application window to create a profile.", 3000)
+            return false
+        }
+
+        procName := ""
+        try procName := WinGetProcessName(activeHwnd)
+        fullPath := ""
+        try fullPath := WinGetProcessPath(activeHwnd)
+        winClass := ""
+        try winClass := WinGetClass(activeHwnd)
+
+        ; Resolve UWP applications hosted inside ApplicationFrameHost
+        if (procName = "ApplicationFrameHost.exe") {
+            try {
+                childHwnd := DllCall("FindWindowEx", "ptr", activeHwnd, "ptr", 0, "str", "Windows.UI.Core.CoreWindow", "ptr", 0, "ptr")
+                if (childHwnd) {
+                    realProc := WinGetProcessName(childHwnd)
+                    if (realProc != "" && realProc != "ApplicationFrameHost.exe") {
+                        procName := realProc
+                        try fullPath := WinGetProcessPath(childHwnd)
+                    }
+                }
+            }
+        }
+
+        ; Validate if application can be recognized
+        if (procName == "" || !RegExMatch(procName, "i)\.exe$")) {
+            try SoundBeep(600, 100)
+            OSD.Show("Unrecognized App", "Focused window does not belong to a recognizable application.", 3000)
+            return false
+        }
+
+        ; Disallow Windows system, shell, and internal host processes
+        isSystemProc := (
+            procName = "AutoHotkey64.exe" || procName = "msedgewebview2.exe" ||
+            procName = "G502X_Studio.exe" || procName = "MyMouseMyChoice.exe" || procName = "My_Mouse_My_Choice.exe" ||
+            procName = "SearchHost.exe" || procName = "StartMenuExperienceHost.exe" ||
+            procName = "ShellExperienceHost.exe" || procName = "MultitaskingView.exe" ||
+            procName = "dwm.exe" || procName = "TextInputHost.exe" || procName = "LockApp.exe" ||
+            procName = "SystemSettings.exe" ||
+            (procName = "explorer.exe" && (winClass = "Shell_TrayWnd" || winClass = "Shell_SecondaryTrayWnd" || winClass = "Progman" || winClass = "WorkerW")) ||
+            winClass = "Windows.UI.Core.CoreWindow" || winClass = "XamlExplorerHostIslandWindow"
+        )
+        if (isSystemProc) {
+            try SoundBeep(600, 100)
+            OSD.Show("Unrecognized App", "Cannot create a profile for Windows system shell (" . procName . ").", 3000)
+            return false
+        }
+
+        ; 1. Check if an existing profile is already bound to this executable
+        existingByExe := this.FindProfileForProcess(procName, false)
+        if (existingByExe != "" && existingByExe != "Desktop") {
+            this.SetProfile(existingByExe)
+            try SoundBeep(900, 70)
+            Sleep(30)
+            try SoundBeep(1100, 90)
+            OSD.Show("Profile Already Exists", "Switched to '" . existingByExe . "' (bound to " . procName . ").", 3500)
+            return false
+        }
+
+        ; 2. Derive human-friendly clean profile name (e.g. Notepad.exe -> Notepad)
+        cleanName := RegExReplace(procName, "i)\.exe$", "")
+        if (StrLen(cleanName) > 1) {
+            cleanName := StrUpper(SubStr(cleanName, 1, 1)) . SubStr(cleanName, 2)
+        }
+
+        ; Check if a profile with this clean name already exists
+        if (this.HasProfile(cleanName)) {
+            this.SetProfile(cleanName)
+            try SoundBeep(900, 70)
+            Sleep(30)
+            try SoundBeep(1100, 90)
+            OSD.Show("Profile Already Exists", "Switched to existing profile: " . cleanName, 3500)
+            return false
+        }
+
+        ; Extract icon from application executable
+        iconName := "auto"
+        if (fullPath != "" && FileExist(fullPath)) {
+            try iconName := this.EnsureExeIconDirect(fullPath, cleanName)
+        }
+
+        ; Create the new profile
+        success := this.AddProfile(cleanName, procName, iconName, false, false)
+        if (!success) {
+            try SoundBeep(600, 100)
+            OSD.Show("Creation Failed", "Could not create profile '" . cleanName . "'.", 3000)
+            return false
+        }
+
+        ; Switch to newly created profile
+        this.SetProfile(cleanName)
+        try WebViewGuiManager.SendProfilesUpdated()
+        if (this.OnProfilesListChanged) {
+            try this.OnProfilesListChanged()
+        }
+
+        ; Victorious double-beep audio confirmation and HUD notification
+        try SoundBeep(1000, 70)
+        Sleep(30)
+        try SoundBeep(1400, 110)
+        OSD.Show("✨ New Profile Created", cleanName . " • Bound to " . procName, 4000)
         return true
     }
 
@@ -842,6 +1020,56 @@ class ProfileEngine {
                 this.ExtractExeIcon(fullPath, cleanPng)
             }
         }
+    }
+
+    static GetProfileIconPath(p) {
+        outDir := A_ScriptDir . "\web\icons"
+        profPng := outDir . "\" . p . ".png"
+        if (FileExist(profPng))
+            return profPng
+
+        if (this.ProfileMetadata.Has(p)) {
+            meta := this.ProfileMetadata[p]
+
+            ; 1. Custom icon or named icon in web/icons
+            iconVal := meta.HasOwnProp("Icon") ? meta.Icon : ""
+            if (iconVal != "" && iconVal != "generic" && iconVal != "auto" && iconVal != "desktop") {
+                customPng := outDir . "\" . iconVal . ".png"
+                if (FileExist(customPng))
+                    return customPng
+            }
+
+            ; 2. Target executable icon
+            targetExe := meta.HasOwnProp("TargetExe") ? meta.TargetExe : ""
+            if (targetExe != "") {
+                for part in StrSplit(targetExe, ",") {
+                    clean := Trim(part)
+                    if (clean == "")
+                        continue
+                    SplitPath(clean, &cFile, , , &cName)
+                    cleanPng := outDir . "\" . cName . ".png"
+                    if (FileExist(cleanPng))
+                        return cleanPng
+
+                    resolved := this.ResolveExePath(clean)
+                    if (resolved != "" && FileExist(resolved)) {
+                        this.EnsureProfileIcon(p, resolved)
+                        if (FileExist(profPng))
+                            return profPng
+                        if (FileExist(cleanPng))
+                            return cleanPng
+                        return resolved
+                    }
+                }
+            }
+        }
+
+        ; 3. Fallbacks
+        if (FileExist(A_ScriptDir . "\assets\app.png"))
+            return A_ScriptDir . "\assets\app.png"
+        if (FileExist(A_ScriptDir . "\assets\app.ico"))
+            return A_ScriptDir . "\assets\app.ico"
+        return ""
     }
 
     static SaveImageAsPng(sourcePath, outPng) {
@@ -1028,6 +1256,22 @@ class ProfileEngine {
         return out
     }
 
+    static HasShift1Holder() {
+        for btn, num in this.ShiftHolders {
+            if (num = 1)
+                return true
+        }
+        return false
+    }
+
+    static HasShift2Holder() {
+        for btn, num in this.ShiftHolders {
+            if (num = 2)
+                return true
+        }
+        return false
+    }
+
     ; Dynamic execution engine
     static DispatchButton(btnId, isDown) {
         ; Filter Windows OS typematic auto-repeat on hold (for F-key mapped mouse buttons)
@@ -1041,16 +1285,75 @@ class ProfileEngine {
         }
 
         mapping := this.GetButtonMapping(this.CurrentProfile, btnId)
+
+        ; -------------------------------------------------------------
+        ; 1. HANDLE BUTTON RELEASE (isDown = false)
+        ; -------------------------------------------------------------
+        if (!isDown) {
+            ; Check if this button was currently holding a Shift layer
+            if (this.ShiftHolders.Has(btnId)) {
+                shiftNum := this.ShiftHolders[btnId]
+                this.ShiftHolders.Delete(btnId)
+                if (shiftNum = 2) {
+                    if (!this.HasShift2Holder())
+                        this.HandleShift2Modifier(btnId, false)
+                } else {
+                    if (!this.HasShift1Holder())
+                        this.HandleShift1Modifier(btnId, false)
+                }
+                return
+            }
+
+            ; Check if this button was dispatched on a specific layer
+            if (this.ButtonDispatchedLayer.Has(btnId)) {
+                dispLayer := this.ButtonDispatchedLayer[btnId]
+                this.ButtonDispatchedLayer.Delete(btnId)
+                this.ExecuteButtonEvent(btnId, dispLayer, false)
+                return
+            }
+
+            ; Fallback regular release on current layer
+            currentLayer := (this.IsGShift2Active ? "GShift2" : ((this.IsGShift1Active || this.IsGShiftActive) ? "GShift" : "Normal"))
+            this.ExecuteButtonEvent(btnId, currentLayer, false)
+            return
+        }
+
+        ; -------------------------------------------------------------
+        ; 2. HANDLE BUTTON PRESS (isDown = true)
+        ; -------------------------------------------------------------
+        isShiftActive := (this.ShiftHolders.Count > 0 || this.IsGShiftActive || this.IsGShift1Active || this.IsGShift2Active)
+        currentLayer := (this.IsGShift2Active ? "GShift2" : ((this.IsGShift1Active || this.IsGShiftActive) ? "GShift" : "Normal"))
+
         normCmd := mapping.Normal.Cmd
         normType := mapping.Normal.Type
 
-        ; Check if this button is assigned as a Shift layer modifier
+        ; If a shift layer is ALREADY held by another button:
+        if (isShiftActive && !this.ShiftHolders.Has(btnId)) {
+            ; Check this button's action on the CURRENT active layer:
+            act := (currentLayer = "GShift2") ? mapping.GShift2 : ((currentLayer = "GShift" || currentLayer = "GShift1") ? mapping.GShift : mapping.Normal)
+            isActShift := (act.HasOwnProp("Type") && act.Type = "Special" && (act.Cmd = "GShift" || act.Cmd = "GShift1" || act.Cmd = "GShift2"))
+
+            ; If this button on the current shift layer is NOT explicitly another shift modifier,
+            ; execute its mapping on the current shift layer! (Do NOT let its Normal shift setting override!)
+            if (!isActShift) {
+                if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
+                    return
+                }
+                this.ButtonDispatchedLayer[btnId] := currentLayer
+                this.ExecuteButtonEvent(btnId, currentLayer, true)
+                return
+            }
+        }
+
+        ; If no other button is holding shift, or this button is explicitly a shift modifier on the active layer:
         if (normType = "Special" && (normCmd = "GShift" || normCmd = "GShift1")) {
-            this.HandleShift1Modifier(btnId, isDown)
+            this.ShiftHolders[btnId] := 1
+            this.HandleShift1Modifier(btnId, true)
             return
         }
         if (normType = "Special" && normCmd = "GShift2") {
-            this.HandleShift2Modifier(btnId, isDown)
+            this.ShiftHolders[btnId] := 2
+            this.HandleShift2Modifier(btnId, true)
             return
         }
 
@@ -1060,15 +1363,9 @@ class ProfileEngine {
             return
         }
 
-        ; If not a shift modifier, execute based on currently held shift layer
-        layer := "Normal"
-        if (this.IsGShift2Active) {
-            layer := "GShift2"
-        } else if (this.IsGShift1Active || this.IsGShiftActive) {
-            layer := "GShift"
-        }
-
-        this.ExecuteButtonEvent(btnId, layer, isDown)
+        ; Regular button press on current layer
+        this.ButtonDispatchedLayer[btnId] := currentLayer
+        this.ExecuteButtonEvent(btnId, currentLayer, true)
     }
 
     static HandleShift1Modifier(btnId, isDown) {
@@ -1099,6 +1396,42 @@ class ProfileEngine {
         fn := this.OnShiftStateChanged
         if (fn)
             fn(layerNum, isActive)
+    }
+
+    static IsShiftModifierButton(btnId) {
+        if (!this.ActiveMappings.Has(this.CurrentProfile) && !this.DefaultMappings.Has(this.CurrentProfile))
+            return false
+        try {
+            mapping := this.GetButtonMapping(this.CurrentProfile, btnId)
+            if (!IsObject(mapping) || !mapping.HasOwnProp("Normal"))
+                return false
+            normCmd := mapping.Normal.HasOwnProp("Cmd") ? mapping.Normal.Cmd : ""
+            normType := mapping.Normal.HasOwnProp("Type") ? mapping.Normal.Type : ""
+            return (normType = "Special" && (normCmd = "GShift" || normCmd = "GShift1" || normCmd = "GShift2"))
+        }
+        return false
+    }
+
+    static GetShiftModifierLayer(btnId) {
+        try {
+            mapping := this.GetButtonMapping(this.CurrentProfile, btnId)
+            if (IsObject(mapping) && mapping.HasOwnProp("Normal")) {
+                normCmd := mapping.Normal.HasOwnProp("Cmd") ? mapping.Normal.Cmd : ""
+                if (normCmd = "GShift2")
+                    return "GShift2"
+            }
+        }
+        return "GShift"
+    }
+
+    static ReleaseAllShiftModifiers() {
+        this.ShiftHolders.Clear()
+        this.ButtonDispatchedLayer.Clear()
+        this.IsGShiftActive := false
+        this.IsGShift1Active := false
+        this.IsGShift2Active := false
+        this.NotifyShift(1, false)
+        this.NotifyShift(2, false)
     }
 
     static ExecuteButtonEvent(btnId, layer, isDown) {
@@ -1175,13 +1508,17 @@ class ProfileEngine {
                 Send("{Blind}{" . holdKey . " down}")
                 return
             }
-            ; Modifier + Mouse button hold support (e.g. ^{LButton}, !{RButton}, +{MButton})
-            if (RegExMatch(act.Cmd, "^([!^#]+)\{(LButton|RButton|MButton|XButton1|XButton2)\}$", &modMbMatch)) {
-                mods := modMbMatch[1]
-                mb := modMbMatch[2]
-                this.ActiveHeldButtons[btnId] := "{" . mb . " up}"
-                Send("{Blind}" . mods . "{" . mb . " down}")
-                return
+            ; Modifier + Key/Mouse button hold support (e.g. ^{LButton}, +{w}, !{Space}, ^{c}, etc.)
+            if (RegExMatch(act.Cmd, "i)^([!^#]+)\{?([A-Za-z0-9_]+)\}?$", &modKeyMatch)) {
+                mods := modKeyMatch[1]
+                k := modKeyMatch[2]
+                if (k != "WheelUp" && k != "WheelDown" && !InStr(k, "Volume_") && !InStr(k, "Media_")) {
+                    if (StrLen(k) = 1 && !InStr(mods, "+"))
+                        k := StrLower(k)
+                    this.ActiveHeldButtons[btnId] := "{" . k . " up}"
+                    Send("{Blind}" . mods . "{" . k . " down}")
+                    return
+                }
             }
             ; Combo hold support: e.g. multi-key chords ({w down}{d down}), or mouse combos ({s down}{LButton}{s up})
             if (InStr(act.Cmd, " down}")) {

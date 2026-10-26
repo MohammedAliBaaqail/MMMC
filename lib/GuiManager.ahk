@@ -249,7 +249,7 @@ class GuiManager {
 
         ; Create Main GUI (Wide Studio Layout)
         opt := this.IsAlwaysOnTop ? "+AlwaysOnTop -MaximizeBox" : "-AlwaysOnTop -MaximizeBox"
-        g := Gui(opt, "Logitech G502 X — Advanced Controller")
+        g := Gui(opt, "My Mouse My Choice — Classic Controller")
         g.BackColor := "181825"
         g.MarginX := 15
         g.MarginY := 15
@@ -259,7 +259,7 @@ class GuiManager {
 
         ; Header Row
         g.SetFont("s13 bold c89B4FA", "Segoe UI")
-        g.Add("Text", "x20 y14 w650", "LOGITECH G502 X  //  INTERACTIVE STUDIO")
+        g.Add("Text", "x20 y14 w650", "MY MOUSE MY CHOICE  //  INTERACTIVE STUDIO")
         
         g.SetFont("s9 norm cA6ADC8", "Segoe UI")
         g.Add("Text", "x20 y36 w650", "Double-click any mouse button to record a key or combination. Use the left panel for presets and custom combos.")
@@ -1658,6 +1658,66 @@ class GuiManager {
     }
 
     static NormalizeKeyName(vk, sc) {
+        ; 1. Hardware Virtual Key codes for letters A-Z (completely immune to Arabic/international layouts!)
+        if (vk >= 0x41 && vk <= 0x5A)
+            return Chr(vk)
+
+        ; 2. Digits 0-9
+        if (vk >= 0x30 && vk <= 0x39)
+            return Chr(vk)
+
+        ; 3. Numpad digits 0-9
+        if (vk >= 0x60 && vk <= 0x69)
+            return "Numpad" . (vk - 0x60)
+
+        ; 4. Function keys F1 - F24
+        if (vk >= 0x70 && vk <= 0x87)
+            return "F" . (vk - 0x6F)
+
+        ; 5. Specific virtual keys with standard English names
+        switch vk {
+            case 0x11, 0xA2, 0xA3: return "Ctrl"
+            case 0x10, 0xA0, 0xA1: return "Shift"
+            case 0x12, 0xA4, 0xA5: return "Alt"
+            case 0x5B, 0x5C:       return "Win"
+            case 0x1B:             return "Escape"
+            case 0x20:             return "Space"
+            case 0x09:             return "Tab"
+            case 0x0D:             return "Enter"
+            case 0x08:             return "Backspace"
+            case 0x2E:             return "Delete"
+            case 0x2D:             return "Insert"
+            case 0x24:             return "Home"
+            case 0x23:             return "End"
+            case 0x21:             return "PgUp"
+            case 0x22:             return "PgDn"
+            case 0x26:             return "Up"
+            case 0x28:             return "Down"
+            case 0x25:             return "Left"
+            case 0x27:             return "Right"
+            case 0x14:             return "CapsLock"
+            case 0x90:             return "NumLock"
+            case 0x91:             return "ScrollLock"
+            case 0x2C:             return "PrintScreen"
+            case 0x13:             return "Pause"
+            case 0x6A:             return "NumpadMult"
+            case 0x6B:             return "NumpadAdd"
+            case 0x6D:             return "NumpadSub"
+            case 0x6E:             return "NumpadDot"
+            case 0x6F:             return "NumpadDiv"
+            case 0xBA:             return ";"
+            case 0xBB:             return "="
+            case 0xBC:             return ","
+            case 0xBD:             return "-"
+            case 0xBE:             return "."
+            case 0xBF:             return "/"
+            case 0xC0:             return "``"
+            case 0xDB:             return "["
+            case 0xDC:             return "\"
+            case 0xDD:             return "]"
+            case 0xDE:             return "'"
+        }
+
         kName := GetKeyName(Format("vk{:02x}sc{:03x}", vk, sc))
         if (kName = "")
             return ""
@@ -1915,7 +1975,7 @@ class GuiManager {
         if (!this.RecIsRecordingMacro || this.RecorderGui = "" || !WinExist(this.RecorderGui.Hwnd))
             return
 
-        kName := GetKeyName(Format("vk{:02x}sc{:03x}", vk, sc))
+        kName := this.NormalizeKeyName(vk, sc)
         if (kName = "")
             return
 
@@ -1939,7 +1999,7 @@ class GuiManager {
         if (!this.RecIsRecordingMacro || this.RecorderGui = "" || !WinExist(this.RecorderGui.Hwnd))
             return
 
-        kName := GetKeyName(Format("vk{:02x}sc{:03x}", vk, sc))
+        kName := this.NormalizeKeyName(vk, sc)
         if (kName = "" || !this.RecMacroActiveKeys.Has(kName))
             return
 

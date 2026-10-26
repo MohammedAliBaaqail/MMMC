@@ -1,6 +1,6 @@
-# Logitech G502 X — Advanced OMM + AHK v2 Control Suite
+# My Mouse My Choice — Advanced Mouse Control Suite
 
-A lightweight, zero-bloat alternative to Logitech G-HUB combining **Logitech Onboard Memory Manager (OMM)** with **AutoHotkey v2**.
+A lightweight, zero-bloat alternative to proprietary mouse software combining onboard hardware memory with **AutoHotkey v2**.
 
 ---
 

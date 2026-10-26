@@ -1,7 +1,10 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 #MaxThreadsPerHotkey 2
+#UseHook true
 Persistent(true)
+A_MaxHotkeysPerInterval := 2000
+A_HotkeyInterval := 2000
 OnError(LogError)
 LogError(thrown, mode) {
     FileAppend("Error: " . thrown.Message . "`nFile: " . thrown.File . "`nLine: " . thrown.Line . "`n", A_ScriptDir . "\error.log")
@@ -14,8 +17,8 @@ OnScriptExit(ExitReason, ExitCode) {
 }
 
 /**
- * LOGITECH G502 X — ADVANCED AHK v2 CONTROLLER
- * Integrates Logitech Onboard Memory Manager (OMM) with AHK v2.
+ * MY MOUSE MY CHOICE — ADVANCED AHK v2 CONTROLLER
+ * Universal multi-mouse customization, profiles, and macro execution engine.
  * 
  * Hardware buttons mapped via OMM:
  * Hardware buttons mapped via OMM (Buttons 3 to 11):
@@ -36,9 +39,10 @@ OnScriptExit(ExitReason, ExitCode) {
 #Include "lib/Profiles.ahk"
 #Include "lib/GuiManager.ahk"
 #Include "lib/WebViewGuiManager.ahk"
+#Include "lib/QuickRemap.ahk"
 
 ; --- Application Initialization ---
-A_IconTip := "Logitech G502 X Studio"
+A_IconTip := "My Mouse My Choice"
 iconFile := A_ScriptDir . "\assets\app.ico"
 if FileExist(iconFile) {
     try TraySetIcon(iconFile)
@@ -57,10 +61,11 @@ WebViewGuiManager.IsAlwaysOnTop := (AlwaysOnTopPref = "1")
 GuiManager.IsAlwaysOnTop := (AlwaysOnTopPref = "1")
 
 ; Setup System Tray Menu
+ProfileEngine.OnProfilesListChanged := (*) => SetupTrayMenu()
 SetupTrayMenu()
 
 ; Display welcome OSD and Launch Modern Studio GUI
-OSD.Show("G502 X Studio Active", "Profile: " . ProfileEngine.CurrentProfile . " (OMM Connected)")
+OSD.Show("My Mouse My Choice Active", "Profile: " . ProfileEngine.CurrentProfile . " (OMM Connected)")
 WebViewGuiManager.Show()
 
 ; ========================================================
@@ -70,11 +75,13 @@ SetupTrayMenu() {
     tray := A_TrayMenu
     tray.Delete() ; Clear default items
     
-    tray.Add("Open G502 X Studio", (*) => WebViewGuiManager.Show())
+    tray.Add("Open My Mouse My Choice", (*) => WebViewGuiManager.Show())
     tray.Add("Open Classic GUI", (*) => GuiManager.Show())
     tray.Add("Always on Top", (*) => WebViewGuiManager.ToggleAlwaysOnTop())
     if (WebViewGuiManager.IsAlwaysOnTop)
         tray.Check("Always on Top")
+    tray.Add("Quick Remap Button (Ctrl+Shift+F1)", (*) => QuickRemap.Start())
+    tray.Add("New Profile for Active App (Ctrl+Shift+F2)", (*) => ProfileEngine.CreateProfileFromFocusedWindow())
     tray.Add() ; Separator
 
     ; Profile Submenu
@@ -89,7 +96,7 @@ SetupTrayMenu() {
     
     tray.Add("Reload", (*) => Reload())
     tray.Add("Exit", (*) => SaveAndExit())
-    tray.Default := "Open G502 X Studio"
+    tray.Default := "Open My Mouse My Choice"
 }
 
 SwitchProfileFromTray(p) {
@@ -103,11 +110,118 @@ SaveAndExit() {
 }
 
 ; ========================================================
+; QUICK REMAP TRIGGER HOTKEY (System-Wide)
+; Exclusively: Ctrl + Shift + F1
+; ========================================================
+^+F1::
+*^+F1::
+^+vk70::
+*^+vk70::
+^+sc03B::
+*^+sc03B::QuickRemap.Start()
+
+; ========================================================
+; QUICK CREATE PROFILE FOR FOCUSED APP (System-Wide)
+; Exclusively: Ctrl + Shift + F2
+; ========================================================
+^+F2::
+*^+F2::
+^+vk71::
+*^+vk71::
+^+sc03C::
+*^+sc03C::ProfileEngine.CreateProfileFromFocusedWindow()
+
+; ========================================================
+; QUICK REMAP — STEP 2 MOUSE BUTTON INTERCEPT
+; Captures whichever mouse button is pressed for remapping
+; ========================================================
+#HotIf QuickRemap.IsWaitingForButton()
+
+*F13::QuickRemap.OnMouseButtonEvent("Middle", true)
+*F13 Up::QuickRemap.OnMouseButtonEvent("Middle", false)
+
+*F14::QuickRemap.OnMouseButtonEvent("Back", true)
+*F14 Up::QuickRemap.OnMouseButtonEvent("Back", false)
+
+*F15::QuickRemap.OnMouseButtonEvent("DpiShift", true)
+*F15 Up::QuickRemap.OnMouseButtonEvent("DpiShift", false)
+
+*F16::QuickRemap.OnMouseButtonEvent("Forward", true)
+*F16 Up::QuickRemap.OnMouseButtonEvent("Forward", false)
+
+*F17::QuickRemap.OnMouseButtonEvent("TiltLeft", true)
+*F17 Up::QuickRemap.OnMouseButtonEvent("TiltLeft", false)
+
+*F18::QuickRemap.OnMouseButtonEvent("TiltRight", true)
+*F18 Up::QuickRemap.OnMouseButtonEvent("TiltRight", false)
+
+*F19::QuickRemap.OnMouseButtonEvent("ProfileCycle", true)
+*F19 Up::QuickRemap.OnMouseButtonEvent("ProfileCycle", false)
+
+*F20::QuickRemap.OnMouseButtonEvent("G8", true)
+*F20 Up::QuickRemap.OnMouseButtonEvent("G8", false)
+
+*F21::QuickRemap.OnMouseButtonEvent("G7", true)
+*F21 Up::QuickRemap.OnMouseButtonEvent("G7", false)
+
+*F22::QuickRemap.OnMouseButtonEvent("F22", true)
+*F22 Up::QuickRemap.OnMouseButtonEvent("F22", false)
+
+*F23::QuickRemap.OnMouseButtonEvent("F23", true)
+*F23 Up::QuickRemap.OnMouseButtonEvent("F23", false)
+
+*F24::QuickRemap.OnMouseButtonEvent("F24", true)
+*F24 Up::QuickRemap.OnMouseButtonEvent("F24", false)
+
+*WheelUp::QuickRemap.OnMouseButtonEvent("WheelUp", true)
+*WheelDown::QuickRemap.OnMouseButtonEvent("WheelDown", true)
+
+*MButton::QuickRemap.OnMouseButtonEvent("Middle", true)
+*MButton Up::QuickRemap.OnMouseButtonEvent("Middle", false)
+
+*XButton1::QuickRemap.OnMouseButtonEvent("Back", true)
+*XButton1 Up::QuickRemap.OnMouseButtonEvent("Back", false)
+
+*XButton2::QuickRemap.OnMouseButtonEvent("Forward", true)
+*XButton2 Up::QuickRemap.OnMouseButtonEvent("Forward", false)
+
+*LButton::QuickRemap.OnMouseButtonEvent("LeftClick", true)
+*LButton Up::QuickRemap.OnMouseButtonEvent("LeftClick", false)
+
+*RButton::QuickRemap.OnMouseButtonEvent("RightClick", true)
+*RButton Up::QuickRemap.OnMouseButtonEvent("RightClick", false)
+
+#HotIf
+
+; ========================================================
+; QUICK REMAP — STEP 3 MOUSE CLICKS IN COMBINATION
+; Supports injecting mouse clicks into combination (e.g. Ctrl + Left Click)
+; ========================================================
+#HotIf QuickRemap.IsWaitingForKey()
+
+*LButton::QuickRemap.OnMouseButtonInCombo("LButton")
+*RButton::QuickRemap.OnMouseButtonInCombo("RButton")
+*MButton::QuickRemap.OnMouseButtonInCombo("MButton")
+*XButton1::QuickRemap.OnMouseButtonInCombo("XButton1")
+*XButton2::QuickRemap.OnMouseButtonInCombo("XButton2")
+
+#HotIf
+
+; ========================================================
+; QUICK REMAP — CANCEL (ESCAPE)
+; ========================================================
+#HotIf QuickRemap.IsActive
+
+*Escape::QuickRemap.Cancel()
+
+#HotIf
+
+; ========================================================
 ; HARDWARE INTERCEPT HOTKEYS (F13 - F21)
 ; Synchronized 1:1 with Logitech Onboard Memory Manager
 ; Active whenever keystroke recording modal is NOT open
 ; ========================================================
-#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording()
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive
 
 ; Button 3: Middle Click (Mouse 3) -> F13
 *F13::ProfileEngine.HandleF13_Middle(true)
@@ -161,7 +275,7 @@ SaveAndExit() {
 ; SCROLL WHEEL INTERCEPT (No F-Key Required)
 ; Dispatches based on active profile & B-Shift layer
 ; ========================================================
-#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && ProfileEngine.NeedsWheelIntercept()
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && ProfileEngine.NeedsWheelIntercept()
 
 *WheelUp::ProfileEngine.DispatchWheel("Up")
 *WheelDown::ProfileEngine.DispatchWheel("Down")
@@ -173,14 +287,14 @@ SaveAndExit() {
 ; Active ONLY when B-Shift is ON and a custom mapping exists
 ; Normal layer is NEVER intercepted, guaranteeing normal clicking
 ; ========================================================
-#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && ProfileEngine.NeedsLeftClickIntercept()
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && ProfileEngine.NeedsLeftClickIntercept()
 
 *LButton::ProfileEngine.HandleLeftClick(true)
 *LButton Up::ProfileEngine.HandleLeftClick(false)
 
 #HotIf
 
-#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && ProfileEngine.NeedsRightClickIntercept()
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && ProfileEngine.NeedsRightClickIntercept()
 
 *RButton::ProfileEngine.HandleRightClick(true)
 *RButton Up::ProfileEngine.HandleRightClick(false)

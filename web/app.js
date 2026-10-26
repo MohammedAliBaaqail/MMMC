@@ -1,8 +1,14 @@
 /**
- * Logitech G502 X — Advanced Studio Frontend Controller
+ * My Mouse My Choice — Advanced Studio Frontend Controller
  * Complete bidirectional IPC, SVG leader line rendering, drag-and-drop,
  * and Button Studio modal with single/combo recording and macro sequencing.
  */
+
+// Helper to render high-quality Lucide SVG icons from the global sprite
+function getSvgIcon(name, extraClass = '') {
+    const cls = extraClass ? ` ${extraClass}` : '';
+    return `<svg class="svg-icon${cls}" viewBox="0 0 24 24"><use href="#icon-${name}"></use></svg>`;
+}
 
 // Global State
 const state = {
@@ -40,6 +46,14 @@ const state = {
     customButtonNames: {},
     renameTargetButton: null,
     customMousePresets: [],
+    customActionPresets: (function() {
+        try {
+            const raw = localStorage.getItem('obm_custom_action_presets');
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            return [];
+        }
+    })(),
     rawIni: '',
     muteWhenFocused: true,
 
@@ -195,7 +209,7 @@ function getButtonHotspotTag(btnId) {
 const CATALOG_DATA = [
     {
         name: 'Mouse Clicks & Actions',
-        icon: '🖱️',
+        icon: getSvgIcon('mouse'),
         items: [
             { name: 'Left Click', type: 'Send', cmd: '{LButton}', label: 'Left Click', badge: '' },
             { name: 'Middle Click', type: 'Send', cmd: '{MButton}', label: 'Middle Click', badge: '' },
@@ -206,7 +220,7 @@ const CATALOG_DATA = [
     },
     {
         name: 'Media & Volume',
-        icon: '🔊',
+        icon: getSvgIcon('volume-2'),
         items: [
             { name: 'Volume Up', type: 'Send', cmd: '{Volume_Up 2}', label: 'Volume Up', badge: '' },
             { name: 'Volume Down', type: 'Send', cmd: '{Volume_Down 2}', label: 'Volume Down', badge: '' },
@@ -218,7 +232,7 @@ const CATALOG_DATA = [
     },
     {
         name: 'Browser & Navigation',
-        icon: '🌐',
+        icon: getSvgIcon('globe'),
         items: [
             { name: 'Browser Back', type: 'Send', cmd: '!{Left}', label: 'Browser Back', badge: 'Alt+Left' },
             { name: 'Browser Forward', type: 'Send', cmd: '!{Right}', label: 'Browser Forward', badge: 'Alt+Right' },
@@ -232,7 +246,7 @@ const CATALOG_DATA = [
     },
     {
         name: 'Shortcuts & Editing',
-        icon: '✂️',
+        icon: getSvgIcon('scissors'),
         items: [
             { name: 'Cut', type: 'Send', cmd: '^x', label: 'Cut', badge: 'Ctrl+X' },
             { name: 'Undo', type: 'Send', cmd: '^z', label: 'Undo', badge: 'Ctrl+Z' },
@@ -246,7 +260,7 @@ const CATALOG_DATA = [
     },
     {
         name: 'Windows Management',
-        icon: '🪟',
+        icon: getSvgIcon('layout-grid'),
         items: [
             { name: 'Task View', type: 'Send', cmd: '#{Tab}', label: 'Task View', badge: 'Win+Tab' },
             { name: 'Show Desktop', type: 'Send', cmd: '#d', label: 'Show Desktop', badge: 'Win+D' },
@@ -258,10 +272,10 @@ const CATALOG_DATA = [
     },
     {
         name: 'Device & B-Shift Layers',
-        icon: '⚡',
+        icon: getSvgIcon('zap'),
         items: [
-            { name: 'B-Shift 1 Modifier', type: 'Special', cmd: 'GShift1', label: '⚡ B-Shift 1 Layer', badge: '' },
-            { name: 'B-Shift 2 Modifier', type: 'Special', cmd: 'GShift2', label: '⚡ B-Shift 2 Layer', badge: '' },
+            { name: 'B-Shift 1 Modifier', type: 'Special', cmd: 'GShift1', label: 'B-Shift 1 Layer', badge: '' },
+            { name: 'B-Shift 2 Modifier', type: 'Special', cmd: 'GShift2', label: 'B-Shift 2 Layer', badge: '' },
             { name: 'Onboard Profile Cycle', type: 'Special', cmd: 'CycleProfile', label: 'Next Profile', badge: '' },
             { name: 'Toggle Rapid-Fire', type: 'Special', cmd: 'ToggleRapidFire', label: 'Toggle Rapid Fire', badge: '' }
         ]
@@ -402,6 +416,17 @@ function handleEngineMessage(msg) {
                 state.customMousePresets = msg.customMousePresets;
             }
 
+            // Custom action presets loading
+            if (msg.customActionPresets && Array.isArray(msg.customActionPresets)) {
+                state.customActionPresets = msg.customActionPresets;
+                try {
+                    localStorage.setItem('obm_custom_action_presets', JSON.stringify(state.customActionPresets));
+                } catch (e) {}
+                if (typeof initCatalog === 'function') {
+                    initCatalog();
+                }
+            }
+
             // Custom buttons list loading
             if (msg.customButtons && Array.isArray(msg.customButtons) && msg.customButtons.length > 0) {
                 applyButtonsConfig(msg.customButtons);
@@ -481,6 +506,18 @@ function handleEngineMessage(msg) {
                 state.customMousePresets = msg.presets;
                 if (typeof renderPresetCardsGlobal === 'function') {
                     renderPresetCardsGlobal();
+                }
+            }
+            break;
+
+        case 'customActionPresetsUpdated':
+            if (msg.presets && Array.isArray(msg.presets)) {
+                state.customActionPresets = msg.presets;
+                try {
+                    localStorage.setItem('obm_custom_action_presets', JSON.stringify(state.customActionPresets));
+                } catch (e) {}
+                if (typeof initCatalog === 'function') {
+                    initCatalog();
                 }
             }
             break;
@@ -718,6 +755,13 @@ function handleEngineMessage(msg) {
             }
             break;
 
+        case 'quickRemapCompleted':
+            if (msg.btnId) {
+                const targetText = (msg.layer && msg.layer !== 'Normal') ? `${msg.layer} + ${msg.btnId}` : msg.btnId;
+                showToast('Quick Remap Live', `${targetText} assigned to ${msg.label || 'Combo'} on [${msg.profile || 'Active'}]`);
+            }
+            break;
+
         case 'singleKeyRecorded':
             if (msg.ahkCmd && msg.niceLabel) {
                 state.modal.singleAction = {
@@ -810,7 +854,7 @@ function handleEngineMessage(msg) {
                     btnApply.disabled = false;
                     btnApply.style.opacity = '1';
                     btnApply.style.cursor = 'pointer';
-                    btnApply.textContent = '📥 Apply & Restore Configuration';
+                    btnApply.innerHTML = `${getSvgIcon('download')} Apply & Restore Configuration`;
                 }
             }
             break;
@@ -889,6 +933,14 @@ function initHeaderControls() {
         });
     }
 
+    // Live Quick Remap Trigger button
+    const btnQuick = document.getElementById('btnQuickRemap');
+    if (btnQuick) {
+        btnQuick.addEventListener('click', () => {
+            sendToAhk({ action: 'startQuickRemap' });
+        });
+    }
+
     updateBShiftVisibility();
 }
 
@@ -924,12 +976,12 @@ function updateBShiftVisibility() {
     if (btnShift1) {
         btnShift1.style.display = (hasShift1 || !hasShift2) ? 'inline-flex' : 'none';
         btnShift1.innerHTML = hasShift2 
-            ? '<span class="shift-bolt yellow">⚡</span> B-SHIFT 1'
-            : '<span class="shift-bolt yellow">⚡</span> B-SHIFT';
+            ? `<span class="shift-bolt yellow">${getSvgIcon('zap', 'svg-icon-xs')}</span> B-SHIFT 1`
+            : `<span class="shift-bolt yellow">${getSvgIcon('zap', 'svg-icon-xs')}</span> B-SHIFT`;
     }
     if (btnShift2) {
         btnShift2.style.display = hasShift2 ? 'inline-flex' : 'none';
-        btnShift2.innerHTML = '<span class="shift-bolt magenta">⚡</span> B-SHIFT 2';
+        btnShift2.innerHTML = `<span class="shift-bolt magenta">${getSvgIcon('zap', 'svg-icon-xs')}</span> B-SHIFT 2`;
     }
     if (liveBadge) {
         liveBadge.style.display = hasAnyShift ? 'inline-flex' : 'none';
@@ -965,7 +1017,7 @@ function handleHardwareShiftChange(isShift, shiftName) {
         const isLayer2 = (shiftName === 'GShift2');
         if (badge) {
             badge.className = `live-shift-badge ${isLayer2 ? 'active-2' : 'active-1'}`;
-            badge.textContent = isLayer2 ? '⚡ B-SHIFT 2: ACTIVE' : '⚡ B-SHIFT 1: ACTIVE';
+            badge.innerHTML = isLayer2 ? `${getSvgIcon('zap', 'svg-icon-xs')} B-SHIFT 2: ACTIVE` : `${getSvgIcon('zap', 'svg-icon-xs')} B-SHIFT 1: ACTIVE`;
         }
         // Physical B-Shift button is held down: activate corresponding B-Shift layer visually
         switchLayerVisually(isLayer2 ? 'GShift2' : 'GShift1');
@@ -1033,10 +1085,192 @@ function formatCatalogKeyBadge(cmd) {
     return '';
 }
 
+function parseMacroSteps(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+        return raw.map(s => {
+            if (!s || typeof s !== 'object') return null;
+            return {
+                Action: s.Action || s.action || 'Down',
+                Key: s.Key || s.key || '',
+                Delay: typeof s.Delay === 'number' ? s.Delay : (typeof s.delay === 'number' ? s.delay : (parseInt(s.Delay || s.delay) || 50))
+            };
+        }).filter(s => s && s.Key);
+    }
+    if (typeof raw === 'string') {
+        raw = raw.trim();
+        if (!raw) return [];
+        if (raw.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(raw);
+                return parseMacroSteps(parsed);
+            } catch (e) {}
+        }
+        const out = [];
+        const parts = raw.split('|');
+        for (const p of parts) {
+            const trimmed = p.trim();
+            if (!trimmed) continue;
+            const items = trimmed.split(':');
+            if (items.length >= 2) {
+                out.push({
+                    Action: (items[0] === 'D' || items[0].toLowerCase() === 'down') ? 'Down' : 'Up',
+                    Key: items[1],
+                    Delay: items[2] ? (parseInt(items[2]) || 50) : 50
+                });
+            }
+        }
+        return out;
+    }
+    return [];
+}
+
 function initCatalog() {
     const container = document.getElementById('catalogSections');
+    if (!container) return;
     container.innerHTML = '';
 
+    // =========================================================================
+    // 1. CUSTOM PRESETS CATEGORY (At the top of Command Catalog)
+    // =========================================================================
+    const customPresets = state.customActionPresets || [];
+    const customGroup = document.createElement('div');
+    customGroup.className = 'cat-group custom-cat-group';
+    customGroup.id = 'catGroup_custom';
+
+    const customHeader = document.createElement('div');
+    customHeader.className = 'cat-header';
+    customHeader.innerHTML = `
+        <span class="cat-title">${getSvgIcon('star')} Custom Presets <span class="cat-count-badge">${customPresets.length}</span></span>
+        <span class="cat-arrow">${getSvgIcon('chevron-down', 'svg-icon-xs')}</span>
+    `;
+    customHeader.addEventListener('click', () => {
+        customGroup.classList.toggle('collapsed');
+    });
+
+    const customItemsWrap = document.createElement('div');
+    customItemsWrap.className = 'cat-items';
+
+    if (customPresets.length === 0) {
+        const emptyHint = document.createElement('div');
+        emptyHint.className = 'cat-empty-hint';
+        emptyHint.textContent = 'No custom presets yet. Turn on "Save to Custom Presets" when saving a macro or combination.';
+        customItemsWrap.appendChild(emptyHint);
+    } else {
+        customPresets.forEach((preset) => {
+            const item = document.createElement('div');
+            item.className = 'cmd-item custom-cmd-item';
+            item.draggable = true;
+            const pName = preset.name || preset.label || 'Custom Action';
+            const isMacro = (preset.type === 'Macro' || preset.Type === 'Macro');
+
+            item.setAttribute('data-name', pName.toLowerCase());
+            item.setAttribute('data-cmd', (preset.cmd || preset.Cmd || '').toLowerCase());
+            item.setAttribute('data-key', (isMacro ? 'macro' : pName).toLowerCase());
+
+            // For macros show MACRO pill badge. For key combinations, ONLY show white text without the redundant badge!
+            const badgeHtml = isMacro ? `<span class="cmd-item-key custom-macro-badge">MACRO</span>` : '';
+            const iconSvg = isMacro ? getSvgIcon('layers', 'svg-icon-xs') : getSvgIcon('keyboard', 'svg-icon-xs');
+
+            item.innerHTML = `
+                <span class="cmd-item-name" title="${pName}">${iconSvg} ${pName}</span>
+                <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                    ${badgeHtml}
+                    <button type="button" class="cmd-item-edit-btn" title="Edit ${isMacro ? 'Macro' : 'Combination'}">${getSvgIcon('edit-2', 'svg-icon-xs')}</button>
+                    <button type="button" class="cmd-item-del-btn" title="Delete custom preset">${getSvgIcon('trash-2', 'svg-icon-xs')}</button>
+                </div>
+            `;
+
+            const getPayload = () => {
+                const press = parseMacroSteps(preset.seqPress || preset.SeqPress);
+                const hold = parseMacroSteps(preset.seqHold || preset.SeqHold);
+                const rel = parseMacroSteps(preset.seqRelease || preset.SeqRelease);
+                const allSteps = parseMacroSteps(preset.steps || preset.Steps);
+                const finalPress = (press.length > 0) ? press : allSteps;
+                const finalSteps = (allSteps.length > 0) ? allSteps : [...finalPress, ...hold, ...rel];
+
+                return {
+                    Type: preset.type || preset.Type || (isMacro ? 'Macro' : 'Send'),
+                    Cmd: preset.cmd || preset.Cmd || (isMacro ? 'Macro' : ''),
+                    Label: pName,
+                    PlayType: preset.playType || preset.PlayType || (isMacro ? 'Sequence' : 'NoRepeat'),
+                    RepeatInterval: preset.repeatInterval || preset.RepeatInterval || 50,
+                    Steps: finalSteps,
+                    SeqPress: finalPress,
+                    SeqHold: hold,
+                    SeqRelease: rel,
+                    Color: preset.color || preset.Color || 'none'
+                };
+            };
+
+            // Drag Start
+            item.addEventListener('dragstart', (e) => {
+                const payload = getPayload();
+                e.dataTransfer.setData('application/json', JSON.stringify(payload));
+                e.dataTransfer.effectAllowed = 'copy';
+                item.style.opacity = '0.5';
+            });
+
+            item.addEventListener('dragend', () => {
+                item.style.opacity = '1';
+                clearAllDropHovers();
+            });
+
+            // Single click assigns to currently selected button
+            item.addEventListener('click', () => {
+                if (state.selectedButton) {
+                    const payload = getPayload();
+                    if (isMacro && (!payload.Steps || payload.Steps.length === 0)) {
+                        showToast('Empty Macro', 'This macro has no recorded steps to assign.');
+                        return;
+                    }
+                    applyActionToButton(state.selectedButton, payload);
+                }
+            });
+
+            // Double-click opens the Macro / Preset Editor in Button Studio
+            item.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                if (isMacro) {
+                    openMacroPresetEditor(preset);
+                } else {
+                    openSinglePresetEditor(preset);
+                }
+            });
+
+            // Edit button click
+            const editBtn = item.querySelector('.cmd-item-edit-btn');
+            if (editBtn) {
+                editBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (isMacro) {
+                        openMacroPresetEditor(preset);
+                    } else {
+                        openSinglePresetEditor(preset);
+                    }
+                });
+            }
+
+            // Delete preset button
+            const delBtn = item.querySelector('.cmd-item-del-btn');
+            if (delBtn) {
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteCustomActionPreset(preset.id || preset.name);
+                });
+            }
+
+            customItemsWrap.appendChild(item);
+        });
+    }
+
+    customGroup.appendChild(customHeader);
+    customGroup.appendChild(customItemsWrap);
+    container.appendChild(customGroup);
+
+    // =========================================================================
+    // 2. BUILT-IN COMMAND CATALOG CATEGORIES
+    // =========================================================================
     CATALOG_DATA.forEach((cat, idx) => {
         const group = document.createElement('div');
         group.className = 'cat-group';
@@ -1046,7 +1280,7 @@ function initCatalog() {
         header.className = 'cat-header';
         header.innerHTML = `
             <span class="cat-title">${cat.icon} ${cat.name}</span>
-            <span class="cat-arrow">▼</span>
+            <span class="cat-arrow">${getSvgIcon('chevron-down', 'svg-icon-xs')}</span>
         `;
         header.addEventListener('click', () => {
             group.classList.toggle('collapsed');
@@ -1456,7 +1690,7 @@ function refreshCardsAndStage() {
                     card.classList.add('primary-locked');
                     card.classList.remove('bshift-editable');
                 }
-                if (badgeEl) badgeEl.textContent = `${baseTag} 🔒`;
+                if (badgeEl) badgeEl.innerHTML = `${baseTag} ${getSvgIcon('lock', 'svg-icon-xs')}`;
                 actionEl.textContent = (btnId === 'LeftClick' ? 'Standard Left Click' : 'Standard Right Click');
                 continue;
             } else {
@@ -1465,7 +1699,7 @@ function refreshCardsAndStage() {
                     card.classList.add('bshift-editable');
                 }
                 const shiftNum = (state.currentLayer === 'GShift2') ? '2' : '1';
-                if (badgeEl) badgeEl.textContent = `${baseTag} ⚡${shiftNum}`;
+                if (badgeEl) badgeEl.innerHTML = `${baseTag} ${getSvgIcon('zap', 'svg-icon-xs')}${shiftNum}`;
             }
         } else {
             if (badgeEl) {
@@ -1480,7 +1714,7 @@ function refreshCardsAndStage() {
         const isShift2Mod = normAction && (normAction.Cmd === 'gshift2' || (normAction.Type === 'Special' && (normAction.Cmd || '').toLowerCase().includes('shift2')));
 
         if (isShift1Mod && (state.currentLayer === 'GShift1' || state.currentLayer === 'GShift')) {
-            actionEl.textContent = '⚡ B-Shift 1 (Active)';
+            actionEl.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} B-Shift 1 (Active)`;
             if (card) {
                 card.classList.add('is-shift-btn', 'is-shift1-btn', 'modifier-trigger');
                 card.classList.remove('is-shift2-btn');
@@ -1489,7 +1723,7 @@ function refreshCardsAndStage() {
         }
 
         if (isShift2Mod && state.currentLayer === 'GShift2') {
-            actionEl.textContent = '⚡ B-Shift 2 (Active)';
+            actionEl.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} B-Shift 2 (Active)`;
             if (card) {
                 card.classList.add('is-shift-btn', 'is-shift2-btn', 'modifier-trigger');
                 card.classList.remove('is-shift1-btn');
@@ -1499,18 +1733,28 @@ function refreshCardsAndStage() {
 
         const action = getButtonAction(btnId);
         if (action) {
-            actionEl.textContent = action.Label || action.Cmd || 'Unassigned';
-            
-            // Highlight special B-Shift buttons
-            if (card) {
-                const cmd = (action.Cmd || '').toLowerCase();
-                if (action.Type === 'Special' && (cmd === 'gshift' || cmd === 'gshift1' || cmd.includes('shift1'))) {
+            let cleanActionLabel = action.Label || action.Cmd || 'Unassigned';
+            if (typeof cleanActionLabel === 'string') {
+                cleanActionLabel = cleanActionLabel.replace(/<svg[^>]*>.*?<\/svg>/gi, '').trim();
+            }
+
+            // Check special B-Shift buttons
+            const cmd = (action.Cmd || '').toLowerCase();
+            if (action.Type === 'Special' && (cmd === 'gshift' || cmd === 'gshift1' || cmd.includes('shift1') || cleanActionLabel.toLowerCase().includes('b-shift 1'))) {
+                actionEl.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} B-Shift 1 Layer`;
+                if (card) {
                     card.classList.add('is-shift-btn', 'is-shift1-btn');
                     card.classList.remove('is-shift2-btn', 'modifier-trigger');
-                } else if (action.Type === 'Special' && (cmd === 'gshift2' || cmd.includes('shift2'))) {
+                }
+            } else if (action.Type === 'Special' && (cmd === 'gshift2' || cmd.includes('shift2') || cleanActionLabel.toLowerCase().includes('b-shift 2'))) {
+                actionEl.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} B-Shift 2 Layer`;
+                if (card) {
                     card.classList.add('is-shift-btn', 'is-shift2-btn');
                     card.classList.remove('is-shift1-btn', 'modifier-trigger');
-                } else {
+                }
+            } else {
+                actionEl.textContent = cleanActionLabel;
+                if (card) {
                     card.classList.remove('is-shift-btn', 'is-shift1-btn', 'is-shift2-btn', 'modifier-trigger');
                 }
             }
@@ -1837,6 +2081,11 @@ function initModalControls() {
         state.modal.activeTab = 'single';
         const studioModalEl = document.getElementById('studioModal');
         if (studioModalEl) studioModalEl.classList.remove('macro-active');
+
+        const wrapSingle = document.getElementById('singlePresetToggleWrap');
+        const wrapMacro = document.getElementById('macroPresetToggleWrap');
+        if (wrapSingle) wrapSingle.style.display = 'inline-flex';
+        if (wrapMacro) wrapMacro.style.display = 'none';
     });
 
     tabMacro.addEventListener('click', () => {
@@ -1848,6 +2097,18 @@ function initModalControls() {
         state.modal.activeTab = 'macro';
         const studioModalEl = document.getElementById('studioModal');
         if (studioModalEl) studioModalEl.classList.add('macro-active');
+
+        const wrapSingle = document.getElementById('singlePresetToggleWrap');
+        const wrapMacro = document.getElementById('macroPresetToggleWrap');
+        if (wrapSingle) wrapSingle.style.display = 'none';
+        if (wrapMacro) wrapMacro.style.display = 'inline-flex';
+
+        // When switching to macro tab, ensure preset toggle is ON by default
+        const swMacro = document.getElementById('macroSavePresetSwitch');
+        if (!state.modal.isExistingMacro && swMacro) {
+            swMacro.checked = true;
+        }
+
         renderMacroSteps();
     });
 
@@ -1883,15 +2144,16 @@ function initModalControls() {
         }
 
         const layerTarget = hasShift1 ? 'GShift2' : 'GShift1';
+        const cleanLabel = (layerTarget === 'GShift2') ? 'B-Shift 2 Layer' : 'B-Shift 1 Layer';
         state.modal.singleAction = {
             Type: 'Special',
             Cmd: layerTarget,
-            Label: (layerTarget === 'GShift2') ? '⚡ B-Shift 2 Layer' : '⚡ B-Shift 1 Layer',
+            Label: cleanLabel,
             PlayType: 'NoRepeat',
             RepeatInterval: 50
         };
         updateSinglePreview();
-        showToast('B-Shift Assigned', `Button mapped to ${state.modal.singleAction.Label}`);
+        showToast('B-Shift Assigned', `Button mapped to ${cleanLabel}`);
     });
 
     // Tab 1: Mouse button injections
@@ -1960,10 +2222,14 @@ function openButtonStudio(btnId) {
     };
 
     // Deep copy into modal state
+    let initLabel = currentAction.Label || currentAction.Cmd || 'Unassigned';
+    if (typeof initLabel === 'string') {
+        initLabel = initLabel.replace(/<svg[^>]*>.*?<\/svg>/gi, '').trim();
+    }
     state.modal.singleAction = {
         Type: currentAction.Type || 'Send',
         Cmd: currentAction.Cmd || '',
-        Label: currentAction.Label || currentAction.Cmd || 'Unassigned',
+        Label: initLabel,
         PlayType: currentAction.PlayType || 'NoRepeat',
         RepeatInterval: currentAction.RepeatInterval || 50
     };
@@ -1977,15 +2243,22 @@ function openButtonStudio(btnId) {
     updateSinglePreview();
 
     // Populate Tab 2 Macro steps & G HUB controls
+    const rawSteps = parseMacroSteps(currentAction.Steps || currentAction.steps);
+    const seqPress = parseMacroSteps(currentAction.SeqPress || currentAction.seqPress);
+    const seqHold = parseMacroSteps(currentAction.SeqHold || currentAction.seqHold);
+    const seqRelease = parseMacroSteps(currentAction.SeqRelease || currentAction.seqRelease);
+
+    const pressSteps = (seqPress && seqPress.length > 0) ? seqPress : ((rawSteps && rawSteps.length > 0) ? rawSteps : []);
+
     state.modal.macroSteps = {
-        press: currentAction.SeqPress ? [...currentAction.SeqPress] : (currentAction.Steps ? [...currentAction.Steps] : []),
-        hold: currentAction.SeqHold ? [...currentAction.SeqHold] : [],
-        release: currentAction.SeqRelease ? [...currentAction.SeqRelease] : []
+        press: JSON.parse(JSON.stringify(pressSteps)),
+        hold: (seqHold && seqHold.length > 0) ? JSON.parse(JSON.stringify(seqHold)) : [],
+        release: (seqRelease && seqRelease.length > 0) ? JSON.parse(JSON.stringify(seqRelease)) : []
     };
-    state.modal.macroType = currentAction.PlayType || 'Sequence';
-    state.modal.macroDefDelay = (currentAction.Steps && currentAction.Steps[0]?.Delay) || 50;
+    state.modal.macroType = currentAction.PlayType || currentAction.playType || 'Sequence';
+    state.modal.macroDefDelay = (pressSteps[0]?.Delay) || 50;
     state.modal.macroRepeatDelay = (currentAction.RepeatInterval && currentAction.RepeatInterval > 0) ? currentAction.RepeatInterval : 50;
-    state.modal.macroColor = currentAction.Color || 'none';
+    state.modal.macroColor = currentAction.Color || currentAction.color || 'none';
 
     const defMacroName = (currentAction.Type === 'Macro' && currentAction.Label)
         ? currentAction.Label
@@ -2005,8 +2278,20 @@ function openButtonStudio(btnId) {
     if (chkAutoAdapt) chkAutoAdapt.checked = !!state.modal.autoAdaptDirection;
     renderMacroSteps();
 
+    const isExistingMacro = (currentAction.Type === 'Macro');
+    state.modal.isExistingMacro = isExistingMacro;
+
+    // Preset toggles (bottom switch):
+    // Single combination toggle is OFF by default
+    const swSingle = document.getElementById('singleSavePresetSwitch');
+    if (swSingle) swSingle.checked = false;
+
+    // Macro toggle is ON by default
+    const swMacro = document.getElementById('macroSavePresetSwitch');
+    if (swMacro) swMacro.checked = true;
+
     // If existing action was a macro, activate Tab 2, otherwise Tab 1
-    if (currentAction.Type === 'Macro') {
+    if (isExistingMacro) {
         document.getElementById('tabBtnMacro').click();
     } else {
         document.getElementById('tabBtnSingle').click();
@@ -2033,6 +2318,121 @@ function closeButtonStudio() {
     }
     const popover = document.getElementById('ghubActionPopover');
     if (popover) popover.style.display = 'none';
+    state.modal.editingPresetId = null;
+    state.modal.editingPresetOriginalName = null;
+}
+
+// Open Macro Preset Editor in Button Studio (Tab 2)
+function openMacroPresetEditor(preset) {
+    if (!preset) return;
+
+    state.modal.buttonId = null; // Decoupled from selected button: edits library preset only
+    state.modal.editingPresetId = preset.id || preset.name;
+    state.modal.editingPresetOriginalName = preset.name || preset.label || 'Macro';
+
+    const modal = document.getElementById('studioModal');
+    if (modal) {
+        modal.classList.add('open');
+        modal.classList.add('macro-active');
+    }
+
+    const titleEl = document.getElementById('modalTargetTitle');
+    if (titleEl) titleEl.textContent = `MACRO STUDIO — EDIT: ${(preset.name || preset.label || 'MACRO').toUpperCase()}`;
+    const metaEl = document.getElementById('modalTargetMeta');
+    if (metaEl) metaEl.textContent = `Custom Presets Library • Sequence & Actions Editor`;
+
+    const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
+    if (btnAssignShift) btnAssignShift.style.display = 'none';
+
+    // Populate Tab 2 Macro steps & G HUB controls safely
+    const rawSteps = parseMacroSteps(preset.steps || preset.Steps);
+    const seqPress = parseMacroSteps(preset.seqPress || preset.SeqPress);
+    const seqHold = parseMacroSteps(preset.seqHold || preset.SeqHold);
+    const seqRelease = parseMacroSteps(preset.seqRelease || preset.SeqRelease);
+
+    const pressSteps = (seqPress && seqPress.length > 0) ? seqPress : ((rawSteps && rawSteps.length > 0) ? rawSteps : []);
+
+    state.modal.macroSteps = {
+        press: JSON.parse(JSON.stringify(pressSteps)),
+        hold: (seqHold && seqHold.length > 0) ? JSON.parse(JSON.stringify(seqHold)) : [],
+        release: (seqRelease && seqRelease.length > 0) ? JSON.parse(JSON.stringify(seqRelease)) : []
+    };
+    state.modal.macroType = preset.playType || preset.PlayType || 'Sequence';
+    state.modal.macroDefDelay = (pressSteps[0]?.Delay) || 50;
+    state.modal.macroRepeatDelay = (preset.repeatInterval && preset.repeatInterval > 0) ? preset.repeatInterval : (preset.RepeatInterval && preset.RepeatInterval > 0 ? preset.RepeatInterval : 50);
+    state.modal.macroColor = preset.color || preset.Color || 'none';
+
+    const defMacroName = preset.name || preset.label || 'Custom Macro';
+    state.modal.macroName = defMacroName;
+    const nameInput = document.getElementById('macroNameInput');
+    if (nameInput) nameInput.value = defMacroName;
+
+    const delayInput = document.getElementById('macroDefDelay');
+    if (delayInput) delayInput.value = state.modal.macroDefDelay;
+    const delayBadge = document.getElementById('ghubDelayPill');
+    if (delayBadge) delayBadge.textContent = `${state.modal.macroDefDelay} ms`;
+
+    setGhubRepeatDelay(state.modal.macroRepeatDelay);
+    setGhubMacroType(state.modal.macroType);
+    renderMacroSteps();
+
+    // Ensure bottom preset switch is ON
+    const swMacro = document.getElementById('macroSavePresetSwitch');
+    if (swMacro) swMacro.checked = true;
+
+    state.modal.isExistingMacro = true;
+    state.modal.activeTab = 'macro';
+
+    const tabBtnMacro = document.getElementById('tabBtnMacro');
+    if (tabBtnMacro) tabBtnMacro.click();
+
+    showToast('Editing Macro', `Loaded "${defMacroName}" into Macro Sequencer`);
+}
+
+// Open Key Combination Preset Editor in Button Studio (Tab 1)
+function openSinglePresetEditor(preset) {
+    if (!preset) return;
+
+    state.modal.buttonId = null; // Decoupled from selected button: edits library preset only
+    state.modal.editingPresetId = preset.id || preset.name;
+    state.modal.editingPresetOriginalName = preset.name || preset.label || 'Combo';
+
+    const modal = document.getElementById('studioModal');
+    if (modal) {
+        modal.classList.add('open');
+        modal.classList.remove('macro-active');
+    }
+
+    const titleEl = document.getElementById('modalTargetTitle');
+    if (titleEl) titleEl.textContent = `KEY COMBINATION — EDIT: ${(preset.name || preset.label || 'COMBO').toUpperCase()}`;
+    const metaEl = document.getElementById('modalTargetMeta');
+    if (metaEl) metaEl.textContent = `Custom Presets Library • Keystroke Combination`;
+
+    const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
+    if (btnAssignShift) btnAssignShift.style.display = 'none';
+
+    state.modal.singleAction = {
+        Type: preset.type || preset.Type || 'Send',
+        Cmd: preset.cmd || preset.Cmd || '',
+        Label: preset.label || preset.name || 'Combo',
+        PlayType: preset.playType || preset.PlayType || 'NoRepeat',
+        RepeatInterval: preset.repeatInterval || preset.RepeatInterval || 50
+    };
+
+    setSinglePlaybackMode(state.modal.singleAction.PlayType);
+    setSingleRepeatDelay(state.modal.singleAction.RepeatInterval || 50);
+    updateSinglePreview();
+
+    const swSingle = document.getElementById('singleSavePresetSwitch');
+    if (swSingle) swSingle.checked = true;
+
+    state.modal.isExistingMacro = false;
+    state.modal.activeTab = 'single';
+
+    const tabBtnSingle = document.getElementById('tabBtnSingle');
+    if (tabBtnSingle) tabBtnSingle.click();
+
+    showToast('Editing Combination', `Loaded "${preset.name || preset.label}" in Button Studio`);
 }
 
 function updateModeExplanation(mode, elementId) {
@@ -2088,7 +2488,7 @@ function startRecordSingleKey() {
     const btn = document.getElementById('btnRecordKeyToggle');
     if (btn) {
         btn.classList.add('recording');
-        document.getElementById('recordKeyBtnText').textContent = '⏹ Stop Recording';
+        document.getElementById('recordKeyBtnText').innerHTML = `${getSvgIcon('square', 'svg-icon-xs')} Stop Recording`;
     }
     const box = document.getElementById('singlePreviewBox');
     if (box) box.classList.add('recording');
@@ -2103,7 +2503,7 @@ function stopRecordSingleKey(notifyAhk = true) {
     const btn = document.getElementById('btnRecordKeyToggle');
     if (btn) {
         btn.classList.remove('recording');
-        document.getElementById('recordKeyBtnText').textContent = '● Record Key';
+        document.getElementById('recordKeyBtnText').innerHTML = `${getSvgIcon('circle', 'svg-icon-xs')} Record Key`;
     }
     const box = document.getElementById('singlePreviewBox');
     if (box) box.classList.remove('recording');
@@ -2119,10 +2519,28 @@ function updateSinglePreview() {
 
     const act = state.modal.singleAction;
     if (!act || !act.Label || act.Label === 'Unassigned') {
-        txt.textContent = '[ None / Empty ]';
-    } else {
-        txt.textContent = act.Label;
+        txt.innerHTML = '<span style="color:var(--text-muted); font-weight:normal;">[ Press Any Key or Click Mouse Button Below ]</span>';
+        return;
     }
+
+    let cleanLabel = act.Label;
+    if (typeof cleanLabel === 'string') {
+        cleanLabel = cleanLabel.replace(/<svg[^>]*>.*?<\/svg>/gi, '').trim();
+    }
+    if (!cleanLabel) cleanLabel = act.Cmd || 'Unassigned';
+
+    const cmd = (act.Cmd || '').toLowerCase();
+    const isShift = (act.Type === 'Special' && (cmd === 'gshift' || cmd === 'gshift1' || cmd === 'gshift2' || cleanLabel.toLowerCase().includes('b-shift')));
+    
+    if (isShift) {
+        const isShift2 = (cmd === 'gshift2' || cleanLabel.includes('2'));
+        const shiftNum = isShift2 ? '2' : '1';
+        const boltColor = isShift2 ? 'magenta' : 'yellow';
+        txt.innerHTML = `<span class="bshift-preview-badge shift${shiftNum}"><span class="shift-bolt ${boltColor}">${getSvgIcon('zap', 'svg-icon-xs')}</span> B-Shift ${shiftNum} Layer</span>`;
+        return;
+    }
+
+    txt.textContent = cleanLabel;
 }
 
 // Tab 1 Playback Mode & Delay Controls (Matches Logitech G HUB Macro section)
@@ -3015,7 +3433,7 @@ function renderMacroSteps() {
                     block.setAttribute('title', 'Click to edit delay duration, or drag to reorder');
                 } else {
                     block.classList.add(isUp ? 'is-up' : 'is-down');
-                    const actLabel = isUp ? 'KEY UP ▲' : 'KEY DOWN ▼';
+                    const actLabel = isUp ? 'KEY UP' : 'KEY DOWN';
                     block.setAttribute('title', `${formatKeyNice(step.Key)}: ${actLabel}\nSingle-click to toggle Down/Up • Drag to reorder`);
                 }
 
@@ -3090,9 +3508,9 @@ function renderMacroSteps() {
                 let arrowDownHtml = '';
                 if (state.modal.showUpDown) {
                     if (isUp) {
-                        arrowUpHtml = '<span class="ghub-arrow up">▲</span>';
+                        arrowUpHtml = `<span class="ghub-arrow up">${getSvgIcon('arrow-up', 'svg-icon-xs')}</span>`;
                     } else {
-                        arrowDownHtml = '<span class="ghub-arrow down">▼</span>';
+                        arrowDownHtml = `<span class="ghub-arrow down">${getSvgIcon('arrow-down', 'svg-icon-xs')}</span>`;
                     }
                 }
 
@@ -3101,7 +3519,7 @@ function renderMacroSteps() {
                 if (isMouseKey(step.Key)) {
                     bodyHtml = renderGhubMouseSvg(step.Key);
                 } else if (step.Action === 'Delay') {
-                    bodyHtml = `<div class="ghub-keycap delay-key">⏱ ${step.Delay}ms</div>`;
+                    bodyHtml = `<div class="ghub-keycap delay-key">${getSvgIcon('timer', 'svg-icon-xs')} ${step.Delay}ms</div>`;
                 } else {
                     const isMod = isModifierKey(step.Key);
                     let label = formatKeyNice(step.Key);
@@ -3118,7 +3536,7 @@ function renderMacroSteps() {
                     ${arrowUpHtml}
                     ${bodyHtml}
                     ${arrowDownHtml}
-                    <button type="button" class="ghub-step-del-btn" data-section="${secKey}" data-index="${sIdx}" title="Delete step">✕</button>
+                    <button type="button" class="ghub-step-del-btn" data-section="${secKey}" data-index="${sIdx}" title="Delete step">${getSvgIcon('x', 'svg-icon-xs')}</button>
                 `;
 
                 track.appendChild(block);
@@ -3370,22 +3788,118 @@ function formatKeyNice(key) {
 // ============================================================================
 function saveModalAction() {
     let actionObj;
+    let shouldSaveToPreset = false;
+
     if (state.modal.activeTab === 'single') {
         const playType = state.modal.singleAction?.PlayType || document.getElementById('singlePlaybackMode')?.value || 'NoRepeat';
         const repeatInterval = state.modal.singleAction?.RepeatInterval || parseInt(document.getElementById('singleRepeatDelay')?.value) || 50;
+        let cleanLbl = state.modal.singleAction?.Label || state.modal.singleAction?.Cmd || 'Unassigned';
+        if (typeof cleanLbl === 'string') {
+            cleanLbl = cleanLbl.replace(/<svg[^>]*>.*?<\/svg>/gi, '').trim();
+        }
         actionObj = {
             Type: state.modal.singleAction?.Type || 'Send',
             Cmd: state.modal.singleAction?.Cmd || '',
-            Label: state.modal.singleAction?.Label || state.modal.singleAction?.Cmd || 'Unassigned',
+            Label: cleanLbl,
             PlayType: playType,
             RepeatInterval: repeatInterval
         };
+        shouldSaveToPreset = !!document.getElementById('singleSavePresetSwitch')?.checked;
     } else {
         actionObj = compileMacroAction();
+        shouldSaveToPreset = !!document.getElementById('macroSavePresetSwitch')?.checked;
     }
 
-    applyActionToButton(state.modal.buttonId, actionObj);
+    if (state.modal.buttonId) {
+        applyActionToButton(state.modal.buttonId, actionObj);
+    }
+
+    if (shouldSaveToPreset && actionObj && actionObj.Label && actionObj.Label !== 'Unassigned' && actionObj.Type !== 'Default') {
+        saveActionAsCustomPreset(actionObj);
+    }
+
     closeButtonStudio();
+}
+
+function saveActionAsCustomPreset(actionObj) {
+    if (!actionObj) return;
+
+    const pName = actionObj.Label || actionObj.name || (actionObj.Type === 'Macro' ? 'Custom Macro' : 'Custom Combo');
+    const pId = state.modal.editingPresetId || ('preset_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
+
+    const press = parseMacroSteps(actionObj.SeqPress || actionObj.seqPress);
+    const hold = parseMacroSteps(actionObj.SeqHold || actionObj.seqHold);
+    const rel = parseMacroSteps(actionObj.SeqRelease || actionObj.seqRelease);
+    const allSteps = parseMacroSteps(actionObj.Steps || actionObj.steps);
+    const finalPress = (press.length > 0) ? press : allSteps;
+    const finalSteps = (allSteps.length > 0) ? allSteps : [...finalPress, ...hold, ...rel];
+
+    const presetCopy = {
+        id: pId,
+        name: pName,
+        label: pName,
+        type: actionObj.Type || actionObj.type || 'Send',
+        cmd: actionObj.Cmd || actionObj.cmd || '',
+        playType: actionObj.PlayType || actionObj.playType || 'NoRepeat',
+        repeatInterval: actionObj.RepeatInterval || actionObj.repeatInterval || 50,
+        steps: finalSteps,
+        seqPress: finalPress,
+        seqHold: hold,
+        seqRelease: rel,
+        Steps: finalSteps,
+        SeqPress: finalPress,
+        SeqHold: hold,
+        SeqRelease: rel,
+        color: actionObj.Color || actionObj.color || 'none'
+    };
+
+    if (!Array.isArray(state.customActionPresets)) {
+        state.customActionPresets = [];
+    }
+
+    // Match existing preset by editingPresetId, original name, or current name
+    let existingIdx = -1;
+    if (state.modal.editingPresetId) {
+        existingIdx = state.customActionPresets.findIndex(p => p.id === state.modal.editingPresetId || p.name === state.modal.editingPresetOriginalName);
+    }
+    if (existingIdx < 0) {
+        existingIdx = state.customActionPresets.findIndex(p => p.name === pName);
+    }
+
+    if (existingIdx >= 0) {
+        presetCopy.id = state.modal.editingPresetId || state.customActionPresets[existingIdx].id || pId;
+        state.customActionPresets[existingIdx] = presetCopy;
+    } else {
+        state.customActionPresets.unshift(presetCopy);
+    }
+
+    try {
+        localStorage.setItem('obm_custom_action_presets', JSON.stringify(state.customActionPresets));
+    } catch (e) {}
+
+    sendToAhk({
+        action: 'saveCustomActionPreset',
+        preset: presetCopy
+    });
+
+    initCatalog();
+    showToast('Preset Saved', `"${pName}" saved in Custom Presets`);
+}
+
+function deleteCustomActionPreset(presetId) {
+    state.customActionPresets = (state.customActionPresets || []).filter(p => p.id !== presetId && p.name !== presetId);
+
+    try {
+        localStorage.setItem('obm_custom_action_presets', JSON.stringify(state.customActionPresets));
+    } catch (e) {}
+
+    sendToAhk({
+        action: 'deleteCustomActionPreset',
+        id: presetId
+    });
+
+    initCatalog();
+    showToast('Preset Removed', 'Custom preset removed from catalog');
 }
 
 function applyActionToButton(btnId, actionObj) {
@@ -3533,7 +4047,7 @@ function toggleCalibrationMode(forceState) {
         if (panel) panel.style.display = 'block';
         if (btnToggle) {
             btnToggle.classList.add('active');
-            btnToggle.textContent = '✕ Exit Calibration';
+            btnToggle.innerHTML = `${getSvgIcon('x')} Exit Calibration`;
         }
         if (svg) svg.classList.add('calibrating');
         renderCalibPills();
@@ -3543,7 +4057,7 @@ function toggleCalibrationMode(forceState) {
         if (panel) panel.style.display = 'none';
         if (btnToggle) {
             btnToggle.classList.remove('active');
-            btnToggle.textContent = '🎯 Calibrate Pointers';
+            btnToggle.innerHTML = `${getSvgIcon('crosshair')} Calibrate Pointers`;
         }
         if (svg) svg.classList.remove('calibrating');
         document.querySelectorAll('.btn-card').forEach(c => c.classList.remove('calib-selected', 'calib-dragging'));
@@ -3952,11 +4466,11 @@ function updateAutoSwitchUI() {
     if (lockBtn) {
         if (state.lockedProfile) {
             lockBtn.classList.add('locked');
-            lockBtn.textContent = '🔒';
+            lockBtn.innerHTML = getSvgIcon('lock');
             lockBtn.title = `Profile Locked to ${state.lockedProfile} (Click to unlock)`;
         } else {
             lockBtn.classList.remove('locked');
-            lockBtn.textContent = '🔓';
+            lockBtn.innerHTML = getSvgIcon('unlock');
             lockBtn.title = 'Profile Unlocked (Click to lock to current profile)';
         }
     }
@@ -4072,10 +4586,10 @@ function openProfileContextMenu(e, prof) {
 
     // Update Lock item state
     if (state.lockedProfile === prof.name) {
-        if (ctxLockIcon) ctxLockIcon.textContent = '🔓';
+        if (ctxLockIcon) ctxLockIcon.innerHTML = getSvgIcon('unlock');
         if (ctxLockText) ctxLockText.textContent = 'Unlock Profile';
     } else {
-        if (ctxLockIcon) ctxLockIcon.textContent = '🔒';
+        if (ctxLockIcon) ctxLockIcon.innerHTML = getSvgIcon('lock');
         if (ctxLockText) ctxLockText.textContent = `Lock to ${prof.name}`;
     }
 
@@ -4461,9 +4975,9 @@ function updateAppIconPresetPreview(procOrName) {
     if (!previewEl) return;
     const clean = procOrName ? procOrName.replace(/\.exe$/i, '').trim() : '';
     if (clean) {
-        previewEl.innerHTML = `<img src="icons/${encodeURIComponent(clean)}.png" style="width:22px; height:22px; border-radius:4px; object-fit:contain;" onerror="this.outerHTML='⚡';" />`;
+        previewEl.innerHTML = `<img src="icons/${encodeURIComponent(clean)}.png" style="width:22px; height:22px; border-radius:4px; object-fit:contain;" onerror="this.outerHTML='<svg class=\\'svg-icon\\'><use href=\\'#icon-zap\\'></use></svg>';" />`;
     } else {
-        previewEl.textContent = '⚡';
+        previewEl.innerHTML = getSvgIcon('zap');
     }
 }
 
@@ -4482,6 +4996,7 @@ function openProfileModal(mode, profData) {
     const filterInput = document.getElementById('runningAppsFilter');
     const hoverGroup = document.getElementById('profHoverGroup');
     const inputHover = document.getElementById('profInputHoverSwitch');
+    const inputOsdIconOnly = document.getElementById('profInputOsdIconOnly');
 
     if (filterInput) filterInput.value = '';
 
@@ -4501,6 +5016,7 @@ function openProfileModal(mode, profData) {
         if (profExeGroup) profExeGroup.style.opacity = '1';
         if (hoverGroup) hoverGroup.style.display = 'block';
         if (inputHover) inputHover.checked = false;
+        if (inputOsdIconOnly) inputOsdIconOnly.checked = false;
         if (appPickActions) appPickActions.style.display = 'flex';
         if (defaultNotice) defaultNotice.style.display = 'none';
         if (lockedBanner) lockedBanner.style.display = 'none';
@@ -4526,6 +5042,7 @@ function openProfileModal(mode, profData) {
             if (profExeGroup) profExeGroup.style.opacity = '0.5';
             if (hoverGroup) hoverGroup.style.display = 'block';
             if (inputHover) inputHover.checked = (profData && profData.switchOnHover) ? true : false;
+            if (inputOsdIconOnly) inputOsdIconOnly.checked = (profData && profData.osdIconOnly) ? true : false;
             const hoverDesc = document.getElementById('profHoverDesc');
             if (hoverDesc) hoverDesc.textContent = 'Instantly activate Default profile when cursor hovers over Desktop or unassigned windows';
             if (appPickActions) appPickActions.style.display = 'none';
@@ -4542,6 +5059,7 @@ function openProfileModal(mode, profData) {
             if (profExeGroup) profExeGroup.style.opacity = '1';
             if (hoverGroup) hoverGroup.style.display = 'block';
             if (inputHover) inputHover.checked = (profData && profData.switchOnHover) ? true : false;
+            if (inputOsdIconOnly) inputOsdIconOnly.checked = (profData && profData.osdIconOnly) ? true : false;
             const hoverDesc = document.getElementById('profHoverDesc');
             if (hoverDesc) hoverDesc.textContent = 'Instantly activate this profile when cursor hovers over the app window (no click or focus needed)';
             if (appPickActions) appPickActions.style.display = 'flex';
@@ -4611,6 +5129,7 @@ function saveProfileModal() {
     const inputName = document.getElementById('profInputName');
     const inputExe = document.getElementById('profInputExe');
     const inputHover = document.getElementById('profInputHoverSwitch');
+    const inputOsdIconOnly = document.getElementById('profInputOsdIconOnly');
     const name = inputName ? inputName.value.trim() : '';
     const icon = state.selectedIconPreset || 'auto';
 
@@ -4624,6 +5143,7 @@ function saveProfileModal() {
     // Default Desktop profile can never have an executable assigned
     const exe = isDefault ? '' : (inputExe ? inputExe.value.trim() : '');
     const switchOnHover = inputHover ? inputHover.checked : false;
+    const osdIconOnly = inputOsdIconOnly ? inputOsdIconOnly.checked : false;
 
     if (state.profileModalMode === 'create') {
         if (state.profiles.some(p => p.name.toLowerCase() === name.toLowerCase())) {
@@ -4636,7 +5156,8 @@ function saveProfileModal() {
             name: name,
             targetExe: exe,
             icon: icon,
-            switchOnHover: switchOnHover
+            switchOnHover: switchOnHover,
+            osdIconOnly: osdIconOnly
         });
         showToast('Creating Profile', `Setting up ${name}...`);
     } else {
@@ -4645,7 +5166,8 @@ function saveProfileModal() {
             name: name,
             targetExe: exe,
             icon: icon,
-            switchOnHover: switchOnHover
+            switchOnHover: switchOnHover,
+            osdIconOnly: osdIconOnly
         });
         showToast('Saving Profile', `Updated configuration for ${name}`);
     }
@@ -4701,7 +5223,7 @@ function renderRunningAppsPicker(apps) {
             <div class="app-card-details">
                 <div class="app-card-header-row">
                     <span class="app-card-title">${escapeHtml(app.title)}</span>
-                    <span class="app-card-badge">✔ Assigned</span>
+                    <span class="app-card-badge">${getSvgIcon('check', 'svg-icon-xs')} Assigned</span>
                 </div>
                 <span class="app-card-exe">${escapeHtml(app.process)}</span>
             </div>
@@ -5033,7 +5555,7 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
         item.className = `ctx-sub-item ${isCurrent ? 'current-fkey' : ''}`;
         item.innerHTML = `
             <span class="fkey-tag">${fKey}</span>
-            <span class="fkey-assigned-btn">${isCurrent ? '✓ Current' : (assignedName ? `(${assignedName})` : '<span style="color:var(--text-muted); font-size:10px;">Available</span>')}</span>
+            <span class="fkey-assigned-btn">${isCurrent ? `${getSvgIcon('check', 'svg-icon-xs')} Current` : (assignedName ? `(${assignedName})` : '<span style="color:var(--text-muted); font-size:10px;">Available</span>')}</span>
         `;
 
         item.addEventListener('click', (e) => {
@@ -5056,7 +5578,7 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
                     btnId1: currentBtnId,
                     btnId2: assignedBtnId
                 });
-                showToast('F-Keys Swapped', `${currentBtnId} (${fKey}) ↔ ${assignedBtnId} (${oldKeyOfCurrent || 'None'})`);
+                showToast('F-Keys Swapped', `${currentBtnId} (${fKey}) <-> ${assignedBtnId} (${oldKeyOfCurrent || 'None'})`);
             } else {
                 // Key is currently unassigned -> assign cleanly to currentBtnId
                 for (const b in state.hardwareFKeys) {
@@ -5087,7 +5609,7 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
     clearItem.style.paddingTop = '6px';
     clearItem.innerHTML = `
         <span class="fkey-tag" style="color:var(--text-muted);">None</span>
-        <span class="fkey-assigned-btn" style="color:var(--text-muted);">${!currentFKey ? '✓ Current' : 'Clear / Unassign'}</span>
+        <span class="fkey-assigned-btn" style="color:var(--text-muted);">${!currentFKey ? `${getSvgIcon('check', 'svg-icon-xs')} Current` : 'Clear / Unassign'}</span>
     `;
     clearItem.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -5236,7 +5758,7 @@ function renderOmmGrid() {
                 <span class="omm-card-fkey" id="ommFKeyBadge_${item.btnId}" style="${hasKey ? '' : 'background:rgba(255,255,255,0.06); color:var(--text-muted); border-color:transparent;'}">${hasKey ? item.fKey : 'No Key'}</span>
             </div>
             <button class="omm-inject-btn" id="btnInject_${item.btnId}" ${hasKey ? '' : 'disabled style="opacity:0.4; cursor:not-allowed;"'}>
-                <span>⚡</span> ${hasKey ? `Inject ${item.fKey} (3s)` : 'Configure Key First'}
+                ${getSvgIcon('zap', 'svg-icon-xs')} ${hasKey ? `Inject ${item.fKey} (3s)` : 'Configure Key First'}
             </button>
         `;
 
@@ -5262,7 +5784,7 @@ function handleOmmTick(secondsLeft, key) {
     if (!box || !text) return;
 
     box.className = 'omm-status-box active-countdown';
-    if (icon) icon.textContent = '⏳';
+    if (icon) icon.innerHTML = getSvgIcon('loader-2', 'spin');
     text.textContent = `Focus OMM record field! Injecting ${key} in ${secondsLeft}s...`;
 }
 
@@ -5273,7 +5795,7 @@ function handleOmmDone(key) {
     if (!box || !text) return;
 
     box.className = 'omm-status-box success';
-    if (icon) icon.textContent = '✔';
+    if (icon) icon.innerHTML = getSvgIcon('check');
     text.textContent = `>>> SENT {${key}} TO ACTIVE WINDOW! <<<`;
     showToast('Injected Key', `Virtually typed {${key}}`);
 }
@@ -5285,7 +5807,7 @@ function handleOmmReset() {
     if (!box || !text) return;
 
     box.className = 'omm-status-box';
-    if (icon) icon.textContent = '⚡';
+    if (icon) icon.innerHTML = getSvgIcon('zap');
     text.textContent = 'Ready. Click any button below to start 3-second countdown.';
 }
 
@@ -5644,7 +6166,7 @@ function initMouseImageModal() {
             card.dataset.presetId = preset.id;
 
             card.innerHTML = `
-                ${isCustom ? `<button type="button" class="preset-delete-btn" title="Delete custom mouse preset">✕</button>` : ''}
+                ${isCustom ? `<button type="button" class="preset-delete-btn" title="Delete custom mouse preset">${getSvgIcon('trash-2', 'svg-icon-xs')}</button>` : ''}
                 <img src="${preset.image}" alt="${preset.name}" class="mouse-preset-thumb">
                 <div class="mouse-preset-name" title="${preset.name}">${preset.name}</div>
                 <div class="mouse-preset-badge ${isCustom ? 'custom-badge' : ''}">${preset.badge || (isCustom ? 'Custom' : '')}</div>
@@ -6158,7 +6680,7 @@ function generateFullBackupPayload() {
     const currentMouseImage = mouseImgEl ? mouseImgEl.getAttribute('src') : '../assets/g502x.png';
 
     return {
-        app: "OBM_G502X_Manager",
+        app: "My_Mouse_My_Choice",
         version: "2.0.0",
         timestamp: new Date().toISOString(),
         general: {
@@ -6177,6 +6699,7 @@ function generateFullBackupPayload() {
             icon: p.icon || 'generic',
             isDefault: !!p.isDefault,
             switchOnHover: !!p.switchOnHover,
+            osdIconOnly: !!p.osdIconOnly,
             desc: p.desc || (p.name + ' Profile')
         })),
         mappings: state.mappings || {},
@@ -6189,6 +6712,7 @@ function generateFullBackupPayload() {
             hardwareFKeys: JSON.parse(JSON.stringify(state.hardwareFKeys || {}))
         },
         customMousePresets: state.customMousePresets || [],
+        customActionPresets: state.customActionPresets || [],
         rawIni: state.rawIni || ''
     };
 }
@@ -6335,9 +6859,9 @@ function handleLoadedBackupFile(fileName, content) {
             rawIni: parsedJson.rawIni || ''
         };
 
-        if (inspectIcon) inspectIcon.textContent = '📦';
+        if (inspectIcon) inspectIcon.innerHTML = getSvgIcon('archive');
         if (inspectBadge) {
-            inspectBadge.textContent = '✔ Valid JSON Backup';
+            inspectBadge.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} Valid JSON Backup`;
             inspectBadge.style.color = '#a6e3a1';
             inspectBadge.style.background = 'rgba(166, 227, 161, 0.15)';
             inspectBadge.style.borderColor = 'rgba(166, 227, 161, 0.3)';
@@ -6346,17 +6870,18 @@ function handleLoadedBackupFile(fileName, content) {
         const profCount = Array.isArray(parsedJson.profiles) ? parsedJson.profiles.length : Object.keys(parsedJson.mappings || {}).length;
         const btnCount = parsedJson.mouseLayout?.buttons ? parsedJson.mouseLayout.buttons.length : (parsedJson.mouseLayout?.diagramPoints ? Object.keys(parsedJson.mouseLayout.diagramPoints).length : 'Auto');
         const presetsCount = Array.isArray(parsedJson.customMousePresets) ? parsedJson.customMousePresets.length : 0;
+        const actionPresetsCount = Array.isArray(parsedJson.customActionPresets) ? parsedJson.customActionPresets.length : 0;
         const hasHardwareFKeys = parsedJson.mouseLayout?.hardwareFKeys ? Object.keys(parsedJson.mouseLayout.hardwareFKeys).length : 0;
         const backupTime = parsedJson.timestamp ? new Date(parsedJson.timestamp).toLocaleString() : 'Unknown';
 
         if (inspectDetails) {
             inspectDetails.innerHTML = `
-                <div><strong>📁 Profiles:</strong> ${profCount} app profile(s)</div>
-                <div><strong>🖱️ Buttons:</strong> ${btnCount} mouse controls</div>
-                <div><strong>⚡ Hardware Keys:</strong> ${hasHardwareFKeys} F-keys mapped</div>
-                <div><strong>🖼️ Presets:</strong> ${presetsCount} custom mouse models</div>
+                <div><strong>${getSvgIcon('folder', 'svg-icon-xs')} Profiles:</strong> ${profCount} app profile(s)</div>
+                <div><strong>${getSvgIcon('mouse', 'svg-icon-xs')} Buttons:</strong> ${btnCount} mouse controls</div>
+                <div><strong>${getSvgIcon('zap', 'svg-icon-xs')} Hardware Keys:</strong> ${hasHardwareFKeys} F-keys mapped</div>
+                <div><strong>${getSvgIcon('image', 'svg-icon-xs')} Presets:</strong> ${presetsCount} mouse models • ${actionPresetsCount} actions</div>
                 <div style="grid-column: span 2; color: var(--text-muted); font-size: 11px; margin-top: 4px;">
-                    <strong>🕒 Created:</strong> ${backupTime} • <strong>App:</strong> ${parsedJson.app || 'OBM Studio'} v${parsedJson.version || '2.0'}
+                    <strong>${getSvgIcon('clock', 'svg-icon-xs')} Created:</strong> ${backupTime} • <strong>App:</strong> ${parsedJson.app || 'OBM Studio'} v${parsedJson.version || '2.0'}
                 </div>
             `;
         }
@@ -6371,9 +6896,9 @@ function handleLoadedBackupFile(fileName, content) {
             rawIni: content
         };
 
-        if (inspectIcon) inspectIcon.textContent = '📄';
+        if (inspectIcon) inspectIcon.innerHTML = getSvgIcon('file-text');
         if (inspectBadge) {
-            inspectBadge.textContent = '✔ Valid settings.ini';
+            inspectBadge.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} Valid settings.ini`;
             inspectBadge.style.color = '#38bdf8';
             inspectBadge.style.background = 'rgba(56, 189, 248, 0.15)';
             inspectBadge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
@@ -6381,10 +6906,10 @@ function handleLoadedBackupFile(fileName, content) {
 
         if (inspectDetails) {
             inspectDetails.innerHTML = `
-                <div><strong>📄 Format:</strong> Raw AutoHotkey settings.ini</div>
-                <div><strong>📁 Profiles:</strong> ~${profMatches} profile section(s)</div>
-                <div><strong>🖱️ Layout:</strong> ${hasDiagramPoints ? 'Contains Diagram Coordinates' : 'Standard'}</div>
-                <div><strong>⚡ Hardware Keys:</strong> ${hasHardwareKeys ? 'Contains Hardware F-Keys' : 'Default'}</div>
+                <div><strong>${getSvgIcon('file-text', 'svg-icon-xs')} Format:</strong> Raw AutoHotkey settings.ini</div>
+                <div><strong>${getSvgIcon('folder', 'svg-icon-xs')} Profiles:</strong> ~${profMatches} profile section(s)</div>
+                <div><strong>${getSvgIcon('mouse', 'svg-icon-xs')} Layout:</strong> ${hasDiagramPoints ? 'Contains Diagram Coordinates' : 'Standard'}</div>
+                <div><strong>${getSvgIcon('zap', 'svg-icon-xs')} Hardware Keys:</strong> ${hasHardwareKeys ? 'Contains Hardware F-Keys' : 'Default'}</div>
                 <div style="grid-column: span 2; color: var(--text-muted); font-size: 11px; margin-top: 4px;">
                     Direct restoration will safely replace settings.ini (a .bak backup is created automatically).
                 </div>
@@ -6397,7 +6922,7 @@ function handleLoadedBackupFile(fileName, content) {
         btnApply.disabled = false;
         btnApply.style.opacity = '1';
         btnApply.style.cursor = 'pointer';
-        btnApply.textContent = '📥 Apply & Restore Configuration';
+        btnApply.innerHTML = `${getSvgIcon('download')} Apply & Restore Configuration`;
     }
 
     switchBackupTab('import');
@@ -6556,7 +7081,7 @@ function initBackupModal() {
 
             btnApplyImport.disabled = true;
             btnApplyImport.style.opacity = '0.6';
-            btnApplyImport.textContent = '⏳ Restoring Configuration...';
+            btnApplyImport.innerHTML = `${getSvgIcon('loader-2', 'spin')} Restoring Configuration...`;
 
             if (pendingBackupData.type === 'ini') {
                 sendToAhk({
