@@ -1917,12 +1917,6 @@ class ProfileEngine {
         ; Suppress redundant UI flash on OS typematic repeats
         if (isPressed && this.PhysicalButtonStates.Has(btnName) && this.PhysicalButtonStates[btnName])
             return
-        if (isPressed) {
-            this.PhysicalButtonStates[btnName] := true
-        } else {
-            if (this.PhysicalButtonStates.Has(btnName))
-                this.PhysicalButtonStates.Delete(btnName)
-        }
         fn := this.OnButtonStateChanged
         if (fn) {
             fn(btnName, isPressed)

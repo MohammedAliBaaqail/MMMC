@@ -462,7 +462,9 @@ function handleEngineMessage(msg) {
             if (document.getElementById('profileSelect')) {
                 document.getElementById('profileSelect').value = state.currentProfile;
             }
-            document.getElementById('chkAlwaysOnTop').checked = state.isAlwaysOnTop;
+            if (document.getElementById('chkAlwaysOnTop')) {
+                document.getElementById('chkAlwaysOnTop').checked = state.isAlwaysOnTop;
+            }
             if (msg.showOSD !== undefined) {
                 const chkOSD = document.getElementById('chkShowOSD');
                 if (chkOSD) chkOSD.checked = !!msg.showOSD;
@@ -472,6 +474,7 @@ function handleEngineMessage(msg) {
                 const chkMute = document.getElementById('chkMuteWhenFocused');
                 if (chkMute) chkMute.checked = state.muteWhenFocused;
             }
+            updateHeaderTogglesUI();
             updateRapidFireUI(state.isRapidFire);
             renderLgsProfiles();
             updateAutoSwitchUI();
@@ -701,6 +704,7 @@ function handleEngineMessage(msg) {
             if (typeof msg.enabled === 'boolean') {
                 const chkOSD = document.getElementById('chkShowOSD');
                 if (chkOSD) chkOSD.checked = msg.enabled;
+                updateHeaderTogglesUI();
                 showToast('Notifications', msg.enabled ? 'On-screen notifications enabled' : 'On-screen notifications disabled');
             }
             break;
@@ -710,6 +714,7 @@ function handleEngineMessage(msg) {
                 state.muteWhenFocused = msg.enabled;
                 const chkMute = document.getElementById('chkMuteWhenFocused');
                 if (chkMute) chkMute.checked = msg.enabled;
+                updateHeaderTogglesUI();
                 showToast('Test in Focus', msg.enabled ? 'Active: Buttons highlight without triggering actions' : 'Off: Normal button actions active');
             }
             break;
@@ -913,6 +918,17 @@ function initHeaderControls() {
         chkTop.addEventListener('change', (e) => {
             state.isAlwaysOnTop = e.target.checked;
             sendToAhk({ action: 'setAlwaysOnTop', enabled: state.isAlwaysOnTop });
+            updateHeaderTogglesUI();
+        });
+    }
+    const btnTop = document.getElementById('btnToggleAlwaysOnTop');
+    if (btnTop) {
+        btnTop.addEventListener('click', () => {
+            state.isAlwaysOnTop = !state.isAlwaysOnTop;
+            if (chkTop) chkTop.checked = state.isAlwaysOnTop;
+            sendToAhk({ action: 'setAlwaysOnTop', enabled: state.isAlwaysOnTop });
+            updateHeaderTogglesUI();
+            showToast('Always on Top', state.isAlwaysOnTop ? 'Window pinned above all other windows' : 'Window unpinned');
         });
     }
 
@@ -921,6 +937,17 @@ function initHeaderControls() {
     if (chkOSD) {
         chkOSD.addEventListener('change', (e) => {
             sendToAhk({ action: 'toggleOSD', enabled: e.target.checked });
+            updateHeaderTogglesUI();
+        });
+    }
+    const btnOSD = document.getElementById('btnToggleOSD');
+    if (btnOSD) {
+        btnOSD.addEventListener('click', () => {
+            const nextVal = chkOSD ? !chkOSD.checked : false;
+            if (chkOSD) chkOSD.checked = nextVal;
+            sendToAhk({ action: 'toggleOSD', enabled: nextVal });
+            updateHeaderTogglesUI();
+            showToast('Notifications', nextVal ? 'On-screen notifications enabled' : 'On-screen notifications muted');
         });
     }
 
@@ -930,6 +957,17 @@ function initHeaderControls() {
         chkMute.addEventListener('change', (e) => {
             state.muteWhenFocused = e.target.checked;
             sendToAhk({ action: 'toggleMuteWhenFocused', enabled: state.muteWhenFocused });
+            updateHeaderTogglesUI();
+        });
+    }
+    const btnMute = document.getElementById('btnToggleMuteWhenFocused');
+    if (btnMute) {
+        btnMute.addEventListener('click', () => {
+            state.muteWhenFocused = !state.muteWhenFocused;
+            if (chkMute) chkMute.checked = state.muteWhenFocused;
+            sendToAhk({ action: 'toggleMuteWhenFocused', enabled: state.muteWhenFocused });
+            updateHeaderTogglesUI();
+            showToast('Focus Test Mode', state.muteWhenFocused ? 'Active: Buttons highlight diagram safely' : 'Off: Normal button actions active');
         });
     }
 
@@ -941,7 +979,27 @@ function initHeaderControls() {
         });
     }
 
+    updateHeaderTogglesUI();
     updateBShiftVisibility();
+}
+
+function updateHeaderTogglesUI() {
+    const btnTop = document.getElementById('btnToggleAlwaysOnTop');
+    if (btnTop) {
+        btnTop.classList.toggle('active', !!state.isAlwaysOnTop);
+        btnTop.setAttribute('title', state.isAlwaysOnTop ? 'Always on Top: Active (Window pinned above others)' : 'Always on Top: Inactive (Click to pin window)');
+    }
+    const btnOSD = document.getElementById('btnToggleOSD');
+    if (btnOSD) {
+        const isOsd = (document.getElementById('chkShowOSD')?.checked ?? true);
+        btnOSD.classList.toggle('active', !!isOsd);
+        btnOSD.setAttribute('title', isOsd ? 'On-Screen Notifications (OSD): Enabled' : 'On-Screen Notifications (OSD): Muted');
+    }
+    const btnMute = document.getElementById('btnToggleMuteWhenFocused');
+    if (btnMute) {
+        btnMute.classList.toggle('active', !!state.muteWhenFocused);
+        btnMute.setAttribute('title', state.muteWhenFocused ? 'Focus Test Mode: Active (Clicks highlight diagram without executing macros)' : 'Focus Test Mode: Inactive (Normal actions execute in focus)');
+    }
 }
 
 function updateBShiftVisibility() {
