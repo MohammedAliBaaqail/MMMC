@@ -1,5 +1,28 @@
 #Requires AutoHotkey v2.0
 
+class GdipHelper {
+    static pToken := 0
+    static Init() {
+        if (this.pToken != 0)
+            return true
+        DllCall("LoadLibrary", "Str", "gdiplus.dll", "Ptr")
+        si := Buffer(24, 0)
+        NumPut("UInt", 1, si, 0)
+        token := 0
+        if (DllCall("gdiplus\GdiplusStartup", "Ptr*", &token, "Ptr", si.Ptr, "Ptr", 0) == 0) {
+            this.pToken := token
+            return true
+        }
+        return false
+    }
+    static Shutdown() {
+        if (this.pToken != 0) {
+            DllCall("gdiplus\GdiplusShutdown", "Ptr", this.pToken)
+            this.pToken := 0
+        }
+    }
+}
+
 /**
  * Sleek On-Screen Display (OSD) Notification for G502 X Manager
  * Displays non-intrusive floating HUD notifications with rounded corners and border.
@@ -8,20 +31,13 @@ class OSD {
     static guiObj := ""
     static Enabled := true
     static hideFn := () => OSD.Hide()
-    static pToken := 0
 
     static Init() {
         if (this.guiObj != "")
             return
 
-        ; Initialize GDI+
-        if (this.pToken == 0) {
-            si := Buffer(24, 0)
-            NumPut("uint", 1, si, 0)
-            token := 0
-            DllCall("gdiplus\GdiplusStartup", "ptr*", &token, "ptr", si, "ptr", 0)
-            this.pToken := token
-        }
+        ; Initialize GDI+ safely
+        GdipHelper.Init()
 
         ; Create layered, click-through, non-activating, always-on-top window
         ; +E0x08000000 = WS_EX_NOACTIVATE (never takes focus from games/apps)

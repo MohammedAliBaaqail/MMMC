@@ -9,6 +9,7 @@ LogError(thrown, mode) {
 OnExit(OnScriptExit)
 OnScriptExit(ExitReason, ExitCode) {
     try WebViewGuiManager.Cleanup()
+    try GdipHelper.Shutdown()
     FileAppend(FormatTime(, "yyyy-MM-dd HH:mm:ss") . " | SCRIPT EXIT: Reason=" . ExitReason . ", Code=" . ExitCode . "`n", A_ScriptDir . "\webview_debug.log")
 }
 
@@ -143,6 +144,16 @@ SaveAndExit() {
 ; Button 11: Previous DPI (G7 / DPI Down) -> F21
 *F21::ProfileEngine.HandleF21_G7(true)
 *F21 Up::ProfileEngine.HandleF21_G7(false)
+
+; Additional Virtual Keys for Custom Buttons (F22 - F24)
+*F22::ProfileEngine.HandleFKey("F22", true)
+*F22 Up::ProfileEngine.HandleFKey("F22", false)
+
+*F23::ProfileEngine.HandleFKey("F23", true)
+*F23 Up::ProfileEngine.HandleFKey("F23", false)
+
+*F24::ProfileEngine.HandleFKey("F24", true)
+*F24 Up::ProfileEngine.HandleFKey("F24", false)
 
 #HotIf
 

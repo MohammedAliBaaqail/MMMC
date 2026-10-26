@@ -44,6 +44,22 @@
                 <span class="check-custom"></span>
                 <span class="check-lbl">📌 TOP</span>
             </label>
+
+            <label class="always-top-check test-mode-check" id="lblMuteWhenFocused" title="Test Mode: While Studio window is in focus, mouse clicks only highlight on the diagram without triggering keystrokes or macros">
+                <input type="checkbox" id="chkMuteWhenFocused" checked>
+                <span class="check-custom"></span>
+                <span class="check-lbl">🛡️ TEST IN FOCUS</span>
+            </label>
+
+            <button type="button" class="header-settings-btn" id="btnHeaderSettings" title="Open Studio Settings, Layout Tools, and Calibration">
+                <span class="settings-btn-icon">⚙</span>
+                <span class="settings-btn-text">SETTINGS</span>
+            </button>
+
+            <button type="button" class="header-backup-btn" id="btnOpenBackupModal" title="Import & Export all profiles, mouse layouts, macros, and options">
+                <span class="backup-btn-icon">⇄</span>
+                <span class="backup-btn-text">IMPORT / EXPORT</span>
+            </button>
         </div>
     </header>
 
@@ -123,17 +139,17 @@
                     <span class="target-action" id="selectedTargetAction">Volume Up</span>
                 </div>
                 <div class="stage-actions">
-                    <button class="stage-btn omm-btn" id="btnOpenOmmSetup" title="Setup Logitech Onboard Memory Manager & Inject Virtual F-Keys">
-                        ⚡ OMM Setup
-                    </button>
-                    <button class="stage-btn calibrate-btn" id="btnCalibratePointers" title="Manually adjust and align pointing dots to button centers">
-                        🎯 Calibrate Pointers
-                    </button>
                     <button class="stage-btn primary" id="btnRecordSelected" title="Double click button to record immediately">
-                        ⌨ Record / Customize
+                        <span class="btn-icon">⌨</span>
+                        <span class="btn-text">Record / Customize</span>
                     </button>
-                    <button class="stage-btn secondary" id="btnResetSelected">
-                        ↺ Reset Default
+                    <button class="stage-btn secondary" id="btnResetSelected" title="Reset selected button to profile default">
+                        <span class="btn-icon">↺</span>
+                        <span class="btn-text">Reset Default</span>
+                    </button>
+                    <button class="stage-btn settings-btn" id="btnOpenStudioSettings" title="Open Studio Settings, Calibration, Mouse Image, and Tools">
+                        <span class="btn-icon">⚙</span>
+                        <span class="btn-text">Settings</span>
                     </button>
                 </div>
             </div>
@@ -147,6 +163,7 @@
                     </div>
                     <div class="calib-header-actions">
                         <button class="calib-btn save" id="btnSaveCalib" title="Save coordinates to settings.ini">💾 Save Calibration</button>
+                        <button class="calib-btn reset" id="btnResetSelectedCard" title="Reset selected button card position to default">↺ Reset Card</button>
                         <button class="calib-btn reset" id="btnResetCalib" title="Reset all points to factory defaults">↺ Reset Defaults</button>
                         <button class="calib-btn close" id="btnCloseCalib" title="Exit calibration mode">✕ Exit</button>
                     </div>
@@ -157,104 +174,13 @@
                     <div class="calib-pills-bar" id="calibPillsBar">
                         <!-- Populated dynamically via JS: G8, G7, DPI Shift, Forward, Back, Tilt Left, etc. -->
                     </div>
-
-                    <!-- Fine-Tuning Controls: Inputs & D-Pad -->
-                    <div class="calib-controls-row">
-                        <div class="calib-selected-info">
-                            <span class="calib-info-lbl">EDITING POINT:</span>
-                            <span class="calib-info-name" id="calibSelectedName">G8 (DPI Up)</span>
-                        </div>
-
-                        <div class="calib-inputs-group">
-                            <label class="coord-label">
-                                <span>X:</span>
-                                <input type="number" id="calibInputX" min="-200" max="1100" step="1" class="coord-input">
-                            </label>
-                            <label class="coord-label">
-                                <span>Y:</span>
-                                <input type="number" id="calibInputY" min="-200" max="700" step="1" class="coord-input">
-                            </label>
-                        </div>
-
-                        <div class="calib-dpad">
-                            <button class="dpad-btn up" id="dpadUp" title="Nudge Up (Arrow Up)">▲</button>
-                            <div class="dpad-mid">
-                                <button class="dpad-btn left" id="dpadLeft" title="Nudge Left (Arrow Left)">◄</button>
-                                <span class="dpad-step" id="dpadStepDisplay">1px</span>
-                                <button class="dpad-btn right" id="dpadRight" title="Nudge Right (Arrow Right)">►</button>
-                            </div>
-                            <button class="dpad-btn down" id="dpadDown" title="Nudge Down (Arrow Down)">▼</button>
-                        </div>
-
-                        <div class="calib-step-selector">
-                            <span class="step-lbl">STEP:</span>
-                            <div class="step-buttons" id="stepButtons">
-                                <button class="step-btn active" data-step="1">1px</button>
-                                <button class="step-btn" data-step="5">5px</button>
-                                <button class="step-btn" data-step="10">10px</button>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
             <!-- Interactive Stage Area -->
             <div class="interactive-mouse-container" id="mouseContainer">
-                <!-- Left Callout Cards Column -->
-                <div class="callout-column left-column" id="leftCallouts">
-                    <div class="btn-card" id="card_LeftClick" data-btn="LeftClick">
-                        <div class="card-header">
-                            <span class="card-badge" id="badge_LeftClick">M1</span>
-                        </div>
-                        <div class="card-action" id="action_LeftClick">Default Left Click</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-
-                    <div class="btn-card" id="card_G8" data-btn="G8">
-                        <div class="card-header">
-                            <span class="card-badge">G8</span>
-                            <span class="card-fkey-pill" id="fkey_G8">F20</span>
-                        </div>
-                        <div class="card-action" id="action_G8">Volume Up</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-
-                    <div class="btn-card" id="card_G7" data-btn="G7">
-                        <div class="card-header">
-                            <span class="card-badge">G7</span>
-                            <span class="card-fkey-pill" id="fkey_G7">F21</span>
-                        </div>
-                        <div class="card-action" id="action_G7">Volume Down</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-
-                    <div class="btn-card" id="card_DpiShift" data-btn="DpiShift">
-                        <div class="card-header">
-                            <span class="card-badge">DPI Shift</span>
-                            <span class="card-fkey-pill" id="fkey_DpiShift">F15</span>
-                        </div>
-                        <div class="card-action" id="action_DpiShift">B-Shift Layer</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-
-                    <div class="btn-card" id="card_Forward" data-btn="Forward">
-                        <div class="card-header">
-                            <span class="card-badge">G5</span>
-                            <span class="card-fkey-pill" id="fkey_Forward">F16</span>
-                        </div>
-                        <div class="card-action" id="action_Forward">Browser Forward</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-
-                    <div class="btn-card" id="card_Back" data-btn="Back">
-                        <div class="card-header">
-                            <span class="card-badge">G4</span>
-                            <span class="card-fkey-pill" id="fkey_Back">F14</span>
-                        </div>
-                        <div class="card-action" id="action_Back">Browser Back</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-                </div>
+                <!-- Left Callout Cards Column (Dynamically rendered) -->
+                <div class="callout-column left-column" id="leftCallouts"></div>
 
                 <!-- Center Mouse Visual with SVG Vector Overlays -->
                 <div class="mouse-render-wrapper" id="mouseRenderWrap">
@@ -269,68 +195,8 @@
                     </svg>
                 </div>
 
-                <!-- Right Callout Cards Column -->
-                <div class="callout-column right-column" id="rightCallouts">
-                    <div class="btn-card" id="card_RightClick" data-btn="RightClick">
-                        <div class="card-header">
-                            <span class="card-badge" id="badge_RightClick">M2</span>
-                        </div>
-                        <div class="card-action" id="action_RightClick">Default Right Click</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-
-                    <div class="btn-card" id="card_TiltLeft" data-btn="TiltLeft">
-                        <div class="card-header">
-                            <span class="card-badge">Tilt ⯇</span>
-                            <span class="card-fkey-pill" id="fkey_TiltLeft">F17</span>
-                        </div>
-                        <div class="card-action" id="action_TiltLeft">Prev Tab</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-
-                    <div class="btn-card" id="card_WheelUp" data-btn="WheelUp">
-                        <div class="card-header">
-                            <span class="card-badge">Scroll ▲</span>
-                        </div>
-                        <div class="card-action" id="action_WheelUp">Default Scroll Up</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-
-                    <div class="btn-card" id="card_Middle" data-btn="Middle">
-                        <div class="card-header">
-                            <span class="card-badge">Mouse 3</span>
-                            <span class="card-fkey-pill" id="fkey_Middle">F13</span>
-                        </div>
-                        <div class="card-action" id="action_Middle">Middle Click</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-
-                    <div class="btn-card" id="card_WheelDown" data-btn="WheelDown">
-                        <div class="card-header">
-                            <span class="card-badge">Scroll ▼</span>
-                        </div>
-                        <div class="card-action" id="action_WheelDown">Default Scroll Down</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-
-                    <div class="btn-card" id="card_TiltRight" data-btn="TiltRight">
-                        <div class="card-header">
-                            <span class="card-badge">Tilt ⯈</span>
-                            <span class="card-fkey-pill" id="fkey_TiltRight">F18</span>
-                        </div>
-                        <div class="card-action" id="action_TiltRight">Next Tab</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-
-                    <div class="btn-card" id="card_ProfileCycle" data-btn="ProfileCycle">
-                        <div class="card-header">
-                            <span class="card-badge">G9</span>
-                            <span class="card-fkey-pill" id="fkey_ProfileCycle">F19</span>
-                        </div>
-                        <div class="card-action" id="action_ProfileCycle">Next Profile</div>
-                        <div class="card-drag-hint">Drop command here</div>
-                    </div>
-                </div>
+                <!-- Right Callout Cards Column (Dynamically rendered) -->
+                <div class="callout-column right-column" id="rightCallouts"></div>
             </div>
 
             <!-- Bottom Segmented B-Shift Layer Switch (Docked way down at screen bottom edge) -->
@@ -373,23 +239,55 @@
 
             <!-- Tab 1: Single / Combination of Buttons -->
             <div class="modal-tab-content active" id="tabContentSingle">
-                <div class="config-row">
-                    <div class="form-group flex-1">
-                        <label for="singlePlaybackMode" class="form-lbl">Playback Mode (How button is pressed):</label>
-                        <select id="singlePlaybackMode" class="studio-select">
-                            <option value="NoRepeat">No Repeat</option>
-                            <option value="RepeatWhileHolding">Repeat While Holding</option>
-                            <option value="Toggle">Toggle</option>
-                        </select>
+                <!-- Hidden inputs for backward compatibility -->
+                <select id="singlePlaybackMode" style="display:none;">
+                    <option value="NoRepeat">No Repeat</option>
+                    <option value="RepeatWhileHolding">Repeat While Holding</option>
+                    <option value="Toggle">Toggle</option>
+                </select>
+                <input type="number" id="singleRepeatDelay" value="50" min="5" max="10000" style="display:none;">
+
+                <!-- Tab 1 Topbar: Playback Mode (Matches Macro Section) -->
+                <div class="single-topbar">
+                    <div class="single-topbar-left">
+                        <span class="ghub-types-label">PLAYBACK MODE</span>
+                        <div class="ghub-types-group" id="singleTypesGroup">
+                            <button type="button" class="ghub-type-btn active" data-type="NoRepeat" data-title="No Repeat" id="btnSingleTypeNoRepeat" title="No Repeat (Plays once / holds while physically held)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="4" y1="12" x2="20" y2="12"></line>
+                                    <polyline points="13 5 20 12 13 19"></polyline>
+                                </svg>
+                                <div class="ghub-tooltip-badge" id="singleTypeTooltipBadge">No Repeat</div>
+                            </button>
+                            <button type="button" class="ghub-type-btn" data-type="RepeatWhileHolding" data-title="Repeat While Holding" id="btnSingleTypeRepeat" title="Repeat While Holding">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21.5 2v6h-6"></path>
+                                    <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-1.19"></path>
+                                </svg>
+                            </button>
+                            <button type="button" class="ghub-type-btn" data-type="Toggle" data-title="Toggle" id="btnSingleTypeToggle" title="Toggle (Toggle loop on press)">
+                                <svg width="22" height="16" viewBox="0 0 28 18" fill="none">
+                                    <rect x="1.5" y="1.5" width="25" height="15" rx="7.5" stroke="currentColor" stroke-width="2.2"/>
+                                    <circle cx="8.5" cy="9" r="4" fill="currentColor"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                    <div class="form-group w-140">
-                        <label for="singleRepeatDelay" class="form-lbl">Repeat Delay (ms):</label>
-                        <input type="number" id="singleRepeatDelay" class="studio-input" value="50" min="5" max="5000">
+
+                    <div class="single-topbar-right">
+                        <!-- REPEAT / TOGGLE ACTIVATION DELAY (Matches Macro Section) -->
+                        <div class="ghub-setting-row" id="singleRepeatDelayRow" style="display: none;">
+                            <div class="ghub-repeat-delay-header">
+                                <span class="ghub-chk-text repeat-label">DELAY BETWEEN ACTIVATIONS</span>
+                                <span class="ghub-delay-badge repeat-badge" id="singleRepeatDelayPill" title="Click to edit delay between activations">50 ms</span>
+                            </div>
+                            <div class="ghub-setting-sub">Delay between each activation (repeat & toggle)</div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="mode-explain-text" id="singleExplainText">
-                    • Executes the keystroke once when the mouse button is pressed.
+                    • Direct Passthrough: Holds button down while physically held, and releases on release (no repeating).
                 </div>
 
                 <!-- Live Keystroke Preview Box -->
@@ -402,13 +300,13 @@
                 </div>
 
                 <div class="recorder-actions-row">
-                    <button class="action-pill primary" id="btnRecordKeyToggle">
+                    <button type="button" class="action-pill primary" id="btnRecordKeyToggle" tabindex="-1">
                         <span class="rec-dot"></span> <span id="recordKeyBtnText">● Record Key</span>
                     </button>
-                    <button class="action-pill secondary" id="btnClearRecordedKey">
+                    <button type="button" class="action-pill secondary" id="btnClearRecordedKey" tabindex="-1">
                         🗑 Clear Key
                     </button>
-                    <button class="action-pill accent" id="btnAssignBShiftStudio">
+                    <button type="button" class="action-pill accent" id="btnAssignBShiftStudio" tabindex="-1">
                         ⚡ Assign B-Shift
                     </button>
                 </div>
@@ -417,122 +315,209 @@
                 <div class="mouse-injection-section">
                     <div class="injection-header">
                         <span class="injection-title">INJECT MOUSE BUTTON</span>
-                        <span class="injection-sub">Click to inject into recording (supports modifier keys like Ctrl / Shift / Alt held on keyboard)</span>
+                        <span class="injection-sub">Click to inject into recording (supports keys like S / Ctrl / Shift / Alt held on keyboard)</span>
                     </div>
                     <div class="injection-btn-row">
-                        <button class="mouse-inject-btn" id="btnInjectLClick" data-mouse="LButton">
-                            <span class="mouse-btn-icon">🖱</span> Left Click
+                        <button type="button" class="mouse-inject-btn" id="btnInjectLClick" data-mouse="LButton" tabindex="-1" title="Inject Left Click into recording">
+                            <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
+                                <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
+                                <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.2"/>
+                                <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                <rect x="8.5" y="3.5" width="3" height="5" rx="1.5" fill="rgba(255, 255, 255, 0.1)" stroke="rgba(255, 255, 255, 0.25)" stroke-width="0.9"/>
+                            </svg>
+                            <span>Left Click</span>
                         </button>
-                        <button class="mouse-inject-btn" id="btnInjectMClick" data-mouse="MButton">
-                            <span class="mouse-btn-icon">🖱</span> Middle Click
+                        <button type="button" class="mouse-inject-btn" id="btnInjectMClick" data-mouse="MButton" tabindex="-1" title="Inject Middle Click into recording">
+                            <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
+                                <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
+                                <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                <rect x="8" y="3" width="4" height="6.5" rx="2" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.2"/>
+                            </svg>
+                            <span>Middle Click</span>
                         </button>
-                        <button class="mouse-inject-btn" id="btnInjectRClick" data-mouse="RButton">
-                            <span class="mouse-btn-icon">🖱</span> Right Click
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Single Modifier Key Injection Section -->
-                <div class="mouse-injection-section" style="margin-top: 10px;">
-                    <div class="injection-header">
-                        <span class="injection-title">INJECT STANDALONE MODIFIER</span>
-                        <span class="injection-sub">Click to directly map a single modifier key (e.g. for games, push-to-talk, sprint, 3D orbit)</span>
-                    </div>
-                    <div class="injection-btn-row">
-                        <button class="mouse-inject-btn" id="btnInjectAlt" data-key="Alt">
-                            <span class="mouse-btn-icon" style="font-weight:700; color:var(--accent-cyan);">⌥</span> Alt
-                        </button>
-                        <button class="mouse-inject-btn" id="btnInjectShift" data-key="Shift">
-                            <span class="mouse-btn-icon" style="font-weight:700; color:var(--accent-cyan);">⇧</span> Shift
-                        </button>
-                        <button class="mouse-inject-btn" id="btnInjectCtrl" data-key="Ctrl">
-                            <span class="mouse-btn-icon" style="font-weight:700; color:var(--accent-cyan);">⌃</span> Ctrl
-                        </button>
-                        <button class="mouse-inject-btn" id="btnInjectWin" data-key="LWin">
-                            <span class="mouse-btn-icon" style="font-weight:700; color:var(--accent-cyan);">⊞</span> Win
+                        <button type="button" class="mouse-inject-btn" id="btnInjectRClick" data-mouse="RButton" tabindex="-1" title="Inject Right Click into recording">
+                            <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
+                                <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
+                                <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.2"/>
+                                <rect x="8.5" y="3.5" width="3" height="5" rx="1.5" fill="rgba(255, 255, 255, 0.1)" stroke="rgba(255, 255, 255, 0.25)" stroke-width="0.9"/>
+                            </svg>
+                            <span>Right Click</span>
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Tab 2: Macro Recorder -->
-            <div class="modal-tab-content" id="tabContentMacro">
-                <div class="config-row">
-                    <div class="form-group flex-1">
-                        <label for="macroPlaybackMode" class="form-lbl">Macro Type (Playback Mode):</label>
-                        <select id="macroPlaybackMode" class="studio-select">
-                            <option value="NoRepeat">No Repeat</option>
-                            <option value="RepeatWhileHolding">Repeat While Holding</option>
-                            <option value="Toggle">Toggle</option>
-                            <option value="Sequence">Sequence</option>
-                        </select>
+            <!-- Tab 2: Macro Recorder (Logitech G HUB Inspired UI) -->
+            <div class="modal-tab-content ghub-macro-wrapper" id="tabContentMacro">
+                <!-- Hidden inputs for backward compatibility -->
+                <select id="macroPlaybackMode" style="display:none;">
+                    <option value="NoRepeat">No Repeat</option>
+                    <option value="RepeatWhileHolding">Repeat While Holding</option>
+                    <option value="Toggle">Toggle</option>
+                    <option value="Sequence">Sequence</option>
+                </select>
+                <input type="number" id="macroDefDelay" value="50" min="5" max="5000" style="display:none;">
+                <input type="number" id="macroRepeatDelay" value="50" min="5" max="10000" style="display:none;">
+
+                <!-- G HUB TOP BAR -->
+                <div class="ghub-topbar">
+                    <div class="ghub-topbar-left">
+                        <div class="ghub-title-row">
+                            <input type="text" id="macroNameInput" class="ghub-macro-name-input" value="alt + left clk" spellcheck="false" placeholder="Macro Name" autocomplete="off">
+                        </div>
+                        <div class="ghub-types-row">
+                            <span class="ghub-types-label">Macro types</span>
+                            <div class="ghub-types-group" id="ghubTypesGroup">
+                                <button type="button" class="ghub-type-btn" data-type="NoRepeat" data-title="No Repeat" id="btnMacroTypeNoRepeat" title="No Repeat (Plays once)">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="4" y1="12" x2="20" y2="12"></line>
+                                        <polyline points="13 5 20 12 13 19"></polyline>
+                                    </svg>
+                                </button>
+                                <button type="button" class="ghub-type-btn" data-type="RepeatWhileHolding" data-title="Repeat While Holding" id="btnMacroTypeRepeat" title="Repeat While Holding">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21.5 2v6h-6"></path>
+                                        <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-1.19"></path>
+                                    </svg>
+                                </button>
+                                <button type="button" class="ghub-type-btn" data-type="Toggle" data-title="Toggle" id="btnMacroTypeToggle" title="Toggle (Toggle loop on press)">
+                                    <svg width="22" height="16" viewBox="0 0 28 18" fill="none">
+                                        <rect x="1.5" y="1.5" width="25" height="15" rx="7.5" stroke="currentColor" stroke-width="2.2"/>
+                                        <circle cx="8.5" cy="9" r="4" fill="currentColor"/>
+                                    </svg>
+                                </button>
+                                <button type="button" class="ghub-type-btn active" data-type="Sequence" data-title="Sequence" id="btnMacroTypeSequence" title="Sequence (On Press, While Holding, On Release)">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="7" y="7" width="13" height="13" rx="2"></rect>
+                                        <path d="M4 17V5a2 2 0 0 1 2-2h12"></path>
+                                    </svg>
+                                    <div class="ghub-tooltip-badge" id="ghubTypeTooltipBadge">Sequence</div>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group w-140">
-                        <label for="macroDefDelay" class="form-lbl">Default Delay (ms):</label>
-                        <input type="number" id="macroDefDelay" class="studio-input" value="50" min="5" max="5000">
+
+                    <div class="ghub-topbar-right">
+                        <!-- USE STANDARD DELAYS -->
+                        <div class="ghub-setting-row">
+                            <label class="ghub-chk-container">
+                                <input type="checkbox" id="chkUseStandardDelays" checked>
+                                <span class="ghub-chk-box"></span>
+                                <span class="ghub-chk-text">USE STANDARD DELAYS</span>
+                            </label>
+                            <span class="ghub-delay-badge" id="ghubDelayPill" title="Click to edit standard delay between actions">50 ms</span>
+                            <div class="ghub-setting-sub">Currently using a standard delay between actions</div>
+                        </div>
+
+                        <!-- DELAY BETWEEN MACRO ACTIVATIONS (For Repeat & Toggle) -->
+                        <div class="ghub-setting-row" id="ghubRepeatDelayRow" style="display: none;">
+                            <div class="ghub-repeat-delay-header">
+                                <span class="ghub-chk-text repeat-label">DELAY BETWEEN ACTIVATIONS</span>
+                                <span class="ghub-delay-badge repeat-badge" id="ghubRepeatDelayPill" title="Click to edit delay between each macro activation">50 ms</span>
+                            </div>
+                            <div class="ghub-setting-sub">Delay between each macro activation (repeat & toggle)</div>
+                        </div>
+
+                        <!-- SHOW KEY DOWN/KEY UP -->
+                        <div class="ghub-setting-row">
+                            <label class="ghub-chk-container">
+                                <input type="checkbox" id="chkShowUpDown" checked>
+                                <span class="ghub-chk-box"></span>
+                                <span class="ghub-chk-text">SHOW KEY DOWN/KEY UP</span>
+                            </label>
+                        </div>
+
+                        <!-- AUTO-ADAPT ACTION DIRECTION -->
+                        <div class="ghub-setting-row">
+                            <label class="ghub-chk-container">
+                                <input type="checkbox" id="chkAutoAdaptDirection">
+                                <span class="ghub-chk-box"></span>
+                                <span class="ghub-chk-text">SMART DIRECTION ADAPTATION</span>
+                            </label>
+                            <div class="ghub-setting-sub">Auto flip Down/Up when dragging between sections</div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="mode-explain-text" id="macroExplainText">
-                    • Standard macro. Plays the recorded sequence once.
+                <!-- LIVE RECORDING NOTIFICATION BANNER (appears when recording) -->
+                <div class="ghub-recording-banner" id="ghubRecordingBanner" style="display: none;">
+                    <div class="ghub-rec-pulse-dot"></div>
+                    <span class="ghub-rec-text">RECORDING IN PROGRESS — Press keys or mouse buttons to record into <strong id="ghubRecTargetSection">ON PRESS</strong></span>
+                    <button type="button" class="ghub-rec-stop-btn" id="btnGhubStopRec">⏹ STOP RECORDING (Esc)</button>
                 </div>
 
-                <!-- Target Section Selector -->
-                <div class="macro-section-selector">
-                    <span class="section-sel-lbl">Target Section:</span>
-                    <div class="section-pills" id="macroPhasePills">
-                        <button class="section-pill active" data-phase="ON PRESS">ON PRESS</button>
-                        <button class="section-pill" data-phase="WHILE HOLDING">WHILE HOLDING</button>
-                        <button class="section-pill" data-phase="ON RELEASE">ON RELEASE</button>
+                <!-- MAIN WORKSPACE -->
+                <div class="ghub-workspace" id="ghubWorkspace">
+                    <!-- Section: ON PRESS -->
+                    <div class="ghub-flow-section" id="ghubSecPress" data-section="press">
+                        <div class="ghub-flow-header">
+                            <span class="ghub-flow-title" id="ghubPressTitle">ON PRESS</span>
+                            <span class="ghub-flow-count" id="ghubPressCount"></span>
+                        </div>
+                        <div class="ghub-flow-track" id="ghubTrackPress">
+                            <!-- Populated dynamically: step blocks and [+] button -->
+                        </div>
+                    </div>
+
+                    <!-- Section: WHILE HOLDING -->
+                    <div class="ghub-flow-section" id="ghubSecHold" data-section="hold">
+                        <div class="ghub-flow-header">
+                            <span class="ghub-flow-title">WHILE HOLDING</span>
+                            <span class="ghub-flow-count" id="ghubHoldCount"></span>
+                        </div>
+                        <div class="ghub-flow-track" id="ghubTrackHold">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Section: ON RELEASE -->
+                    <div class="ghub-flow-section" id="ghubSecRelease" data-section="release">
+                        <div class="ghub-flow-header">
+                            <span class="ghub-flow-title">ON RELEASE</span>
+                            <span class="ghub-flow-count" id="ghubReleaseCount"></span>
+                        </div>
+                        <div class="ghub-flow-track" id="ghubTrackRelease">
+                            <!-- Populated dynamically -->
+                        </div>
                     </div>
                 </div>
 
-                <!-- Macro Controls and Injections -->
-                <div class="macro-controls-bar">
-                    <div class="macro-actions-left">
-                        <button class="action-pill primary" id="btnRecordMacroToggle">
-                            ● Start Recording
-                        </button>
-                        <button class="action-pill secondary" id="btnClearMacroSection">
-                            🗑 Clear Section
-                        </button>
-                        <button class="action-pill secondary" id="btnClearMacroAll">
-                            🗑 Clear All
-                        </button>
-                        <button class="action-pill test" id="btnTestMacroPlay">
-                            ▶ Test Playback
-                        </button>
-                    </div>
-                    
-                    <div class="macro-mouse-inject">
-                        <span class="inject-lbl">Inject Click:</span>
-                        <button class="inject-sm-btn" id="btnMacroLClick" data-mouse="LButton">Left</button>
-                        <button class="inject-sm-btn" id="btnMacroMClick" data-mouse="MButton">Middle</button>
-                        <button class="inject-sm-btn" id="btnMacroRClick" data-mouse="RButton">Right</button>
-                    </div>
-                </div>
+                <!-- Hidden summary line for state compatibility -->
+                <div id="macroSummaryLine" style="display:none;"></div>
 
-                <!-- Recorded Steps List -->
-                <div class="macro-steps-table-wrap">
-                    <table class="macro-steps-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 45px;">#</th>
-                                <th style="width: 140px;">Section</th>
-                                <th style="width: 120px;">Event</th>
-                                <th>Key / Mouse Action</th>
-                                <th style="width: 110px;">Delay (ms)</th>
-                                <th style="width: 50px;"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="macroStepsBody">
-                            <!-- Dynamic rows -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="macro-summary-line" id="macroSummaryLine">
-                    Total Steps: 0  |  Press: 0  |  Hold: 0  |  Release: 0
+                <!-- CONTEXT MENU POPOVER FOR ADDING ACTIONS -->
+                <div class="ghub-action-popover" id="ghubActionPopover" style="display: none;">
+                    <button type="button" class="ghub-popover-row" data-action="record">
+                        <span class="ghub-popover-dot red">●</span>
+                        <span class="ghub-popover-text">RECORD KEYSTROKES</span>
+                    </button>
+                    <button type="button" class="ghub-popover-row" data-action="text">
+                        <span class="ghub-popover-icon">🔤</span>
+                        <span class="ghub-popover-text">TYPE TEXT</span>
+                    </button>
+                    <div class="ghub-popover-row has-submenu" data-action="mouse-menu">
+                        <span class="ghub-popover-icon">🖱</span>
+                        <span class="ghub-popover-text">MOUSE ACTION</span>
+                        <span class="ghub-popover-arrow">›</span>
+                        <div class="ghub-submenu">
+                            <div class="ghub-submenu-item" data-mouse="LButton">Primary Click (Left)</div>
+                            <div class="ghub-submenu-item" data-mouse="RButton">Secondary Click (Right)</div>
+                            <div class="ghub-submenu-item" data-mouse="MButton">Middle Click</div>
+                            <div class="ghub-submenu-item" data-mouse="WheelUp">Scroll Up</div>
+                            <div class="ghub-submenu-item" data-mouse="WheelDown">Scroll Down</div>
+                        </div>
+                    </div>
+                    <button type="button" class="ghub-popover-row" data-action="delay">
+                        <span class="ghub-popover-icon">⏱</span>
+                        <span class="ghub-popover-text">ADD DELAY</span>
+                    </button>
+                    <div class="ghub-popover-sep"></div>
+                    <button type="button" class="ghub-popover-row danger" data-action="clear-section">
+                        <span class="ghub-popover-icon">🗑</span>
+                        <span class="ghub-popover-text">CLEAR SECTION</span>
+                    </button>
                 </div>
             </div>
 
@@ -774,6 +759,458 @@
         </div>
     </div>
 
+    <!-- Custom Mouse Image & Model Preset Modal -->
+    <div class="modal-backdrop" id="mouseImageModal" style="display: none;">
+        <div class="modal-dialog" style="max-width: 720px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <div class="modal-header-titles">
+                    <span class="modal-title">MOUSE MODEL & DIAGRAM IMAGE</span>
+                    <span class="modal-subtitle">Select a popular gaming mouse preset or upload a custom image</span>
+                </div>
+                <button type="button" class="modal-close-btn" id="btnCloseMouseImageModal">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 18px 24px; overflow-y: auto; flex: 1;">
+                
+                <!-- Section 1: Popular Mouse Presets -->
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                        <span>Popular Gaming Mouse Presets (All Buttons Single-View)</span>
+                        <span style="font-size: 11px; color: var(--accent-cyan); font-weight: 600;">6 High-Res Presets</span>
+                    </div>
+                    <div class="mouse-preset-grid" id="mousePresetGrid">
+                        <!-- Populated dynamically via JS: cards for G502X, Basilisk, Naga, G604, G Pro X, Rival 5 -->
+                    </div>
+                </div>
+
+                <!-- Section 2: Selected Preview & Action Bar -->
+                <div style="background: rgba(16, 18, 28, 0.75); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; display: flex; gap: 18px; align-items: center;">
+                    <div class="mouse-img-preview-box" style="width: 140px; height: 130px; margin: 0; flex-shrink: 0; background: radial-gradient(circle at center, rgba(30,35,55,0.7) 0%, rgba(10,12,20,0.9) 100%);">
+                        <img id="customImagePreview" src="../assets/g502x.png" alt="Mouse Preview" class="custom-img-preview-thumb" style="max-height: 115px; object-fit: contain;">
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0;">
+                        <div id="presetSelectedName" style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px;">Logitech G502 X / Hero</div>
+                        <div id="presetSelectedDesc" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">Hybrid optical-mechanical switches, sniper paddle, and dual-mode tilt wheel.</div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" class="modal-btn save" id="btnApplyPresetImage" style="padding: 7px 14px; font-size: 12px; font-weight: 700;">
+                                ✔ Apply Image Only
+                            </button>
+                            <button type="button" class="modal-btn save" id="btnApplyPresetWithLayout" style="padding: 7px 14px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #06b6d4, #3b82f6); border: none;">
+                                ⚡ Apply Image & Recommended Layout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Custom Mouse Options (Permanent Presets) -->
+                <div style="border-top: 1px solid var(--border-subtle); padding-top: 14px;">
+                    <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px;">
+                        Custom Mouse Models (Permanent Presets)
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <input type="file" id="mouseImageFileInput" accept="image/png, image/jpeg, image/webp, image/svg+xml" style="display: none;">
+                        <button type="button" class="modal-btn" id="btnBrowseMouseImage" style="flex: 1.2; min-width: 180px; background: rgba(6, 182, 212, 0.14); border: 1px solid rgba(6, 182, 212, 0.35); color: #38bdf8; font-size: 12px; font-weight: 600; padding: 9px 12px;">
+                            ➕ Add Custom Mouse (Image)...
+                        </button>
+                        <button type="button" class="modal-btn" id="btnSaveCurrentAsPreset" style="flex: 1.2; min-width: 180px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border-subtle); color: #e2e8f0; font-size: 12px; font-weight: 600; padding: 9px 12px;">
+                            💾 Save Current Layout as Preset
+                        </button>
+                        <button type="button" class="modal-btn cancel" id="btnResetMouseImage" style="background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25); font-size: 12px; font-weight: 600; padding: 9px 12px;">
+                            ↺ Reset Factory Default
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid var(--border-subtle);">
+                <button type="button" class="modal-btn cancel" id="btnCancelMouseImageModal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Custom Mouse Preset Modal -->
+    <div class="modal-backdrop" id="newMousePresetModal" style="display: none; z-index: 10000;">
+        <div class="modal-dialog" style="max-width: 440px;">
+            <div class="modal-header">
+                <div class="modal-header-titles">
+                    <span class="modal-title">SAVE AS NEW MOUSE OPTION</span>
+                    <span class="modal-subtitle">Save custom image and layout permanently in preset gallery</span>
+                </div>
+                <button type="button" class="modal-close-btn" id="btnCloseNewMousePresetModal">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 20px 24px;">
+                <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 16px;">
+                    <img id="newPresetThumbPreview" src="../assets/g502x.png" alt="Thumb" style="width: 70px; height: 70px; object-fit: contain; background: rgba(0,0,0,0.4); border-radius: 8px; border: 1px solid var(--border-subtle); padding: 4px;">
+                    <div style="flex: 1;">
+                        <label class="config-label" for="txtNewPresetName" style="display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">
+                            Mouse Model Name
+                        </label>
+                        <input type="text" id="txtNewPresetName" class="config-input" placeholder="e.g. Pulsar X2, Finalmouse Ultralight..." maxlength="35" style="width:100%; box-sizing:border-box; padding:9px 12px; background:rgba(16,18,28,0.8); border:1px solid var(--border-subtle); border-radius:8px; color:#fff; font-size:13px; font-weight:600;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label class="config-label" for="txtNewPresetBadge" style="display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">
+                        Badge Label (e.g. Custom, 6 Thumb, MMO)
+                    </label>
+                    <input type="text" id="txtNewPresetBadge" class="config-input" placeholder="Custom" maxlength="20" style="width:100%; box-sizing:border-box; padding:9px 12px; background:rgba(16,18,28,0.8); border:1px solid var(--border-subtle); border-radius:8px; color:#fff; font-size:13px; font-weight:600;">
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">
+                    💡 This mouse model will be permanently saved into your preset gallery. You can switch between it and other mice with one click at any time.
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border-subtle);">
+                <button type="button" class="modal-btn cancel" id="btnCancelNewMousePreset">Cancel</button>
+                <button type="button" class="modal-btn save" id="btnConfirmSaveNewMousePreset">💾 Save New Mouse Option</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add / Configure Mouse Button Modal -->
+    <div class="modal-backdrop" id="buttonConfigModal" style="display: none;">
+        <div class="modal-dialog" style="max-width: 480px;">
+            <div class="modal-header">
+                <div class="modal-header-titles">
+                    <span class="modal-title" id="btnConfigModalTitle">ADD MOUSE BUTTON</span>
+                    <span class="modal-subtitle">Configure button identifier, layout column, and hardware key</span>
+                </div>
+                <button type="button" class="modal-close-btn" id="btnCloseButtonConfigModal">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 20px 24px;">
+                <form id="buttonConfigForm" onsubmit="return false;">
+                    <input type="hidden" id="btnConfigOriginalId" value="">
+
+                    <div style="margin-bottom: 14px;">
+                        <label class="config-label" for="btnConfigId" style="display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">
+                            Button ID (Internal Key)
+                        </label>
+                        <input type="text" id="btnConfigId" class="config-input" placeholder="e.g. G10, Thumb1, Sniper..." maxlength="20" required style="width:100%; box-sizing:border-box; padding:10px 14px; background:rgba(16,18,28,0.8); border:1px solid var(--border-subtle); border-radius:8px; color:#fff; font-size:14px; font-weight:600;">
+                    </div>
+
+                    <div style="margin-bottom: 14px;">
+                        <label class="config-label" for="btnConfigName" style="display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">
+                            Display Name
+                        </label>
+                        <input type="text" id="btnConfigName" class="config-input" placeholder="e.g. G10 (Macro), Thumb 1..." maxlength="40" required style="width:100%; box-sizing:border-box; padding:10px 14px; background:rgba(16,18,28,0.8); border:1px solid var(--border-subtle); border-radius:8px; color:#fff; font-size:14px; font-weight:600;">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <div>
+                            <label class="config-label" for="btnConfigTag" style="display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">
+                                Badge Tag (Max 5 chars)
+                            </label>
+                            <input type="text" id="btnConfigTag" class="config-input" placeholder="e.g. G10, T1" maxlength="5" style="width:100%; box-sizing:border-box; padding:10px 14px; background:rgba(16,18,28,0.8); border:1px solid var(--border-subtle); border-radius:8px; color:#fff; font-size:14px; font-weight:600;">
+                        </div>
+
+                        <div>
+                            <label class="config-label" for="btnConfigSide" style="display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">
+                                Stage Column
+                            </label>
+                            <select id="btnConfigSide" style="width:100%; box-sizing:border-box; padding:10px 14px; background:rgba(16,18,28,0.8); border:1px solid var(--border-subtle); border-radius:8px; color:#fff; font-size:14px; font-weight:600; cursor:pointer;">
+                                <option value="left">◀ Left Column</option>
+                                <option value="right">Right Column ▶</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label class="config-label" for="btnConfigHardwareKey" style="display:block; margin-bottom:6px; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">
+                            Hardware Trigger Key (AutoHotkey Intercept)
+                        </label>
+                        <select id="btnConfigHardwareKey" style="width:100%; box-sizing:border-box; padding:10px 14px; background:rgba(16,18,28,0.8); border:1px solid var(--border-subtle); border-radius:8px; color:#fff; font-size:14px; font-weight:600; cursor:pointer;">
+                            <option value="">None / Virtual (On-Screen & Macro)</option>
+                            <option value="F13">F13 (Default: Mouse 3 / Middle)</option>
+                            <option value="F14">F14 (Default: Back / Mouse 4)</option>
+                            <option value="F15">F15 (Default: DPI Shift / Sniper)</option>
+                            <option value="F16">F16 (Default: Forward / Mouse 5)</option>
+                            <option value="F17">F17 (Default: Tilt Left)</option>
+                            <option value="F18">F18 (Default: Tilt Right)</option>
+                            <option value="F19">F19 (Default: Profile Cycle / G9)</option>
+                            <option value="F20">F20 (Default: DPI Up / G8)</option>
+                            <option value="F21">F21 (Default: DPI Down / G7)</option>
+                            <option value="F22">F22 (Available Virtual Key)</option>
+                            <option value="F23">F23 (Available Virtual Key)</option>
+                            <option value="F24">F24 (Available Virtual Key)</option>
+                            <option value="XButton1">Mouse 4 (XButton1)</option>
+                            <option value="XButton2">Mouse 5 (XButton2)</option>
+                        </select>
+                    </div>
+
+                    <div style="font-size: 12px; color: var(--text-muted); display:flex; align-items:center; gap:6px;">
+                        <span>💡</span>
+                        <span>Tip: Target dot position on the mouse image and card position can be calibrated in Calibration Mode.</span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--border-subtle);">
+                <button type="button" class="modal-btn cancel" id="btnCancelButtonConfig">Cancel</button>
+                <button type="button" class="modal-btn save" id="btnSaveButtonConfig">✔ Save Button</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STUDIO SETTINGS MODAL -->
+    <div class="modal-backdrop" id="studioSettingsModal" style="display: none;">
+        <div class="modal-dialog settings-dialog">
+            <div class="modal-header">
+                <div class="modal-header-titles">
+                    <span class="modal-title">⚙ STUDIO SETTINGS & TOOLS</span>
+                    <span class="modal-subtitle">Configure mouse layout, pointer calibration, hardware F-keys, backups, and app behavior</span>
+                </div>
+                <button type="button" class="modal-close-btn" id="btnSettingsModalClose" title="Close Settings">✕</button>
+            </div>
+
+            <div class="settings-modal-body">
+                <!-- Section 1: Mouse Hardware & Visual Layout -->
+                <div class="settings-group-title">MOUSE HARDWARE & DIAGRAM</div>
+                <div class="settings-grid">
+                    <!-- Tile 1: Mouse Image & Models -->
+                    <div class="settings-card" id="cardSettingsMouseImg">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon img-icon">🖼️</div>
+                            <div class="settings-card-content">
+                                <div class="settings-card-title">Mouse Diagram & Presets</div>
+                                <div class="settings-card-desc">Choose from popular gaming mice (G502 X, G604, G Pro X, Basilisk, Naga, Rival 5) or upload your own diagram.</div>
+                            </div>
+                        </div>
+                        <button type="button" class="settings-action-btn" id="btnChangeMouseImage">
+                            <span>Open Gallery</span>
+                            <span class="btn-arrow">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Tile 2: Add Custom Button -->
+                    <div class="settings-card" id="cardSettingsAddBtn">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon add-icon">➕</div>
+                            <div class="settings-card-content">
+                                <div class="settings-card-title">Custom Mouse Buttons</div>
+                                <div class="settings-card-desc">Add new physical or virtual buttons to the layout with custom callout tags and virtual F-key assignments.</div>
+                            </div>
+                        </div>
+                        <button type="button" class="settings-action-btn" id="btnAddCustomButton">
+                            <span>Add Button</span>
+                            <span class="btn-arrow">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Tile 3: Pointer Calibration -->
+                    <div class="settings-card" id="cardSettingsCalibrate">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon calib-icon">🎯</div>
+                            <div class="settings-card-content">
+                                <div class="settings-card-title">Pointer & Card Alignment</div>
+                                <div class="settings-card-desc">Manually adjust target hotspot dots and callout card positions directly on the diagram with pixel precision.</div>
+                            </div>
+                        </div>
+                        <button type="button" class="settings-action-btn calib" id="btnCalibratePointers">
+                            <span>Launch Calibrator</span>
+                            <span class="btn-arrow">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Tile 4: Logitech OMM Setup -->
+                    <div class="settings-card" id="cardSettingsOmm">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon omm-icon">⚡</div>
+                            <div class="settings-card-content">
+                                <div class="settings-card-title">Logitech OMM Integration</div>
+                                <div class="settings-card-desc">Setup Logitech Onboard Memory Manager and inject virtual F13–F24 keys for hardware button interception.</div>
+                            </div>
+                        </div>
+                        <button type="button" class="settings-action-btn omm" id="btnOpenOmmSetup">
+                            <span>OMM Setup</span>
+                            <span class="btn-arrow">→</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Section 2: Data & Studio Management -->
+                <div class="settings-group-title" style="margin-top: 24px;">STUDIO DATA & SYSTEM OPTIONS</div>
+                <div class="settings-grid">
+                    <!-- Tile 5: Backup & Restore -->
+                    <div class="settings-card" id="cardSettingsBackup">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon backup-icon">⇄</div>
+                            <div class="settings-card-content">
+                                <div class="settings-card-title">Backup & Restore Studio</div>
+                                <div class="settings-card-desc">Export or import all your app profiles, macros, custom mouse layouts, and preferences to a portable backup file.</div>
+                            </div>
+                        </div>
+                        <button type="button" class="settings-action-btn backup" id="btnToolbarBackup">
+                            <span>Backup / Restore</span>
+                            <span class="btn-arrow">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Tile 6: App Behavior Quick Toggles -->
+                    <div class="settings-card preferences-tile">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon pref-icon">🛡️</div>
+                            <div class="settings-card-content">
+                                <div class="settings-card-title">Studio Focus & Safety</div>
+                                <div class="settings-card-desc">Control action execution while the Studio window has focus and configure notifications.</div>
+                            </div>
+                        </div>
+                        <div class="settings-toggles-row">
+                            <label class="settings-pill-toggle" title="Prevent actions from triggering when Studio is focused">
+                                <input type="checkbox" id="chkSettingsMute" checked>
+                                <span class="pill-dot"></span>
+                                <span>🛡️ Test in Focus</span>
+                            </label>
+                            <label class="settings-pill-toggle" title="Show on-screen notification HUD for profile switches">
+                                <input type="checkbox" id="chkSettingsOSD" checked>
+                                <span class="pill-dot"></span>
+                                <span>🔔 Notifications</span>
+                            </label>
+                            <label class="settings-pill-toggle" title="Keep Studio window pinned above other windows">
+                                <input type="checkbox" id="chkSettingsTop">
+                                <span class="pill-dot"></span>
+                                <span>📌 Always On Top</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="padding: 12px 24px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end;">
+                <button type="button" class="action-pill primary" id="btnSettingsCloseFooter">
+                    ✔ Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backup & Restore (Import / Export) Modal -->
+    <div class="modal-backdrop" id="backupModal" style="display: none;">
+        <div class="modal-dialog" style="max-width: 650px; width: 92vw;">
+            <div class="modal-header">
+                <div class="modal-header-titles">
+                    <span class="modal-title">BACKUP & RESTORE — IMPORT / EXPORT</span>
+                    <span class="modal-subtitle">Export or restore all profiles, macros, custom mouse layouts, and system options</span>
+                </div>
+                <button type="button" class="modal-close-btn" id="btnCloseBackupModal">✕</button>
+            </div>
+
+            <!-- Modal Segmented Navigation Tabs -->
+            <div class="modal-tabs" style="display: flex; border-bottom: 1px solid var(--border-subtle); background: rgba(0,0,0,0.3);">
+                <button type="button" class="modal-tab active" id="tabBackupExport" style="flex: 1; padding: 12px; font-weight: 700; font-size: 13px; cursor: pointer; background: transparent; border: none; color: #fff; border-bottom: 2px solid var(--accent-cyan); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span>📤 Export Everything</span>
+                </button>
+                <button type="button" class="modal-tab" id="tabBackupImport" style="flex: 1; padding: 12px; font-weight: 700; font-size: 13px; cursor: pointer; background: transparent; border: none; color: var(--text-muted); border-bottom: 2px solid transparent; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span>📥 Import & Restore</span>
+                </button>
+            </div>
+
+            <!-- Tab 1: Export Panel -->
+            <div class="modal-body" id="panelBackupExport" style="padding: 20px 24px; overflow-y: auto; max-height: 65vh;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
+                    Current Studio Snapshot (Included in Export)
+                </div>
+
+                <!-- Live Snapshot Summary Cards -->
+                <div class="backup-stats-grid" id="backupExportStatsGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px;">
+                    <!-- Populated dynamically via JS -->
+                </div>
+
+                <div style="background: rgba(16, 18, 28, 0.7); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px;">
+                    <div style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                        <span>📦</span> Complete JSON Studio Backup
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 14px;">
+                        Exports everything into a single, comprehensive JSON file: all profiles, keybinds, multi-step macros, custom button coordinates, mouse image, permanent mouse gallery presets, and app preferences.
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button type="button" class="modal-btn save" id="btnDownloadJsonBackup" style="flex: 1.5; padding: 10px 16px; font-size: 13px; font-weight: 700; background: linear-gradient(135deg, #06b6d4, #3b82f6); border: none;">
+                            📥 Download JSON Backup
+                        </button>
+                        <button type="button" class="modal-btn" id="btnSaveJsonViaDialog" style="flex: 1.2; padding: 10px 14px; font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); color: #e2e8f0;">
+                            💾 Save via Windows Dialog...
+                        </button>
+                    </div>
+                </div>
+
+                <div style="background: rgba(16, 18, 28, 0.45); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 12px 18px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <div style="font-size: 12px; font-weight: 700; color: #e2e8f0;">Raw settings.ini Backup</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">Direct download of your active AutoHotkey configuration INI file</div>
+                        </div>
+                        <button type="button" class="modal-btn" id="btnDownloadIniBackup" style="padding: 7px 14px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: #cbd5e1;">
+                            📄 Download settings.ini
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Import Panel -->
+            <div class="modal-body" id="panelBackupImport" style="padding: 20px 24px; overflow-y: auto; max-height: 65vh; display: none;">
+                <!-- Drag & Drop Zone -->
+                <div id="backupDropZone" style="border: 2px dashed rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.04); border-radius: 12px; padding: 24px 20px; text-align: center; cursor: pointer; transition: all 0.2s ease; margin-bottom: 16px;">
+                    <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
+                    <div style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px;">Drop JSON or INI backup file here</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Supports complete studio backups (.json) and settings.ini files</div>
+                    <div style="display: flex; gap: 8px; justify-content: center;">
+                        <button type="button" class="modal-btn" id="btnBrowseBackupWeb" style="padding: 8px 18px; font-size: 12px; font-weight: 600; background: rgba(6, 182, 212, 0.16); border: 1px solid rgba(6, 182, 212, 0.4); color: #38bdf8;">
+                            Browse File...
+                        </button>
+                        <button type="button" class="modal-btn" id="btnBrowseBackupAhk" style="padding: 8px 16px; font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); color: #e2e8f0;">
+                            Windows Dialog...
+                        </button>
+                    </div>
+                    <input type="file" id="backupFileInput" accept=".json,.ini,application/json,text/plain" style="display: none;">
+                </div>
+
+                <!-- Inspection Summary Box (Shown after file loaded) -->
+                <div id="backupInspectCard" style="display: none; background: rgba(16, 18, 28, 0.85); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span id="backupInspectIcon" style="font-size: 20px;">📄</span>
+                            <div>
+                                <div id="backupInspectFileName" style="font-size: 13px; font-weight: 700; color: #fff;">backup.json</div>
+                                <div id="backupInspectFileSize" style="font-size: 11px; color: var(--text-muted);">0 KB</div>
+                            </div>
+                        </div>
+                        <span id="backupInspectBadge" style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: rgba(166, 227, 161, 0.15); color: #a6e3a1; border: 1px solid rgba(166, 227, 161, 0.3);">
+                            ✔ Valid Backup
+                        </span>
+                    </div>
+
+                    <!-- Breakdown items -->
+                    <div id="backupInspectDetails" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; margin-bottom: 12px;">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+
+                    <!-- Restore Mode Selection -->
+                    <div style="border-top: 1px solid var(--border-subtle); padding-top: 10px;">
+                        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px;">
+                            Restore Mode
+                        </div>
+                        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #fff; cursor: pointer;">
+                                <input type="radio" name="restoreMode" value="replace" checked style="accent-color: var(--accent-cyan);">
+                                <span>Replace Everything (Full Overwrite)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #cbd5e1; cursor: pointer;">
+                                <input type="radio" name="restoreMode" value="merge" style="accent-color: var(--accent-cyan);">
+                                <span>Merge Profiles & Presets</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restore Action Button -->
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="modal-btn save" id="btnApplyBackupImport" disabled style="padding: 10px 20px; font-size: 13px; font-weight: 700; background: linear-gradient(135deg, #10b981, #06b6d4); border: none; opacity: 0.5; cursor: not-allowed;">
+                        📥 Apply & Restore Configuration
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid var(--border-subtle);">
+                <button type="button" class="modal-btn cancel" id="btnCancelBackupModal">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Toast / OSD -->
     <div class="studio-toast" id="studioToast">
         <div class="toast-title" id="toastTitle">Notification</div>
@@ -815,8 +1252,17 @@
             </div>
             <span class="ctx-arrow">▶</span>
             <div class="ctx-submenu" id="ctxFKeySubmenu">
-                <!-- Populated dynamically via JS: F13 to F21 with assigned buttons -->
+                <!-- Populated dynamically via JS: F13 to F24 with assigned buttons -->
             </div>
+        </div>
+        <div class="ctx-divider"></div>
+        <div class="ctx-item" id="ctxBtnConfigure">
+            <span class="ctx-icon">⚙</span>
+            <span class="ctx-text">Configure Button...</span>
+        </div>
+        <div class="ctx-item danger" id="ctxBtnDelete">
+            <span class="ctx-icon">✕</span>
+            <span class="ctx-text">Delete Button</span>
         </div>
     </div>
 

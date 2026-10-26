@@ -39,12 +39,19 @@ const state = {
     contextTargetButton: null,
     customButtonNames: {},
     renameTargetButton: null,
+    customMousePresets: [],
+    rawIni: '',
+    muteWhenFocused: true,
 
-    // Pointer Calibration Mode State
+    // Pointer & Card Calibration Mode State
     isCalibrating: false,
     calibSelectedButton: 'G8',
+    calibTargetMode: 'dot', // 'dot' or 'card'
     calibStep: 1, // 1px, 5px, 10px
     isDraggingPoint: false,
+    isDraggingCard: false,
+    cardOffsets: {}, // { ButtonId: { x: number, y: number } }
+    originalCardMinWidth: 150,
     
     // Mappings: { ProfileName: { ButtonId: { Normal: {...}, GShift: {...}, GShift2: {...} } } }
     mappings: {},
@@ -56,6 +63,12 @@ const state = {
         isRecordingKey: false,
         isRecordingMacro: false,
         macroPhase: 'ON PRESS', // 'ON PRESS', 'WHILE HOLDING', 'ON RELEASE'
+        targetInsertSection: 'press',
+        macroName: 'Macro',
+        macroColor: 'none',
+        showUpDown: true,
+        useStandardDelays: true,
+        autoAdaptDirection: false,
         singleAction: {
             Type: 'Send',
             Cmd: '{Volume_Up 2}',
@@ -68,28 +81,83 @@ const state = {
             hold: [],
             release: []
         },
-        macroType: 'NoRepeat',
+        macroType: 'Sequence',
         macroDefDelay: 50,
+        macroRepeatDelay: 50,
         lastRecordTime: 0
     }
 };
 
-// Diagram Calibrated Coordinates (matching [DiagramPoints] 860x500 canvas)
-const DIAGRAM_POINTS = {
-    LeftClick:    { x: 268, y: 88,  side: 'left',  name: 'Left Click (M1)',   tag: 'M1' },
-    G8:           { x: 201, y: 87,  side: 'left',  name: 'G8 (DPI Up)',       tag: 'G8' },
-    G7:           { x: 242, y: 126, side: 'left',  name: 'G7 (DPI Down)',     tag: 'G7' },
-    DpiShift:     { x: 270, y: 264, side: 'left',  name: 'DPI Shift (Sniper)', tag: 'DPI' },
-    Forward:      { x: 287, y: 229, side: 'left',  name: 'G5 (Forward)',      tag: 'G5' },
-    Back:         { x: 361, y: 281, side: 'left',  name: 'G4 (Back)',         tag: 'G4' },
-    RightClick:   { x: 388, y: 88,  side: 'right', name: 'Right Click (M2)',  tag: 'M2' },
-    TiltLeft:     { x: 322, y: 73,  side: 'right', name: 'Wheel Tilt Left',   tag: 'TL' },
-    WheelUp:      { x: 304, y: 33,  side: 'right', name: 'Wheel Scroll Up',   tag: 'W-UP' },
-    Middle:       { x: 355, y: 58,  side: 'right', name: 'Wheel Click (M3)',  tag: 'MID' },
-    WheelDown:    { x: 383, y: 67,  side: 'right', name: 'Wheel Scroll Down', tag: 'W-DN' },
-    TiltRight:    { x: 382, y: 27,  side: 'right', name: 'Wheel Tilt Right',  tag: 'TR' },
-    ProfileCycle: { x: 444, y: 105, side: 'right', name: 'G9 (Profile Cycle)',tag: 'G9' }
-};
+// Default Factory Button Definitions
+const DEFAULT_BUTTONS_CONFIG = [
+    { id: 'LeftClick',    x: 213, y: 25,  side: 'left',  name: 'Left Click (M1)',    tag: 'M1',   hardwareKey: '' },
+    { id: 'G8',           x: 96,  y: 41,  side: 'left',  name: 'G8 (DPI Up)',        tag: 'G8',   hardwareKey: 'F20' },
+    { id: 'G7',           x: 178, y: 128, side: 'left',  name: 'G7 (DPI Down)',      tag: 'G7',   hardwareKey: 'F21' },
+    { id: 'DpiShift',     x: 166, y: 251, side: 'left',  name: 'DPI Shift (Sniper)', tag: 'DPI',  hardwareKey: 'F15' },
+    { id: 'Forward',      x: 213, y: 218, side: 'left',  name: 'G5 (Forward)',       tag: 'G5',   hardwareKey: 'F16' },
+    { id: 'Back',         x: 310, y: 293, side: 'left',  name: 'G4 (Back)',          tag: 'G4',   hardwareKey: 'F14' },
+    { id: 'RightClick',   x: 414, y: -33, side: 'right', name: 'Right Click (M2)',   tag: 'M2',   hardwareKey: '' },
+    { id: 'TiltLeft',     x: 266, y: -5,  side: 'right', name: 'Wheel Tilt Left',    tag: 'TL',   hardwareKey: 'F17' },
+    { id: 'WheelUp',      x: 241, y: -66, side: 'right', name: 'Wheel Scroll Up',    tag: 'W-UP', hardwareKey: '' },
+    { id: 'Middle',       x: 306, y: -37, side: 'right', name: 'Wheel Click (M3)',   tag: 'MID',  hardwareKey: 'F13' },
+    { id: 'WheelDown',    x: 346, y: -9,  side: 'right', name: 'Wheel Scroll Down',  tag: 'W-DN', hardwareKey: '' },
+    { id: 'TiltRight',    x: 349, y: -59, side: 'right', name: 'Wheel Tilt Right',   tag: 'TR',   hardwareKey: 'F18' },
+    { id: 'ProfileCycle', x: 406, y: 34,  side: 'right', name: 'G9 (Profile Cycle)', tag: 'G9',   hardwareKey: 'F19' }
+];
+
+// Active Button Coordinates & Configuration (single source of truth)
+const DIAGRAM_POINTS = {};
+DEFAULT_BUTTONS_CONFIG.forEach(b => {
+    DIAGRAM_POINTS[b.id] = {
+        x: b.x,
+        y: b.y,
+        side: b.side,
+        name: b.name,
+        tag: b.tag
+    };
+});
+
+function applyButtonsConfig(btnList) {
+    if (!Array.isArray(btnList) || btnList.length === 0) {
+        btnList = DEFAULT_BUTTONS_CONFIG;
+    }
+    for (const k of Object.keys(DIAGRAM_POINTS)) {
+        delete DIAGRAM_POINTS[k];
+    }
+    const usedKeys = new Set();
+    const newHardwareFKeys = {};
+
+    btnList.forEach(b => {
+        const bId = b.id || b.Id;
+        if (!bId) return;
+        DIAGRAM_POINTS[bId] = {
+            x: (b.x !== undefined && !isNaN(Number(b.x))) ? Number(b.x) : 300,
+            y: (b.y !== undefined && !isNaN(Number(b.y))) ? Number(b.y) : 200,
+            side: b.side || 'left',
+            name: b.name || bId,
+            tag: b.tag || bId
+        };
+        const key = b.hardwareKey || b.fkey || b.Key;
+        // Enforce strict 1-to-1 uniqueness: no duplicate F-keys
+        if (key) {
+            if (!usedKeys.has(key)) {
+                usedKeys.add(key);
+                newHardwareFKeys[bId] = key;
+            }
+        }
+    });
+
+    state.hardwareFKeys = newHardwareFKeys;
+    if (typeof renderAllCards === 'function') {
+        renderAllCards();
+    }
+    if (typeof renderCalibPills === 'function') {
+        renderCalibPills();
+    }
+    if (typeof updateSvgLines === 'function') {
+        updateSvgLines();
+    }
+}
 
 const DEFAULT_CARD_BADGES = {
     LeftClick: 'M1',
@@ -211,10 +279,14 @@ document.addEventListener('DOMContentLoaded', () => {
     initStageAndCards();
     initButtonContextMenu();
     initButtonRenameModal();
+    initMouseImageModal();
+    initButtonConfigModal();
     initOmmModal();
     initModalControls();
     initKeyboardGlobal();
     initCalibration();
+    initBackupModal();
+    initStudioSettingsModal();
     
     // Draw initial SVG lines after layout stabilizes
     setTimeout(() => {
@@ -222,10 +294,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 150);
 
     window.addEventListener('resize', () => {
+        syncCardMinWidthWithRightClick();
         updateSvgLines();
     });
 
     window.addEventListener('load', () => {
+        syncCardMinWidthWithRightClick();
         updateSvgLines();
     });
 
@@ -311,7 +385,30 @@ function handleEngineMessage(msg) {
             if (msg.lockedProfile !== undefined) {
                 state.lockedProfile = msg.lockedProfile || '';
             }
+            if (msg.rawIni !== undefined) {
+                state.rawIni = msg.rawIni || '';
+            }
             
+            // Custom mouse image loading
+            if (msg.mouseImage) {
+                const mouseImg = document.getElementById('mouseImg');
+                if (mouseImg) mouseImg.src = msg.mouseImage;
+                const customPreview = document.getElementById('customImagePreview');
+                if (customPreview) customPreview.src = msg.mouseImage;
+            }
+
+            // Custom mouse presets loading
+            if (msg.customMousePresets && Array.isArray(msg.customMousePresets)) {
+                state.customMousePresets = msg.customMousePresets;
+            }
+
+            // Custom buttons list loading
+            if (msg.customButtons && Array.isArray(msg.customButtons) && msg.customButtons.length > 0) {
+                applyButtonsConfig(msg.customButtons);
+            } else if (typeof renderAllCards === 'function') {
+                renderAllCards();
+            }
+
             // Load calibrated diagram points if received from AHK
             if (msg.diagramPoints) {
                 for (const btnId in msg.diagramPoints) {
@@ -320,6 +417,17 @@ function handleEngineMessage(msg) {
                         DIAGRAM_POINTS[btnId].y = msg.diagramPoints[btnId].y;
                     }
                 }
+            }
+            // Load card offsets if received from AHK
+            if (msg.cardOffsets) {
+                state.cardOffsets = {};
+                for (const btnId in msg.cardOffsets) {
+                    state.cardOffsets[btnId] = {
+                        x: parseFloat(msg.cardOffsets[btnId].x) || 0,
+                        y: parseFloat(msg.cardOffsets[btnId].y) || 0
+                    };
+                }
+                applyAllCardOffsets();
             }
             if (msg.buttonNames) {
                 state.customButtonNames = msg.buttonNames;
@@ -334,6 +442,11 @@ function handleEngineMessage(msg) {
                 const chkOSD = document.getElementById('chkShowOSD');
                 if (chkOSD) chkOSD.checked = !!msg.showOSD;
             }
+            if (msg.muteWhenFocused !== undefined) {
+                state.muteWhenFocused = !!msg.muteWhenFocused;
+                const chkMute = document.getElementById('chkMuteWhenFocused');
+                if (chkMute) chkMute.checked = state.muteWhenFocused;
+            }
             updateRapidFireUI(state.isRapidFire);
             renderLgsProfiles();
             updateAutoSwitchUI();
@@ -342,8 +455,54 @@ function handleEngineMessage(msg) {
             updateSvgLines();
             break;
 
+        case 'mouseImageSaved':
+            if (msg.mouseImage) {
+                const mouseImg = document.getElementById('mouseImg');
+                if (mouseImg) mouseImg.src = msg.mouseImage;
+                const customPreview = document.getElementById('customImagePreview');
+                if (customPreview) customPreview.src = msg.mouseImage;
+            }
+            updateSvgLines();
+            showToast('Mouse Image Saved', 'Custom mouse diagram updated');
+            break;
+
+        case 'mouseImageReset':
+            {
+                const defImg = '../assets/g502x.png';
+                const mouseImg = document.getElementById('mouseImg');
+                if (mouseImg) mouseImg.src = defImg;
+                const customPreview = document.getElementById('customImagePreview');
+                if (customPreview) customPreview.src = defImg;
+                updateSvgLines();
+                showToast('Mouse Image Reset', 'Restored default Logitech G502 X diagram');
+            }
+        case 'customMousePresetsUpdated':
+            if (msg.presets && Array.isArray(msg.presets)) {
+                state.customMousePresets = msg.presets;
+                if (typeof renderPresetCardsGlobal === 'function') {
+                    renderPresetCardsGlobal();
+                }
+            }
+            break;
+
+        case 'customButtonsSaved':
+            if (msg.buttons && Array.isArray(msg.buttons)) {
+                applyButtonsConfig(msg.buttons);
+            }
+            showToast('Buttons Saved', 'Mouse button configuration saved');
+            break;
+
+        case 'customButtonDeleted':
+            showToast('Button Removed', `Button ${msg.btnId} deleted`);
+            break;
+
+        case 'customButtonsReset':
+            applyButtonsConfig(DEFAULT_BUTTONS_CONFIG);
+            showToast('Buttons Reset', 'Restored default button configuration');
+            break;
+
         case 'diagramPointsSaved':
-            showToast('Pointer Calibration', 'Coordinates successfully saved to settings.ini');
+            showToast('Calibration Saved', 'Diagram points and card positions saved to settings.ini');
             break;
 
         case 'diagramPointsReset':
@@ -354,10 +513,12 @@ function handleEngineMessage(msg) {
                         DIAGRAM_POINTS[btnId].y = msg.diagramPoints[btnId].y;
                     }
                 }
-                updateCalibInputs(DIAGRAM_POINTS[state.calibSelectedButton].x, DIAGRAM_POINTS[state.calibSelectedButton].y);
-                updateSvgLines();
             }
-            showToast('Pointer Calibration', 'Restored default factory pointer coordinates');
+            state.cardOffsets = {};
+            applyAllCardOffsets();
+            syncCalibInputs();
+            updateSvgLines();
+            showToast('Calibration Reset', 'Restored default pointer coordinates and card positions');
             break;
 
         case 'profileChanged':
@@ -507,6 +668,15 @@ function handleEngineMessage(msg) {
             }
             break;
 
+        case 'muteWhenFocusedChanged':
+            if (typeof msg.enabled === 'boolean') {
+                state.muteWhenFocused = msg.enabled;
+                const chkMute = document.getElementById('chkMuteWhenFocused');
+                if (chkMute) chkMute.checked = msg.enabled;
+                showToast('Test in Focus', msg.enabled ? 'Active: Buttons highlight without triggering actions' : 'Off: Normal button actions active');
+            }
+            break;
+
         case 'buttonStateChanged':
             // Flash button card and hotspot on physical mouse click
             flashButtonHardware(msg.btnId, msg.isDown);
@@ -557,6 +727,10 @@ function handleEngineMessage(msg) {
                     PlayType: document.getElementById('singlePlaybackMode')?.value || 'NoRepeat',
                     RepeatInterval: parseInt(document.getElementById('singleRepeatDelay')?.value) || 50
                 };
+                state.modal.lastRecordedKey = {
+                    cmd: msg.ahkCmd,
+                    label: msg.niceLabel
+                };
                 updateSinglePreview();
                 stopRecordSingleKey(false);
                 const pBox = document.getElementById('singlePreviewBox');
@@ -571,7 +745,20 @@ function handleEngineMessage(msg) {
             if (state.modal.isRecordingKey) {
                 const previewTxt = document.getElementById('singlePreviewText');
                 if (previewTxt) {
-                    previewTxt.textContent = msg.preview || '[ Press Any Key or Click Mouse Button Below ]';
+                    previewTxt.textContent = msg.preview || '[ Press Any Key or Combination ]';
+                }
+                if (msg.ahkCmd && msg.niceLabel) {
+                    state.modal.lastRecordedKey = {
+                        cmd: msg.ahkCmd,
+                        label: msg.niceLabel
+                    };
+                    state.modal.singleAction = {
+                        Type: 'Send',
+                        Cmd: msg.ahkCmd,
+                        Label: msg.niceLabel,
+                        PlayType: state.modal.singleAction?.PlayType || document.getElementById('singlePlaybackMode')?.value || 'NoRepeat',
+                        RepeatInterval: state.modal.singleAction?.RepeatInterval || parseInt(document.getElementById('singleRepeatDelay')?.value) || 50
+                    };
                 }
             }
             break;
@@ -585,11 +772,12 @@ function handleEngineMessage(msg) {
 
         case 'macroStepRecorded':
             if (state.modal.isRecordingMacro) {
-                const ph = getPhaseKey(state.modal.macroPhase);
+                const ph = state.modal.targetInsertSection || getPhaseKey(state.modal.macroPhase);
+                if (!state.modal.macroSteps[ph]) state.modal.macroSteps[ph] = [];
                 state.modal.macroSteps[ph].push({
                     Action: msg.action,
                     Key: msg.key,
-                    Delay: msg.delay || 50
+                    Delay: state.modal.useStandardDelays ? (state.modal.macroDefDelay || 50) : (msg.delay || 50)
                 });
                 renderMacroSteps();
             }
@@ -606,6 +794,34 @@ function handleEngineMessage(msg) {
             }
             if (state.modal.isRecordingMacro) {
                 stopRecordMacro(false);
+            }
+            break;
+
+        case 'backupImportSuccess':
+            showToast('Restore Complete', msg.message || 'All profiles, layouts and options successfully restored!');
+            closeBackupModal();
+            break;
+
+        case 'backupImportFailed':
+            showToast('Restore Error', msg.error || 'Failed to restore configuration', 4000);
+            {
+                const btnApply = document.getElementById('btnApplyBackupImport');
+                if (btnApply) {
+                    btnApply.disabled = false;
+                    btnApply.style.opacity = '1';
+                    btnApply.style.cursor = 'pointer';
+                    btnApply.textContent = '📥 Apply & Restore Configuration';
+                }
+            }
+            break;
+
+        case 'backupExported':
+            showToast('Backup Exported', `Saved to ${msg.path || 'file'}`);
+            break;
+
+        case 'backupFileSelected':
+            if (msg.fileName && msg.content !== undefined) {
+                handleLoadedBackupFile(msg.fileName, msg.content);
             }
             break;
 
@@ -661,6 +877,15 @@ function initHeaderControls() {
     if (chkOSD) {
         chkOSD.addEventListener('change', (e) => {
             sendToAhk({ action: 'toggleOSD', enabled: e.target.checked });
+        });
+    }
+
+    // Test in Focus Mode (mute actions while window is focused)
+    const chkMute = document.getElementById('chkMuteWhenFocused');
+    if (chkMute) {
+        chkMute.addEventListener('change', (e) => {
+            state.muteWhenFocused = e.target.checked;
+            sendToAhk({ action: 'toggleMuteWhenFocused', enabled: state.muteWhenFocused });
         });
     }
 
@@ -963,6 +1188,167 @@ function clearAllDropHovers() {
     });
 }
 
+function renderAllCards() {
+    const leftCol = document.getElementById('leftCallouts');
+    const rightCol = document.getElementById('rightCallouts');
+    if (!leftCol || !rightCol) return;
+
+    leftCol.innerHTML = '';
+    rightCol.innerHTML = '';
+
+    const isShiftActive = (state.currentLayer !== 'Normal');
+
+    for (const btnId in DIAGRAM_POINTS) {
+        const pt = DIAGRAM_POINTS[btnId];
+        const card = document.createElement('div');
+        card.className = 'callout-card btn-card';
+        card.id = `card_${btnId}`;
+        card.setAttribute('data-btn', btnId);
+        if (state.selectedButton === btnId) {
+            card.classList.add('selected');
+        }
+
+        const isPrimaryClick = (btnId === 'LeftClick' || btnId === 'RightClick');
+        if (isPrimaryClick && !isShiftActive) {
+            card.classList.add('primary-locked');
+        }
+
+        const header = document.createElement('div');
+        header.className = 'card-header';
+
+        const headerLeft = document.createElement('div');
+        headerLeft.className = 'card-header-left';
+
+        const badge = document.createElement('span');
+        badge.className = 'card-badge';
+        const customName = state.customButtonNames?.[btnId];
+        badge.textContent = customName || (DEFAULT_CARD_BADGES[btnId] || pt.tag || btnId);
+        headerLeft.appendChild(badge);
+
+        const fkeyPill = document.createElement('span');
+        fkeyPill.className = 'card-fkey-pill';
+        fkeyPill.id = `fkey_${btnId}`;
+        const curFKey = state.hardwareFKeys?.[btnId];
+        if (curFKey) {
+            fkeyPill.textContent = curFKey;
+            fkeyPill.style.display = 'inline-block';
+        } else {
+            fkeyPill.style.display = 'none';
+        }
+        headerLeft.appendChild(fkeyPill);
+
+        header.appendChild(headerLeft);
+
+        const body = document.createElement('div');
+        body.className = 'card-body';
+
+        const actionPreview = document.createElement('div');
+        actionPreview.className = 'card-action-preview';
+        actionPreview.id = `action_${btnId}`;
+        actionPreview.textContent = 'Unassigned';
+        body.appendChild(actionPreview);
+
+        card.appendChild(header);
+        card.appendChild(body);
+
+        attachCardEventListeners(card, btnId);
+
+        if (pt.side === 'right') {
+            rightCol.appendChild(card);
+        } else {
+            leftCol.appendChild(card);
+        }
+    }
+
+    applyAllCardOffsets();
+    syncCardMinWidthWithRightClick();
+    refreshCardsAndStage();
+    updateSvgLines();
+}
+
+function attachCardEventListeners(card, btnId) {
+    card.addEventListener('pointerdown', (e) => {
+        if (state.isCalibrating) {
+            onCardCalibPointerDown(e, btnId);
+        }
+    });
+
+    card.addEventListener('click', (e) => {
+        if (state.isCalibrating) {
+            e.stopPropagation();
+            selectCalibButton(btnId, 'card');
+            return;
+        }
+        selectButton(btnId);
+        if ((btnId === 'LeftClick' || btnId === 'RightClick') && state.currentLayer === 'Normal') {
+            showToast('B-Shift Required', 'Left and Right Click can be remapped when the B-Shift toggle is ON.');
+        }
+    });
+
+    card.addEventListener('dblclick', () => {
+        if (state.isCalibrating) return;
+        if ((btnId === 'LeftClick' || btnId === 'RightClick') && state.currentLayer === 'Normal') {
+            showToast('B-Shift Required', 'Left and Right Click can be remapped when the B-Shift toggle is ON.');
+            return;
+        }
+        selectButton(btnId);
+        openButtonStudio(btnId);
+    });
+
+    card.addEventListener('contextmenu', (e) => {
+        if (state.isCalibrating) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        openButtonContextMenu(e, btnId);
+    });
+
+    // Drag & Drop onto card
+    card.addEventListener('dragenter', (e) => {
+        if (state.isCalibrating) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        setButtonDropHover(btnId, true);
+    });
+
+    card.addEventListener('dragover', (e) => {
+        if (state.isCalibrating) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        if (!card.classList.contains('drop-hover')) {
+            setButtonDropHover(btnId, true);
+        }
+    });
+
+    card.addEventListener('dragleave', (e) => {
+        if (state.isCalibrating) return;
+        if (!card.contains(e.relatedTarget)) {
+            setButtonDropHover(btnId, false);
+        }
+    });
+
+    card.addEventListener('drop', (e) => {
+        if (state.isCalibrating) return;
+        e.preventDefault();
+        setButtonDropHover(btnId, false);
+        if ((btnId === 'LeftClick' || btnId === 'RightClick') && state.currentLayer === 'Normal') {
+            showToast('B-Shift Required', 'Left and Right Click can only be remapped on the B-Shift layer.');
+            return;
+        }
+        try {
+            const data = JSON.parse(e.dataTransfer.getData('application/json'));
+            if (data && data.Type) {
+                applyActionToButton(btnId, data);
+            }
+        } catch (err) {
+            console.error('Drop error:', err);
+        }
+    });
+}
+
 function initStageAndCards() {
     // Toolbar buttons
     document.getElementById('btnRecordSelected').addEventListener('click', () => {
@@ -977,72 +1363,8 @@ function initStageAndCards() {
         resetButtonToDefault(state.selectedButton);
     });
 
-    // Card click, double-click, and drop handlers
-    document.querySelectorAll('.btn-card').forEach(card => {
-        const btnId = card.getAttribute('data-btn');
-
-        card.addEventListener('click', () => {
-            selectButton(btnId);
-            if ((btnId === 'LeftClick' || btnId === 'RightClick') && state.currentLayer === 'Normal') {
-                showToast('B-Shift Required', 'Left and Right Click can be remapped when the B-Shift toggle is ON.');
-            }
-        });
-
-        card.addEventListener('dblclick', () => {
-            if ((btnId === 'LeftClick' || btnId === 'RightClick') && state.currentLayer === 'Normal') {
-                showToast('B-Shift Required', 'Left and Right Click can be remapped when the B-Shift toggle is ON.');
-                return;
-            }
-            selectButton(btnId);
-            openButtonStudio(btnId);
-        });
-
-        card.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            openButtonContextMenu(e, btnId);
-        });
-
-        // Drag & Drop onto card
-        card.addEventListener('dragenter', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
-            setButtonDropHover(btnId, true);
-        });
-
-        card.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
-            if (!card.classList.contains('drop-hover')) {
-                setButtonDropHover(btnId, true);
-            }
-        });
-
-        card.addEventListener('dragleave', (e) => {
-            if (!card.contains(e.relatedTarget)) {
-                setButtonDropHover(btnId, false);
-            }
-        });
-
-        card.addEventListener('drop', (e) => {
-            e.preventDefault();
-            setButtonDropHover(btnId, false);
-            if ((btnId === 'LeftClick' || btnId === 'RightClick') && state.currentLayer === 'Normal') {
-                showToast('B-Shift Required', 'Left and Right Click can only be remapped on the B-Shift layer.');
-                return;
-            }
-            try {
-                const data = JSON.parse(e.dataTransfer.getData('application/json'));
-                if (data && data.Type) {
-                    applyActionToButton(btnId, data);
-                }
-            } catch (err) {
-                console.error('Drop error:', err);
-            }
-        });
-    });
-
-    selectButton('G8');
+    renderAllCards();
+    selectButton(state.selectedButton || 'G8');
 }
 
 function selectButton(btnId) {
@@ -1158,7 +1480,7 @@ function refreshCardsAndStage() {
         const isShift2Mod = normAction && (normAction.Cmd === 'gshift2' || (normAction.Type === 'Special' && (normAction.Cmd || '').toLowerCase().includes('shift2')));
 
         if (isShift1Mod && (state.currentLayer === 'GShift1' || state.currentLayer === 'GShift')) {
-            actionEl.textContent = '⚡ B-Shift 1 (Active Modifier)';
+            actionEl.textContent = '⚡ B-Shift 1 (Active)';
             if (card) {
                 card.classList.add('is-shift-btn', 'is-shift1-btn', 'modifier-trigger');
                 card.classList.remove('is-shift2-btn');
@@ -1167,7 +1489,7 @@ function refreshCardsAndStage() {
         }
 
         if (isShift2Mod && state.currentLayer === 'GShift2') {
-            actionEl.textContent = '⚡ B-Shift 2 (Active Modifier)';
+            actionEl.textContent = '⚡ B-Shift 2 (Active)';
             if (card) {
                 card.classList.add('is-shift-btn', 'is-shift2-btn', 'modifier-trigger');
                 card.classList.remove('is-shift1-btn');
@@ -1219,6 +1541,27 @@ function refreshCardsAndStage() {
         }
     }
     updateBShiftVisibility();
+    syncCardMinWidthWithRightClick();
+}
+
+function syncCardMinWidthWithRightClick() {
+    // Only measure natural content width when in Normal layer where Right Click has the full 'Standard Right Click'
+    if (!state.currentLayer || state.currentLayer === 'Normal') {
+        const rightClickCard = document.getElementById('card_RightClick');
+        if (rightClickCard) {
+            const prevMin = rightClickCard.style.minWidth;
+            rightClickCard.style.minWidth = '0px';
+            const rectWidth = Math.ceil(rightClickCard.getBoundingClientRect().width);
+            rightClickCard.style.minWidth = prevMin;
+
+            if (rectWidth >= 120) {
+                state.originalCardMinWidth = Math.max(150, rectWidth);
+            }
+        }
+    }
+
+    const baselineWidth = state.originalCardMinWidth || 150;
+    document.documentElement.style.setProperty('--btn-card-min-width', `${baselineWidth}px`);
 }
 
 // Flash hardware feedback when a physical mouse button is clicked
@@ -1271,14 +1614,19 @@ function updateSvgLines() {
         const cardRect = card.getBoundingClientRect();
 
         // Calculate exact card anchor coordinates in SVG viewBox space using native inverse CTM
-        if (pt.side === 'left') {
-            // Anchor to the right edge of the left card, vertically centered
+        // Anchor to the side facing the mouse target dot
+        p.y = cardRect.top + cardRect.height / 2;
+        const cardMidScreenX = (cardRect.left + cardRect.right) / 2;
+
+        const targetScreenPt = svg.createSVGPoint();
+        targetScreenPt.x = pt.x;
+        targetScreenPt.y = pt.y;
+        const targetScreen = targetScreenPt.matrixTransform(ctm);
+
+        if (cardMidScreenX <= targetScreen.x) {
             p.x = cardRect.right;
-            p.y = cardRect.top + cardRect.height / 2;
         } else {
-            // Anchor to the left edge of the right card, vertically centered
             p.x = cardRect.left;
-            p.y = cardRect.top + cardRect.height / 2;
         }
 
         const svgAnchor = p.matrixTransform(invCtm);
@@ -1365,7 +1713,7 @@ function updateSvgLines() {
             spotGroup.addEventListener('pointerdown', (e) => onHotspotPointerDown(e, btnId));
             spotGroup.addEventListener('click', (e) => {
                 e.stopPropagation();
-                selectCalibButton(btnId);
+                selectCalibButton(btnId, 'dot');
             });
         } else {
             spotGroup.addEventListener('click', () => {
@@ -1435,7 +1783,7 @@ function updateSvgLines() {
     if (!svg.__calibClickRegistered) {
         svg.__calibClickRegistered = true;
         svg.addEventListener('click', (e) => {
-            if (!state.isCalibrating || state.isDraggingPoint) return;
+            if (!state.isCalibrating || state.isDraggingPoint || state.isDraggingCard) return;
             if (e.target.closest('.hotspot-group')) return;
 
             const p = svg.createSVGPoint();
@@ -1487,6 +1835,8 @@ function initModalControls() {
         contentSingle.classList.add('active');
         contentMacro.classList.remove('active');
         state.modal.activeTab = 'single';
+        const studioModalEl = document.getElementById('studioModal');
+        if (studioModalEl) studioModalEl.classList.remove('macro-active');
     });
 
     tabMacro.addEventListener('click', () => {
@@ -1496,6 +1846,9 @@ function initModalControls() {
         contentMacro.classList.add('active');
         contentSingle.classList.remove('active');
         state.modal.activeTab = 'macro';
+        const studioModalEl = document.getElementById('studioModal');
+        if (studioModalEl) studioModalEl.classList.add('macro-active');
+        renderMacroSteps();
     });
 
     // Tab 1: Single / Combination recording toggle
@@ -1546,65 +1899,39 @@ function initModalControls() {
     document.getElementById('btnInjectMClick').addEventListener('click', () => injectMouseButton('MButton'));
     document.getElementById('btnInjectRClick').addEventListener('click', () => injectMouseButton('RButton'));
 
-    // Tab 1: Modifier key injections (Alt, Shift, Ctrl, Win)
-    document.getElementById('btnInjectAlt')?.addEventListener('click', () => injectModifierKey('Alt', 'Alt'));
-    document.getElementById('btnInjectShift')?.addEventListener('click', () => injectModifierKey('Shift', 'Shift'));
-    document.getElementById('btnInjectCtrl')?.addEventListener('click', () => injectModifierKey('Ctrl', 'Ctrl'));
-    document.getElementById('btnInjectWin')?.addEventListener('click', () => injectModifierKey('LWin', 'Win'));
+    // Tab 1: Playback Mode Segmented Switcher (Matches Macro Section)
+    const singleTypeButtons = [
+        { id: 'btnSingleTypeNoRepeat', type: 'NoRepeat' },
+        { id: 'btnSingleTypeRepeat', type: 'RepeatWhileHolding' },
+        { id: 'btnSingleTypeToggle', type: 'Toggle' }
+    ];
 
-    // Tab 1: Mode change explain
-    document.getElementById('singlePlaybackMode').addEventListener('change', (e) => {
-        state.modal.singleAction.PlayType = e.target.value;
-        updateModeExplanation(e.target.value, 'singleExplainText');
+    singleTypeButtons.forEach(tb => {
+        const btn = document.getElementById(tb.id);
+        if (btn) {
+            btn.addEventListener('click', () => {
+                setSinglePlaybackMode(tb.type);
+            });
+        }
     });
 
-    document.getElementById('singleRepeatDelay').addEventListener('change', (e) => {
-        state.modal.singleAction.RepeatInterval = parseInt(e.target.value) || 50;
-    });
-
-    // Tab 2: Macro phase pills
-    document.querySelectorAll('.section-pill').forEach(pill => {
-        pill.addEventListener('click', () => {
-            document.querySelectorAll('.section-pill').forEach(p => p.classList.remove('active'));
-            pill.classList.add('active');
-            state.modal.macroPhase = pill.getAttribute('data-phase');
+    // Tab 1: Repeat Delay Pill (Matches Macro Section)
+    const singleRepeatPill = document.getElementById('singleRepeatDelayPill');
+    if (singleRepeatPill) {
+        singleRepeatPill.addEventListener('click', () => {
+            const current = state.modal.singleAction.RepeatInterval || 50;
+            const inputVal = prompt('Enter delay between each activation (ms):', current);
+            if (inputVal !== null) {
+                const parsed = parseInt(inputVal);
+                if (!isNaN(parsed) && parsed >= 5 && parsed <= 10000) {
+                    setSingleRepeatDelay(parsed);
+                }
+            }
         });
-    });
+    }
 
-    // Tab 2: Macro recording controls
-    const btnRecMacro = document.getElementById('btnRecordMacroToggle');
-    btnRecMacro.addEventListener('click', toggleRecordMacro);
-
-    document.getElementById('btnClearMacroSection').addEventListener('click', () => {
-        const ph = getPhaseKey(state.modal.macroPhase);
-        state.modal.macroSteps[ph] = [];
-        renderMacroSteps();
-    });
-
-    document.getElementById('btnClearMacroAll').addEventListener('click', () => {
-        state.modal.macroSteps = { press: [], hold: [], release: [] };
-        renderMacroSteps();
-    });
-
-    document.getElementById('btnTestMacroPlay').addEventListener('click', () => {
-        const fullMacro = compileMacroAction();
-        sendToAhk({ action: 'testMacro', macro: fullMacro });
-        showToast('Testing Macro', 'Playing back sequence...');
-    });
-
-    // Tab 2: Macro mouse injection
-    document.getElementById('btnMacroLClick').addEventListener('click', () => injectMacroStep('LButton'));
-    document.getElementById('btnMacroMClick').addEventListener('click', () => injectMacroStep('MButton'));
-    document.getElementById('btnMacroRClick').addEventListener('click', () => injectMacroStep('RButton'));
-
-    document.getElementById('macroPlaybackMode').addEventListener('change', (e) => {
-        state.modal.macroType = e.target.value;
-        updateModeExplanation(e.target.value, 'macroExplainText');
-    });
-
-    document.getElementById('macroDefDelay').addEventListener('change', (e) => {
-        state.modal.macroDefDelay = parseInt(e.target.value) || 50;
-    });
+    // Initialize Logitech G HUB Macro UI Controls
+    initGhubMacroUi();
 }
 
 function openButtonStudio(btnId) {
@@ -1645,20 +1972,37 @@ function openButtonStudio(btnId) {
     let singleMode = state.modal.singleAction.PlayType;
     if (singleMode === 'Sequence') singleMode = 'NoRepeat';
     state.modal.singleAction.PlayType = singleMode;
-    document.getElementById('singlePlaybackMode').value = singleMode;
-    document.getElementById('singleRepeatDelay').value = state.modal.singleAction.RepeatInterval;
-    updateModeExplanation(singleMode, 'singleExplainText');
+    setSinglePlaybackMode(singleMode);
+    setSingleRepeatDelay(state.modal.singleAction.RepeatInterval || 50);
     updateSinglePreview();
 
-    // Populate Tab 2 Macro steps
+    // Populate Tab 2 Macro steps & G HUB controls
     state.modal.macroSteps = {
         press: currentAction.SeqPress ? [...currentAction.SeqPress] : (currentAction.Steps ? [...currentAction.Steps] : []),
         hold: currentAction.SeqHold ? [...currentAction.SeqHold] : [],
         release: currentAction.SeqRelease ? [...currentAction.SeqRelease] : []
     };
-    state.modal.macroType = currentAction.PlayType || 'NoRepeat';
-    document.getElementById('macroPlaybackMode').value = state.modal.macroType;
-    updateModeExplanation(state.modal.macroType, 'macroExplainText');
+    state.modal.macroType = currentAction.PlayType || 'Sequence';
+    state.modal.macroDefDelay = (currentAction.Steps && currentAction.Steps[0]?.Delay) || 50;
+    state.modal.macroRepeatDelay = (currentAction.RepeatInterval && currentAction.RepeatInterval > 0) ? currentAction.RepeatInterval : 50;
+    state.modal.macroColor = currentAction.Color || 'none';
+
+    const defMacroName = (currentAction.Type === 'Macro' && currentAction.Label)
+        ? currentAction.Label
+        : `${getButtonDisplayName(btnId)} Macro`;
+    state.modal.macroName = defMacroName;
+    const nameInput = document.getElementById('macroNameInput');
+    if (nameInput) nameInput.value = defMacroName;
+
+    const delayInput = document.getElementById('macroDefDelay');
+    if (delayInput) delayInput.value = state.modal.macroDefDelay;
+    const delayBadge = document.getElementById('ghubDelayPill');
+    if (delayBadge) delayBadge.textContent = `${state.modal.macroDefDelay} ms`;
+
+    setGhubRepeatDelay(state.modal.macroRepeatDelay);
+    setGhubMacroType(state.modal.macroType);
+    const chkAutoAdapt = document.getElementById('chkAutoAdaptDirection');
+    if (chkAutoAdapt) chkAutoAdapt.checked = !!state.modal.autoAdaptDirection;
     renderMacroSteps();
 
     // If existing action was a macro, activate Tab 2, otherwise Tab 1
@@ -1682,7 +2026,13 @@ function openButtonStudio(btnId) {
 function closeButtonStudio() {
     stopRecordSingleKey();
     stopRecordMacro();
-    document.getElementById('studioModal').classList.remove('open');
+    const modal = document.getElementById('studioModal');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.classList.remove('macro-active');
+    }
+    const popover = document.getElementById('ghubActionPopover');
+    if (popover) popover.style.display = 'none';
 }
 
 function updateModeExplanation(mode, elementId) {
@@ -1733,6 +2083,8 @@ function toggleRecordSingleKey() {
 
 function startRecordSingleKey() {
     state.modal.isRecordingKey = true;
+    state.modal.lastRecordedKey = null;
+    if (window.heldKeys) window.heldKeys.clear();
     const btn = document.getElementById('btnRecordKeyToggle');
     if (btn) {
         btn.classList.add('recording');
@@ -1741,7 +2093,7 @@ function startRecordSingleKey() {
     const box = document.getElementById('singlePreviewBox');
     if (box) box.classList.add('recording');
     const txt = document.getElementById('singlePreviewText');
-    if (txt) txt.textContent = '[ Press Any Key or Click Mouse Button Below ]';
+    if (txt) txt.textContent = '[ Press Any Key or Combination ]';
 
     sendToAhk({ action: 'startRecording', mode: 'single' });
 }
@@ -1773,75 +2125,692 @@ function updateSinglePreview() {
     }
 }
 
-// Inject mouse buttons (Left, Middle, Right) into Tab 1 single/combo
-function injectMouseButton(mouseBtn) {
-    // Check if modifier keys are physically held
-    let prefix = '';
-    let labelPrefix = '';
+// Tab 1 Playback Mode & Delay Controls (Matches Logitech G HUB Macro section)
+function setSinglePlaybackMode(mode) {
+    const validMode = (mode === 'RepeatWhileHolding' || mode === 'Toggle') ? mode : 'NoRepeat';
+    if (!state.modal.singleAction) {
+        state.modal.singleAction = { Type: 'Send', Cmd: '', Label: 'Unassigned', PlayType: validMode, RepeatInterval: 50 };
+    } else {
+        state.modal.singleAction.PlayType = validMode;
+    }
 
-    if (window.isCtrlPressed) { prefix += '^'; labelPrefix += 'Ctrl + '; }
-    if (window.isAltPressed)  { prefix += '!'; labelPrefix += 'Alt + '; }
-    if (window.isShiftPressed){ prefix += '+'; labelPrefix += 'Shift + '; }
-    if (window.isWinPressed)  { prefix += '#'; labelPrefix += 'Win + '; }
+    const hiddenSelect = document.getElementById('singlePlaybackMode');
+    if (hiddenSelect) hiddenSelect.value = validMode;
 
-    const names = { LButton: 'Left Click', MButton: 'Middle Click', RButton: 'Right Click' };
-    const niceName = names[mouseBtn] || mouseBtn;
-
-    state.modal.singleAction = {
-        Type: 'Send',
-        Cmd: `${prefix}{${mouseBtn}}`,
-        Label: `${labelPrefix}${niceName}`,
-        PlayType: document.getElementById('singlePlaybackMode').value,
-        RepeatInterval: parseInt(document.getElementById('singleRepeatDelay').value) || 50
+    const mapping = {
+        NoRepeat: { id: 'btnSingleTypeNoRepeat', label: 'No Repeat' },
+        RepeatWhileHolding: { id: 'btnSingleTypeRepeat', label: 'Repeat While Holding' },
+        Toggle: { id: 'btnSingleTypeToggle', label: 'Toggle' }
     };
 
-    updateSinglePreview();
-    stopRecordSingleKey();
-    showToast('Injected', `Mouse ${niceName} assigned`);
+    // Remove existing tooltip badge in Tab 1
+    const oldBadge = document.getElementById('singleTypeTooltipBadge');
+    if (oldBadge) oldBadge.remove();
+
+    // Toggle button active classes
+    Object.keys(mapping).forEach(k => {
+        const btn = document.getElementById(mapping[k].id);
+        if (btn) {
+            const isActive = (k === validMode);
+            btn.classList.toggle('active', isActive);
+            if (isActive) {
+                const badge = document.createElement('div');
+                badge.className = 'ghub-tooltip-badge';
+                badge.id = 'singleTypeTooltipBadge';
+                badge.textContent = mapping[k].label;
+                btn.appendChild(badge);
+            }
+        }
+    });
+
+    // Show/hide repeat delay row based on whether mode is RepeatWhileHolding or Toggle
+    const isRepeatOrToggle = (validMode === 'RepeatWhileHolding' || validMode === 'Toggle');
+    const repeatRow = document.getElementById('singleRepeatDelayRow');
+    if (repeatRow) {
+        repeatRow.style.display = isRepeatOrToggle ? 'flex' : 'none';
+    }
+
+    updateModeExplanation(validMode, 'singleExplainText');
 }
 
-// Inject standalone modifier keys (Alt, Shift, Ctrl, Win) into Tab 1
-function injectModifierKey(modKey, niceName) {
+function setSingleRepeatDelay(delay) {
+    const val = Math.max(5, Math.min(10000, parseInt(delay) || 50));
+    if (state.modal.singleAction) {
+        state.modal.singleAction.RepeatInterval = val;
+    }
+    const pill = document.getElementById('singleRepeatDelayPill');
+    if (pill) pill.textContent = `${val} ms`;
+    const inp = document.getElementById('singleRepeatDelay');
+    if (inp) inp.value = val;
+}
+
+// Inject mouse buttons (Left, Middle, Right) into Tab 1 single/combo
+// Combines any physically held key (like 'S') or modifier keys (Ctrl/Shift/Alt/Win) with mouse button
+function injectMouseButton(mouseBtn) {
+    let prefix = '';
+    const labelParts = [];
+
+    // Check held modifiers
+    if (window.isCtrlPressed) { prefix += '^'; labelParts.push('Ctrl'); }
+    if (window.isAltPressed)  { prefix += '!'; labelParts.push('Alt'); }
+    if (window.isShiftPressed){ prefix += '+'; labelParts.push('Shift'); }
+    if (window.isWinPressed)  { prefix += '#'; labelParts.push('Win'); }
+
+    // Collect all physically held keys or candidate keys from combination
+    const regularKeys = [];
+
+    if (window.heldKeys && window.heldKeys.size > 0) {
+        for (const k of window.heldKeys) {
+            const lower = k.toLowerCase();
+            if (lower !== 'control' && lower !== 'alt' && lower !== 'shift' && lower !== 'meta' && lower !== 'escape') {
+                regularKeys.push(k);
+            }
+        }
+    }
+
+    if (regularKeys.length === 0) {
+        const cand = state.modal.lastRecordedKey?.label || state.modal.singleAction?.Label || '';
+        if (cand && !cand.includes('Click') && cand !== 'Unassigned' && cand !== 'Default') {
+            const parts = cand.split(' + ').map(p => p.trim());
+            parts.forEach(p => {
+                const lower = p.toLowerCase();
+                if (lower === 'ctrl') {
+                    if (!prefix.includes('^')) prefix += '^';
+                    if (!labelParts.includes('Ctrl')) labelParts.push('Ctrl');
+                } else if (lower === 'alt') {
+                    if (!prefix.includes('!')) prefix += '!';
+                    if (!labelParts.includes('Alt')) labelParts.push('Alt');
+                } else if (lower === 'shift') {
+                    if (!prefix.includes('+')) prefix += '+';
+                    if (!labelParts.includes('Shift')) labelParts.push('Shift');
+                } else if (lower === 'win') {
+                    if (!prefix.includes('#')) prefix += '#';
+                    if (!labelParts.includes('Win')) labelParts.push('Win');
+                } else if (!regularKeys.includes(p)) {
+                    regularKeys.push(p);
+                }
+            });
+        }
+    }
+
+    const mouseNames = { LButton: 'Left Click', MButton: 'Middle Click', RButton: 'Right Click' };
+    const niceMouse = mouseNames[mouseBtn] || mouseBtn;
+
+    let finalCmd = '';
+    const currentPlayType = state.modal.singleAction?.PlayType || document.getElementById('singlePlaybackMode')?.value || 'NoRepeat';
+    const currentDelay = state.modal.singleAction?.RepeatInterval || parseInt(document.getElementById('singleRepeatDelay')?.value) || 50;
+
+    if (regularKeys.length > 0) {
+        let downSeq = '';
+        let upSeq = '';
+        regularKeys.forEach(k => {
+            const cleanKey = convertJsKeyToAhk(k);
+            const niceKey = formatKeyNice(cleanKey);
+            labelParts.push(niceKey);
+            downSeq += `{${cleanKey} down}`;
+            upSeq = `{${cleanKey} up}` + upSeq;
+        });
+        labelParts.push(niceMouse);
+        finalCmd = `{Blind}${prefix}${downSeq}{${mouseBtn}}${upSeq}`;
+    } else {
+        labelParts.push(niceMouse);
+        finalCmd = `${prefix}{${mouseBtn}}`;
+    }
+
+    const finalLabel = labelParts.join(' + ');
+
     state.modal.singleAction = {
         Type: 'Send',
-        Cmd: `{${modKey}}`,
-        Label: niceName,
-        PlayType: document.getElementById('singlePlaybackMode').value,
-        RepeatInterval: parseInt(document.getElementById('singleRepeatDelay').value) || 50
+        Cmd: finalCmd,
+        Label: finalLabel,
+        PlayType: currentPlayType,
+        RepeatInterval: currentDelay
     };
 
     updateSinglePreview();
-    stopRecordSingleKey();
+    stopRecordSingleKey(true);
+    if (window.heldKeys) window.heldKeys.clear();
+    state.modal.lastRecordedKey = null;
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+    }
+
     const pBox = document.getElementById('singlePreviewBox');
     if (pBox) {
         pBox.classList.add('success');
         setTimeout(() => pBox.classList.remove('success'), 600);
     }
-    showToast('Modifier Assigned', `Button mapped to ${niceName}`);
+    showToast('Injected', `${finalLabel} assigned`);
 }
 
 // ============================================================================
-// TAB 2: ADVANCED MACRO SEQUENCER & INJECTIONS
+// TAB 2: LOGITECH G HUB MACRO ENGINE & SEQUENCER
 // ============================================================================
-function toggleRecordMacro() {
-    if (state.modal.isRecordingMacro) {
-        stopRecordMacro(true);
-    } else {
-        startRecordMacro();
+
+let currentMacroDrag = null;
+let wasJustDragging = false;
+
+function cleanupMacroDropIndicators() {
+    document.querySelectorAll('.ghub-step-block.drag-over-left, .ghub-step-block.drag-over-right').forEach(el => {
+        el.classList.remove('drag-over-left', 'drag-over-right');
+    });
+    document.querySelectorAll('.ghub-flow-track.drag-over-track').forEach(el => {
+        el.classList.remove('drag-over-track');
+    });
+}
+
+function handleMacroDrop(dragInfo, targetSec, targetIdx) {
+    if (!dragInfo || !targetSec) return;
+    if (!state.modal.macroSteps[targetSec]) {
+        state.modal.macroSteps[targetSec] = [];
     }
+
+    if (dragInfo.type === 'step') {
+        const srcSec = dragInfo.section;
+        const srcIdx = dragInfo.index;
+        if (!state.modal.macroSteps[srcSec] || !state.modal.macroSteps[srcSec][srcIdx]) return;
+
+        // Splice out the moved item
+        const [item] = state.modal.macroSteps[srcSec].splice(srcIdx, 1);
+        if (!item) return;
+
+        // Section key direction rule (only when Smart Direction Adaptation toggle is enabled):
+        if (state.modal.autoAdaptDirection && item.Action !== 'Delay') {
+            if (targetSec === 'release') {
+                item.Action = 'Up';
+            } else if (item.Action === 'Up' && (targetSec === 'press' || targetSec === 'hold')) {
+                item.Action = 'Down';
+            }
+        }
+
+        // Calculate final insertion index
+        let destIdx = targetIdx;
+        if (srcSec === targetSec && srcIdx < targetIdx) {
+            destIdx = Math.max(0, targetIdx - 1);
+        }
+        destIdx = Math.min(destIdx, state.modal.macroSteps[targetSec].length);
+        destIdx = Math.max(0, destIdx);
+
+        state.modal.macroSteps[targetSec].splice(destIdx, 0, item);
+        renderMacroSteps();
+    } else if (dragInfo.type === 'delay-chip') {
+        const srcSec = dragInfo.section;
+        const srcIdx = dragInfo.index;
+        const delayVal = dragInfo.delay || 50;
+
+        // Insert dragged delay as an explicit Delay step at drop target
+        const delayItem = {
+            Action: 'Delay',
+            Key: 'Delay',
+            Delay: delayVal
+        };
+
+        let destIdx = Math.min(targetIdx, state.modal.macroSteps[targetSec].length);
+        destIdx = Math.max(0, destIdx);
+
+        state.modal.macroSteps[targetSec].splice(destIdx, 0, delayItem);
+
+        // Reset the source step's delay back to default (if that step still exists)
+        if (state.modal.macroSteps[srcSec] && state.modal.macroSteps[srcSec][srcIdx]) {
+            state.modal.macroSteps[srcSec][srcIdx].Delay = state.modal.macroDefDelay || 50;
+        }
+
+        renderMacroSteps();
+    }
+}
+
+function initGhubMacroUi() {
+    // Macro Name input change listener
+    const nameInput = document.getElementById('macroNameInput');
+    if (nameInput) {
+        nameInput.addEventListener('input', (e) => {
+            state.modal.macroName = e.target.value.trim() || 'Macro';
+        });
+    }
+
+    // Macro Type Segmented Switcher
+    const typeButtons = [
+        { id: 'btnMacroTypeNoRepeat', type: 'NoRepeat' },
+        { id: 'btnMacroTypeRepeat', type: 'RepeatWhileHolding' },
+        { id: 'btnMacroTypeToggle', type: 'Toggle' },
+        { id: 'btnMacroTypeSequence', type: 'Sequence' }
+    ];
+
+    typeButtons.forEach(tb => {
+        const btn = document.getElementById(tb.id);
+        if (btn) {
+            btn.addEventListener('click', () => {
+                setGhubMacroType(tb.type);
+            });
+        }
+    });
+
+    // Checkboxes
+    const chkStdDelays = document.getElementById('chkUseStandardDelays');
+    if (chkStdDelays) {
+        chkStdDelays.addEventListener('change', (e) => {
+            state.modal.useStandardDelays = !!e.target.checked;
+            renderMacroSteps();
+        });
+    }
+
+    const chkUpDown = document.getElementById('chkShowUpDown');
+    if (chkUpDown) {
+        chkUpDown.addEventListener('change', (e) => {
+            state.modal.showUpDown = !!e.target.checked;
+            renderMacroSteps();
+        });
+    }
+
+    const chkAutoAdapt = document.getElementById('chkAutoAdaptDirection');
+    if (chkAutoAdapt) {
+        chkAutoAdapt.checked = !!state.modal.autoAdaptDirection;
+        chkAutoAdapt.addEventListener('change', (e) => {
+            state.modal.autoAdaptDirection = !!e.target.checked;
+        });
+    }
+
+    // Standard Delay Pill (Click to adjust)
+    const delayPill = document.getElementById('ghubDelayPill');
+    if (delayPill) {
+        delayPill.addEventListener('click', () => {
+            const current = state.modal.macroDefDelay || 50;
+            const inputVal = prompt('Enter Standard Delay between actions (ms):', current);
+            if (inputVal !== null) {
+                const parsed = parseInt(inputVal);
+                if (!isNaN(parsed) && parsed >= 5 && parsed <= 5000) {
+                    state.modal.macroDefDelay = parsed;
+                    delayPill.textContent = `${parsed} ms`;
+                    const delayInp = document.getElementById('macroDefDelay');
+                    if (delayInp) delayInp.value = parsed;
+                    // Update steps if standard delays are active
+                    if (state.modal.useStandardDelays) {
+                        ['press', 'hold', 'release'].forEach(sec => {
+                            (state.modal.macroSteps[sec] || []).forEach(st => st.Delay = parsed);
+                        });
+                    }
+                    renderMacroSteps();
+                }
+            }
+        });
+    }
+
+    // Repeat / Toggle Activation Delay Pill (Click to adjust)
+    const repeatDelayPill = document.getElementById('ghubRepeatDelayPill');
+    if (repeatDelayPill) {
+        repeatDelayPill.addEventListener('click', () => {
+            const current = state.modal.macroRepeatDelay || 50;
+            const inputVal = prompt('Enter delay between each macro activation (ms):', current);
+            if (inputVal !== null) {
+                const parsed = parseInt(inputVal);
+                if (!isNaN(parsed) && parsed >= 5 && parsed <= 10000) {
+                    setGhubRepeatDelay(parsed);
+                }
+            }
+        });
+    }
+
+    // Stop recording from banner
+    const btnStopRec = document.getElementById('btnGhubStopRec');
+    if (btnStopRec) {
+        btnStopRec.addEventListener('click', () => {
+            stopRecordMacro(true);
+        });
+    }
+
+    // Delegated click for section tracks (+ START NOW and trailing +)
+    const workspace = document.getElementById('ghubWorkspace');
+    if (workspace) {
+        workspace.addEventListener('click', (e) => {
+            const addBtn = e.target.closest('.ghub-start-now-btn, .ghub-plus-tile-btn');
+            if (addBtn) {
+                e.stopPropagation();
+                const sec = addBtn.getAttribute('data-section') || 'press';
+                state.modal.targetInsertSection = sec;
+                showActionPopover(addBtn);
+                return;
+            }
+
+            // Step delete button
+            const delBtn = e.target.closest('.ghub-step-del-btn');
+            if (delBtn) {
+                e.stopPropagation();
+                const sec = delBtn.getAttribute('data-section');
+                const idx = parseInt(delBtn.getAttribute('data-index'));
+                if (state.modal.macroSteps[sec] && state.modal.macroSteps[sec][idx]) {
+                    state.modal.macroSteps[sec].splice(idx, 1);
+                    renderMacroSteps();
+                }
+                return;
+            }
+
+            // Delay chip click to edit custom delay
+            const delayChip = e.target.closest('.ghub-delay-chip');
+            if (delayChip) {
+                e.stopPropagation();
+                const sec = delayChip.getAttribute('data-section');
+                const idx = parseInt(delayChip.getAttribute('data-index'));
+                if (state.modal.macroSteps[sec] && state.modal.macroSteps[sec][idx]) {
+                    const cur = state.modal.macroSteps[sec][idx].Delay || 50;
+                    const val = prompt('Edit Delay (ms):', cur);
+                    if (val !== null) {
+                        const parsed = parseInt(val);
+                        if (!isNaN(parsed) && parsed >= 1 && parsed <= 10000) {
+                            state.modal.macroSteps[sec][idx].Delay = parsed;
+                            renderMacroSteps();
+                        }
+                    }
+                }
+                return;
+            }
+
+            // Explicit delay step block click to edit duration
+            const delayStepBlock = e.target.closest('.ghub-step-block[data-is-delay="true"]');
+            if (delayStepBlock && !e.target.closest('.ghub-step-del-btn')) {
+                e.stopPropagation();
+                const sec = delayStepBlock.getAttribute('data-section');
+                const idx = parseInt(delayStepBlock.getAttribute('data-index'));
+                if (state.modal.macroSteps[sec] && state.modal.macroSteps[sec][idx]) {
+                    const cur = state.modal.macroSteps[sec][idx].Delay || 50;
+                    const val = prompt('Edit Delay duration (ms):', cur);
+                    if (val !== null) {
+                        const parsed = parseInt(val);
+                        if (!isNaN(parsed) && parsed >= 1 && parsed <= 10000) {
+                            state.modal.macroSteps[sec][idx].Delay = parsed;
+                            renderMacroSteps();
+                        }
+                    }
+                }
+                return;
+            }
+
+            // Action step block single-click to toggle between Down and Up
+            const actionStepBlock = e.target.closest('.ghub-step-block');
+            if (actionStepBlock && !actionStepBlock.hasAttribute('data-is-delay') && !e.target.closest('.ghub-step-del-btn')) {
+                if (wasJustDragging) return;
+                e.stopPropagation();
+                const sec = actionStepBlock.getAttribute('data-section');
+                const idx = parseInt(actionStepBlock.getAttribute('data-index'));
+                if (state.modal.macroSteps[sec] && state.modal.macroSteps[sec][idx]) {
+                    const curStep = state.modal.macroSteps[sec][idx];
+                    if (curStep.Action !== 'Delay') {
+                        if (!curStep.Action) {
+                            curStep.Action = (sec === 'release') ? 'Up' : 'Down';
+                        }
+                        curStep.Action = (curStep.Action === 'Up') ? 'Down' : 'Up';
+                        renderMacroSteps();
+                    }
+                }
+                return;
+            }
+        });
+    }
+
+    // Section tracks drag-over and drop handlers
+    ['press', 'hold', 'release'].forEach(secKey => {
+        const track = document.getElementById(secKey === 'press' ? 'ghubTrackPress' : (secKey === 'hold' ? 'ghubTrackHold' : 'ghubTrackRelease'));
+        if (!track) return;
+
+        track.addEventListener('dragover', (e) => {
+            if (!currentMacroDrag) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            track.classList.add('drag-over-track');
+        });
+
+        track.addEventListener('dragleave', (e) => {
+            if (e.relatedTarget && !track.contains(e.relatedTarget)) {
+                track.classList.remove('drag-over-track');
+            }
+        });
+
+        track.addEventListener('drop', (e) => {
+            if (!currentMacroDrag) return;
+            // Let inner elements (step block, delay chip, or plus button) handle their own drops
+            if (e.target.closest('.ghub-step-block, .ghub-delay-chip, .ghub-start-now-btn, .ghub-plus-tile-btn')) {
+                return;
+            }
+            e.preventDefault();
+            track.classList.remove('drag-over-track');
+            cleanupMacroDropIndicators();
+            const targetList = state.modal.macroSteps[secKey] || [];
+            handleMacroDrop(currentMacroDrag, secKey, targetList.length);
+        });
+    });
+
+    // Action Popover items
+    const actionPopover = document.getElementById('ghubActionPopover');
+    if (actionPopover) {
+        actionPopover.addEventListener('click', (e) => {
+            const row = e.target.closest('.ghub-popover-row');
+            const subItem = e.target.closest('.ghub-submenu-item');
+            const sec = state.modal.targetInsertSection || 'press';
+            const defDelay = state.modal.macroDefDelay || 50;
+
+            if (subItem) {
+                e.stopPropagation();
+                const mouseKey = subItem.getAttribute('data-mouse');
+                actionPopover.style.display = 'none';
+                if (mouseKey) {
+                    if (!state.modal.macroSteps[sec]) state.modal.macroSteps[sec] = [];
+                    state.modal.macroSteps[sec].push({ Action: 'Down', Key: mouseKey, Delay: defDelay });
+                    state.modal.macroSteps[sec].push({ Action: 'Up', Key: mouseKey, Delay: defDelay });
+                    renderMacroSteps();
+                }
+                return;
+            }
+
+            if (!row) return;
+            const act = row.getAttribute('data-action');
+
+            if (act === 'record') {
+                actionPopover.style.display = 'none';
+                startRecordMacroIntoSection(sec);
+            } else if (act === 'text') {
+                actionPopover.style.display = 'none';
+                const text = prompt('Enter text to type:');
+                if (text) {
+                    if (!state.modal.macroSteps[sec]) state.modal.macroSteps[sec] = [];
+                    for (const char of text) {
+                        state.modal.macroSteps[sec].push({ Action: 'Down', Key: char, Delay: defDelay });
+                        state.modal.macroSteps[sec].push({ Action: 'Up', Key: char, Delay: defDelay });
+                    }
+                    renderMacroSteps();
+                }
+            } else if (act === 'delay') {
+                actionPopover.style.display = 'none';
+                const dVal = prompt('Enter Delay duration in ms:', 50);
+                if (dVal !== null) {
+                    const parsed = parseInt(dVal);
+                    if (!isNaN(parsed) && parsed > 0) {
+                        if (!state.modal.macroSteps[sec]) state.modal.macroSteps[sec] = [];
+                        state.modal.macroSteps[sec].push({ Action: 'Delay', Key: 'Delay', Delay: parsed });
+                        renderMacroSteps();
+                    }
+                }
+            } else if (act === 'clear-section') {
+                actionPopover.style.display = 'none';
+                state.modal.macroSteps[sec] = [];
+                renderMacroSteps();
+            }
+        });
+    }
+
+    // Submenu boundary guard on hover
+    const mouseRow = document.querySelector('.ghub-popover-row.has-submenu');
+    const subMenu = document.querySelector('.ghub-submenu');
+    if (mouseRow && subMenu) {
+        mouseRow.addEventListener('mouseenter', () => {
+            adjustActionSubmenu();
+        });
+    }
+
+    // Dismiss popovers on outside click
+    document.addEventListener('click', (e) => {
+        const actPopover = document.getElementById('ghubActionPopover');
+        if (actPopover && actPopover.style.display !== 'none' && !e.target.closest('#ghubActionPopover')) {
+            actPopover.style.display = 'none';
+        }
+    });
+}
+
+function adjustActionSubmenu() {
+    const popover = document.getElementById('ghubActionPopover');
+    if (!popover) return;
+    const mouseRow = popover.querySelector('.ghub-popover-row.has-submenu');
+    const subMenu = popover.querySelector('.ghub-submenu');
+    if (!mouseRow || !subMenu) return;
+
+    // Reset styles for measurement
+    subMenu.style.top = '0px';
+    subMenu.style.bottom = 'auto';
+    subMenu.style.left = '100%';
+    subMenu.style.right = 'auto';
+
+    const rowRect = mouseRow.getBoundingClientRect();
+    const subHeight = subMenu.offsetHeight || 180;
+    const subWidth = subMenu.offsetWidth || 200;
+
+    // Check vertical overflow: if opening downwards pushes below viewport
+    const isAbove = popover.classList.contains('popover-above');
+    if (isAbove || (rowRect.top + subHeight > window.innerHeight - 10)) {
+        subMenu.style.top = 'auto';
+        subMenu.style.bottom = '-6px';
+    } else {
+        subMenu.style.top = '0px';
+        subMenu.style.bottom = 'auto';
+    }
+
+    // Check horizontal overflow: if opening rightwards pushes past viewport
+    if (rowRect.right + subWidth > window.innerWidth - 10) {
+        subMenu.style.left = 'auto';
+        subMenu.style.right = '100%';
+    } else {
+        subMenu.style.left = '100%';
+        subMenu.style.right = 'auto';
+    }
+}
+
+function showActionPopover(targetBtn) {
+    const popover = document.getElementById('ghubActionPopover');
+    if (!popover || !targetBtn) return;
+
+    // Make visible temporarily with visibility:hidden to measure accurate natural dimensions
+    popover.style.display = 'block';
+    popover.style.visibility = 'hidden';
+    popover.classList.remove('popover-above', 'popover-below');
+
+    const rect = targetBtn.getBoundingClientRect();
+    const popHeight = popover.offsetHeight || 220;
+    const popWidth = popover.offsetWidth || 230;
+
+    // Determine available space above and below the button
+    const spaceBelow = window.innerHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+
+    let topPos = 0;
+    // If not enough room below AND more room above, open upward!
+    if (spaceBelow < popHeight && spaceAbove > spaceBelow) {
+        topPos = rect.top - popHeight - 8;
+        popover.classList.add('popover-above');
+    } else {
+        topPos = rect.bottom + 8;
+        popover.classList.add('popover-below');
+    }
+
+    // Viewport bounds protection
+    if (topPos + popHeight > window.innerHeight - 10) {
+        topPos = window.innerHeight - popHeight - 10;
+    }
+    if (topPos < 10) {
+        topPos = 10;
+    }
+
+    // Horizontal positioning & bounds protection
+    let leftPos = rect.left;
+    if (leftPos + popWidth > window.innerWidth - 10) {
+        leftPos = window.innerWidth - popWidth - 10;
+    }
+    if (leftPos < 10) {
+        leftPos = 10;
+    }
+
+    popover.style.top = `${Math.round(topPos)}px`;
+    popover.style.left = `${Math.round(leftPos)}px`;
+    popover.style.visibility = 'visible';
+
+    // Synchronize submenu orientation with popover placement
+    adjustActionSubmenu();
+}
+
+function setGhubRepeatDelay(delay) {
+    const val = Math.max(5, Math.min(10000, parseInt(delay) || 50));
+    state.modal.macroRepeatDelay = val;
+    const pill = document.getElementById('ghubRepeatDelayPill');
+    if (pill) pill.textContent = `${val} ms`;
+    const inp = document.getElementById('macroRepeatDelay');
+    if (inp) inp.value = val;
+}
+
+function setGhubMacroType(type) {
+    state.modal.macroType = type || 'Sequence';
+    const hiddenSelect = document.getElementById('macroPlaybackMode');
+    if (hiddenSelect) hiddenSelect.value = state.modal.macroType;
+
+    const mapping = {
+        NoRepeat: { id: 'btnMacroTypeNoRepeat', label: 'No Repeat' },
+        RepeatWhileHolding: { id: 'btnMacroTypeRepeat', label: 'Repeat While Holding' },
+        Toggle: { id: 'btnMacroTypeToggle', label: 'Toggle' },
+        Sequence: { id: 'btnMacroTypeSequence', label: 'Sequence' }
+    };
+
+    // Remove existing tooltip badge
+    const oldBadge = document.getElementById('ghubTypeTooltipBadge');
+    if (oldBadge) oldBadge.remove();
+
+    // Toggle button active classes
+    Object.keys(mapping).forEach(k => {
+        const btn = document.getElementById(mapping[k].id);
+        if (btn) {
+            const isActive = (k === state.modal.macroType);
+            btn.classList.toggle('active', isActive);
+            if (isActive) {
+                const badge = document.createElement('div');
+                badge.className = 'ghub-tooltip-badge';
+                badge.id = 'ghubTypeTooltipBadge';
+                badge.textContent = mapping[k].label;
+                btn.appendChild(badge);
+            }
+        }
+    });
+
+    // Show/hide repeat delay row based on whether type is RepeatWhileHolding or Toggle
+    const isRepeatOrToggle = (state.modal.macroType === 'RepeatWhileHolding' || state.modal.macroType === 'Toggle');
+    const repeatRow = document.getElementById('ghubRepeatDelayRow');
+    if (repeatRow) {
+        repeatRow.style.display = isRepeatOrToggle ? 'flex' : 'none';
+    }
+
+    renderMacroSteps();
+}
+
+function startRecordMacroIntoSection(secKey) {
+    state.modal.targetInsertSection = secKey || 'press';
+    const secLabels = { press: 'ON PRESS', hold: 'WHILE HOLDING', release: 'ON RELEASE' };
+    const banner = document.getElementById('ghubRecordingBanner');
+    const labelEl = document.getElementById('ghubRecTargetSection');
+    if (labelEl) labelEl.textContent = secLabels[secKey] || 'ACTIONS';
+    if (banner) banner.style.display = 'flex';
+
+    startRecordMacro();
 }
 
 function startRecordMacro() {
     state.modal.isRecordingMacro = true;
     state.modal.lastRecordTime = Date.now();
-    const btn = document.getElementById('btnRecordMacroToggle');
-    if (btn) {
-        btn.classList.add('recording');
-        btn.textContent = '⏹ Stop Recording';
-    }
 
-    const defDelay = parseInt(document.getElementById('macroDefDelay')?.value) || 50;
-    const realDelays = !!document.getElementById('chkRealDelays')?.checked;
+    const defDelay = state.modal.macroDefDelay || 50;
+    const realDelays = !state.modal.useStandardDelays;
     sendToAhk({
         action: 'startRecording',
         mode: 'macro',
@@ -1852,123 +2821,371 @@ function startRecordMacro() {
 
 function stopRecordMacro(notifyAhk = true) {
     state.modal.isRecordingMacro = false;
-    const btn = document.getElementById('btnRecordMacroToggle');
-    if (btn) {
-        btn.classList.remove('recording');
-        btn.textContent = '● Start Recording';
-    }
+    const banner = document.getElementById('ghubRecordingBanner');
+    if (banner) banner.style.display = 'none';
 
     if (notifyAhk) {
         sendToAhk({ action: 'stopRecording' });
     }
-}
-
-function getPhaseKey(phase) {
-    if (phase === 'WHILE HOLDING') return 'hold';
-    if (phase === 'ON RELEASE') return 'release';
-    return 'press';
-}
-
-function injectMacroStep(mouseBtn) {
-    const ph = getPhaseKey(state.modal.macroPhase);
-    const defDelay = parseInt(document.getElementById('macroDefDelay').value) || 50;
-
-    // Push Down and Up events
-    state.modal.macroSteps[ph].push({ Action: 'Down', Key: mouseBtn, Delay: defDelay });
-    state.modal.macroSteps[ph].push({ Action: 'Up', Key: mouseBtn, Delay: defDelay });
     renderMacroSteps();
 }
 
+function getPhaseKey(phase) {
+    if (phase === 'WHILE HOLDING' || phase === 'hold') return 'hold';
+    if (phase === 'ON RELEASE' || phase === 'release') return 'release';
+    return 'press';
+}
+
+function isModifierKey(key) {
+    const k = (key || '').toLowerCase();
+    return k === 'alt' || k === 'lalt' || k === 'ralt' ||
+           k === 'ctrl' || k === 'control' || k === 'lctrl' || k === 'rctrl' ||
+           k === 'shift' || k === 'lshift' || k === 'rshift' ||
+           k === 'win' || k === 'lwin' || k === 'rwin' || k === 'meta';
+}
+
+function isMouseKey(key) {
+    const k = (key || '').toLowerCase();
+    return k === 'lbutton' || k === 'rbutton' || k === 'mbutton' ||
+           k === 'wheelup' || k === 'wheeldown' ||
+           k === 'left' || k === 'right' || k === 'middle';
+}
+
+function renderGhubMouseSvg(mouseKey) {
+    const isLeft = (mouseKey === 'LButton' || mouseKey === 'Left');
+    const isRight = (mouseKey === 'RButton' || mouseKey === 'Right');
+    const isMiddle = (mouseKey === 'MButton' || mouseKey === 'Middle' || mouseKey === 'WheelUp' || mouseKey === 'WheelDown');
+
+    const leftFill = isLeft ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.05)';
+    const rightFill = isRight ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.05)';
+    const wheelFill = isMiddle ? 'var(--accent-shift)' : 'rgba(255, 255, 255, 0.08)';
+
+    const leftStroke = isLeft ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.25)';
+    const rightStroke = isRight ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.25)';
+    const wheelStroke = isMiddle ? 'var(--accent-shift)' : 'rgba(255, 255, 255, 0.25)';
+
+    return `
+    <svg class="ghub-mouse-svg" width="28" height="42" viewBox="0 0 32 46" fill="none">
+        <!-- Outer mouse silhouette -->
+        <path d="M 16 2 C 7 2 2 8 2 18 L 2 28 C 2 38 7 44 16 44 C 25 44 30 38 30 28 L 30 18 C 30 8 25 2 16 2 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.35)" stroke-width="1.8"/>
+        <!-- Left click surface -->
+        <path d="M 15 3 C 8.5 3 4 8 4 17 L 15 17 Z" fill="${leftFill}" stroke="${leftStroke}" stroke-width="1.4"/>
+        <!-- Right click surface -->
+        <path d="M 17 3 C 23.5 3 28 8 28 17 L 17 17 Z" fill="${rightFill}" stroke="${rightStroke}" stroke-width="1.4"/>
+        <!-- Scroll Wheel -->
+        <rect x="14" y="6" width="4" height="8" rx="2" fill="${wheelFill}" stroke="${wheelStroke}" stroke-width="1.2"/>
+    </svg>
+    `;
+}
+
 function renderMacroSteps() {
-    const tbody = document.getElementById('macroStepsBody');
-    tbody.innerHTML = '';
+    const isSequence = (state.modal.macroType === 'Sequence');
 
-    const phases = [
-        { key: 'press', label: 'ON PRESS' },
-        { key: 'hold', label: 'WHILE HOLDING' },
-        { key: 'release', label: 'ON RELEASE' }
-    ];
+    const secHold = document.getElementById('ghubSecHold');
+    const secRelease = document.getElementById('ghubSecRelease');
+    const pressTitle = document.getElementById('ghubPressTitle');
 
-    let total = 0;
-    let counts = { press: 0, hold: 0, release: 0 };
+    if (secHold) secHold.style.display = isSequence ? 'flex' : 'none';
+    if (secRelease) secRelease.style.display = isSequence ? 'flex' : 'none';
+    if (pressTitle) pressTitle.textContent = isSequence ? 'ON PRESS' : 'ACTIONS';
 
-    phases.forEach(ph => {
-        const steps = state.modal.macroSteps[ph.key] || [];
-        counts[ph.key] = steps.length;
-        total += steps.length;
+    const sections = isSequence ? ['press', 'hold', 'release'] : ['press'];
+    const trackMap = {
+        press: document.getElementById('ghubTrackPress'),
+        hold: document.getElementById('ghubTrackHold'),
+        release: document.getElementById('ghubTrackRelease')
+    };
 
-        steps.forEach((step, sIdx) => {
-            const tr = document.createElement('tr');
+    let totalSteps = 0;
+    const counts = { press: 0, hold: 0, release: 0 };
 
-            tr.innerHTML = `
-                <td style="color: var(--text-muted);">${total}</td>
-                <td><span class="step-badge ${ph.key}">${ph.label}</span></td>
-                <td><span class="step-badge ${step.Action.toLowerCase()}">${step.Action.toUpperCase()}</span></td>
-                <td style="font-family: var(--font-mono); font-weight: 600;">${formatKeyNice(step.Key)}</td>
-                <td>
-                    <input type="number" class="step-delay-input" value="${step.Delay}" min="1" max="10000" data-phase="${ph.key}" data-index="${sIdx}">
-                </td>
-                <td>
-                    <button class="step-del-btn" title="Delete Step" data-phase="${ph.key}" data-index="${sIdx}">✕</button>
-                </td>
+    sections.forEach(secKey => {
+        const track = trackMap[secKey];
+        if (!track) return;
+        track.innerHTML = '';
+
+        const steps = state.modal.macroSteps[secKey] || [];
+        counts[secKey] = steps.length;
+        totalSteps += steps.length;
+
+        // Count indicator in header
+        const countEl = document.getElementById(secKey === 'press' ? 'ghubPressCount' : (secKey === 'hold' ? 'ghubHoldCount' : 'ghubReleaseCount'));
+        if (countEl) countEl.textContent = steps.length > 0 ? `(${steps.length})` : '';
+
+        // Empty state: render + START NOW
+        if (steps.length === 0) {
+            const startBtn = document.createElement('button');
+            startBtn.type = 'button';
+            startBtn.className = 'ghub-start-now-btn';
+            startBtn.setAttribute('data-section', secKey);
+            startBtn.innerHTML = `
+                <span class="ghub-plus-box">+</span>
+                <span>START NOW</span>
             `;
+            startBtn.addEventListener('dragover', (e) => {
+                if (!currentMacroDrag) return;
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = 'move';
+            });
+            startBtn.addEventListener('drop', (e) => {
+                if (!currentMacroDrag) return;
+                e.preventDefault();
+                e.stopPropagation();
+                cleanupMacroDropIndicators();
+                handleMacroDrop(currentMacroDrag, secKey, 0);
+            });
+            track.appendChild(startBtn);
+        } else {
+            // Render horizontal step sequence
+            steps.forEach((step, sIdx) => {
+                // If custom delays enabled, show delay pill between steps
+                if (!state.modal.useStandardDelays && sIdx > 0) {
+                    const delayChip = document.createElement('span');
+                    delayChip.className = 'ghub-delay-chip';
+                    delayChip.setAttribute('data-section', secKey);
+                    delayChip.setAttribute('data-index', sIdx);
+                    delayChip.setAttribute('title', 'Click to edit delay, or drag to move/reorder');
+                    delayChip.textContent = `${step.Delay || 50} ms`;
+                    delayChip.draggable = true;
 
-            tbody.appendChild(tr);
-        });
+                    delayChip.addEventListener('dragstart', (e) => {
+                        wasJustDragging = true;
+                        e.stopPropagation();
+                        currentMacroDrag = {
+                            type: 'delay-chip',
+                            section: secKey,
+                            index: sIdx,
+                            delay: step.Delay || 50
+                        };
+                        e.dataTransfer.effectAllowed = 'move';
+                        try {
+                            e.dataTransfer.setData('text/plain', JSON.stringify(currentMacroDrag));
+                        } catch (err) {}
+                        setTimeout(() => delayChip.classList.add('dragging'), 0);
+                    });
+
+                    delayChip.addEventListener('dragend', (e) => {
+                        e.stopPropagation();
+                        delayChip.classList.remove('dragging');
+                        cleanupMacroDropIndicators();
+                        currentMacroDrag = null;
+                        setTimeout(() => { wasJustDragging = false; }, 150);
+                    });
+
+                    delayChip.addEventListener('dragover', (e) => {
+                        if (!currentMacroDrag) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.dataTransfer.dropEffect = 'move';
+                        delayChip.style.transform = 'scale(1.15)';
+                    });
+
+                    delayChip.addEventListener('dragleave', (e) => {
+                        e.stopPropagation();
+                        delayChip.style.transform = '';
+                    });
+
+                    delayChip.addEventListener('drop', (e) => {
+                        if (!currentMacroDrag) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        delayChip.style.transform = '';
+                        cleanupMacroDropIndicators();
+                        handleMacroDrop(currentMacroDrag, secKey, sIdx);
+                    });
+
+                    track.appendChild(delayChip);
+                }
+
+                // Default Action if undefined
+                if (!step.Action && step.Action !== 'Delay') {
+                    step.Action = (secKey === 'release') ? 'Up' : 'Down';
+                }
+                const isUp = (step.Action === 'Up');
+                const isDown = !isUp;
+
+                const block = document.createElement('div');
+                block.className = 'ghub-step-block';
+                block.draggable = true;
+                block.setAttribute('data-section', secKey);
+                block.setAttribute('data-index', sIdx);
+                if (step.Action === 'Delay') {
+                    block.setAttribute('data-is-delay', 'true');
+                    block.setAttribute('title', 'Click to edit delay duration, or drag to reorder');
+                } else {
+                    block.classList.add(isUp ? 'is-up' : 'is-down');
+                    const actLabel = isUp ? 'KEY UP ▲' : 'KEY DOWN ▼';
+                    block.setAttribute('title', `${formatKeyNice(step.Key)}: ${actLabel}\nSingle-click to toggle Down/Up • Drag to reorder`);
+                }
+
+                block.addEventListener('dragstart', (e) => {
+                    if (e.target.closest('.ghub-step-del-btn')) {
+                        e.preventDefault();
+                        return;
+                    }
+                    wasJustDragging = true;
+                    e.stopPropagation();
+                    currentMacroDrag = {
+                        type: 'step',
+                        section: secKey,
+                        index: sIdx,
+                        data: Object.assign({}, step)
+                    };
+                    e.dataTransfer.effectAllowed = 'move';
+                    try {
+                        e.dataTransfer.setData('text/plain', JSON.stringify(currentMacroDrag));
+                    } catch (err) {}
+                    setTimeout(() => block.classList.add('dragging'), 0);
+                });
+
+                block.addEventListener('dragend', (e) => {
+                    e.stopPropagation();
+                    block.classList.remove('dragging');
+                    cleanupMacroDropIndicators();
+                    currentMacroDrag = null;
+                    setTimeout(() => { wasJustDragging = false; }, 150);
+                });
+
+                block.addEventListener('dragover', (e) => {
+                    if (!currentMacroDrag) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.dataTransfer.dropEffect = 'move';
+
+                    const rect = block.getBoundingClientRect();
+                    const isRight = (e.clientX - rect.left) > (rect.width / 2);
+
+                    if (isRight) {
+                        block.classList.remove('drag-over-left');
+                        block.classList.add('drag-over-right');
+                    } else {
+                        block.classList.remove('drag-over-right');
+                        block.classList.add('drag-over-left');
+                    }
+                });
+
+                block.addEventListener('dragleave', (e) => {
+                    e.stopPropagation();
+                    block.classList.remove('drag-over-left', 'drag-over-right');
+                });
+
+                block.addEventListener('drop', (e) => {
+                    if (!currentMacroDrag) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const isRight = block.classList.contains('drag-over-right');
+                    cleanupMacroDropIndicators();
+
+                    let targetIdx = sIdx;
+                    if (isRight) {
+                        targetIdx = sIdx + 1;
+                    }
+                    handleMacroDrop(currentMacroDrag, secKey, targetIdx);
+                });
+
+                // Up arrow (above) if SHOW KEY DOWN/KEY UP is ON
+                let arrowUpHtml = '';
+                let arrowDownHtml = '';
+                if (state.modal.showUpDown) {
+                    if (isUp) {
+                        arrowUpHtml = '<span class="ghub-arrow up">▲</span>';
+                    } else {
+                        arrowDownHtml = '<span class="ghub-arrow down">▼</span>';
+                    }
+                }
+
+                // Render Silhouette / Keycap
+                let bodyHtml = '';
+                if (isMouseKey(step.Key)) {
+                    bodyHtml = renderGhubMouseSvg(step.Key);
+                } else if (step.Action === 'Delay') {
+                    bodyHtml = `<div class="ghub-keycap delay-key">⏱ ${step.Delay}ms</div>`;
+                } else {
+                    const isMod = isModifierKey(step.Key);
+                    let label = formatKeyNice(step.Key);
+                    if (isMod) {
+                        if (label.toLowerCase().includes('alt')) label = 'Alt';
+                        else if (label.toLowerCase().includes('ctrl')) label = 'Ctrl';
+                        else if (label.toLowerCase().includes('shift')) label = 'Shift';
+                        else if (label.toLowerCase().includes('win')) label = 'Win';
+                    }
+                    bodyHtml = `<div class="ghub-keycap ${isMod ? 'modifier-key' : 'standard-key'}">${label}</div>`;
+                }
+
+                block.innerHTML = `
+                    ${arrowUpHtml}
+                    ${bodyHtml}
+                    ${arrowDownHtml}
+                    <button type="button" class="ghub-step-del-btn" data-section="${secKey}" data-index="${sIdx}" title="Delete step">✕</button>
+                `;
+
+                track.appendChild(block);
+            });
+
+            // Trailing [+] Button
+            const addTileBtn = document.createElement('button');
+            addTileBtn.type = 'button';
+            addTileBtn.className = 'ghub-plus-tile-btn';
+            addTileBtn.setAttribute('data-section', secKey);
+            addTileBtn.setAttribute('title', 'Add action to this section');
+            addTileBtn.textContent = '+';
+            addTileBtn.addEventListener('dragover', (e) => {
+                if (!currentMacroDrag) return;
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = 'move';
+            });
+            addTileBtn.addEventListener('drop', (e) => {
+                if (!currentMacroDrag) return;
+                e.preventDefault();
+                e.stopPropagation();
+                cleanupMacroDropIndicators();
+                const targetList = state.modal.macroSteps[secKey] || [];
+                handleMacroDrop(currentMacroDrag, secKey, targetList.length);
+            });
+            track.appendChild(addTileBtn);
+        }
     });
 
-    // Update delay listeners
-    tbody.querySelectorAll('.step-delay-input').forEach(input => {
-        input.addEventListener('change', (e) => {
-            const ph = e.target.getAttribute('data-phase');
-            const idx = parseInt(e.target.getAttribute('data-index'));
-            const val = parseInt(e.target.value) || 50;
-            if (state.modal.macroSteps[ph] && state.modal.macroSteps[ph][idx]) {
-                state.modal.macroSteps[ph][idx].Delay = val;
-            }
-        });
-    });
-
-    // Delete step listeners
-    tbody.querySelectorAll('.step-del-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const ph = e.target.getAttribute('data-phase');
-            const idx = parseInt(e.target.getAttribute('data-index'));
-            if (state.modal.macroSteps[ph]) {
-                state.modal.macroSteps[ph].splice(idx, 1);
-                renderMacroSteps();
-            }
-        });
-    });
-
-    // Summary line
-    document.getElementById('macroSummaryLine').textContent =
-        `Total Steps: ${total}  |  Press: ${counts.press}  |  Hold: ${counts.hold}  |  Release: ${counts.release}`;
+    // Update summary line for internal state
+    const sumLine = document.getElementById('macroSummaryLine');
+    if (sumLine) {
+        sumLine.textContent = `Total Steps: ${totalSteps} | Press: ${counts.press} | Hold: ${counts.hold} | Release: ${counts.release}`;
+    }
 }
 
 function compileMacroAction() {
-    const playType = document.getElementById('macroPlaybackMode').value;
-    const defDelay = parseInt(document.getElementById('macroDefDelay').value) || 50;
+    const playType = state.modal.macroType || 'Sequence';
+    const defDelay = state.modal.macroDefDelay || 50;
+    const repeatDelay = (state.modal.macroRepeatDelay && state.modal.macroRepeatDelay > 0)
+        ? state.modal.macroRepeatDelay
+        : 50;
 
-    const press = state.modal.macroSteps.press;
-    const hold = state.modal.macroSteps.hold;
-    const rel = state.modal.macroSteps.release;
+    const nameInput = document.getElementById('macroNameInput');
+    const macroName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : 'Macro';
 
-    let summaryLabel = 'Macro Sequence';
-    if (press.length > 0) {
-        summaryLabel = `Macro (${press.length} steps)`;
-    }
+    const sanitize = (steps, defAct) => (steps || []).map(s => {
+        if (s.Action === 'Delay') return s;
+        return Object.assign({}, s, { Action: s.Action || defAct });
+    });
+
+    const press = sanitize(state.modal.macroSteps.press, 'Down');
+    const hold = sanitize(state.modal.macroSteps.hold, 'Down');
+    const rel = sanitize(state.modal.macroSteps.release, 'Up');
 
     return {
         Type: 'Macro',
         Cmd: 'Macro',
-        Label: summaryLabel,
+        Label: macroName,
         PlayType: playType,
-        RepeatInterval: defDelay,
+        RepeatInterval: repeatDelay,
         Steps: [...press, ...hold, ...rel],
         SeqPress: press,
         SeqHold: hold,
-        SeqRelease: rel
+        SeqRelease: rel,
+        Color: state.modal.macroColor || 'none'
     };
 }
 
@@ -1980,13 +3197,37 @@ function initKeyboardGlobal() {
     window.isAltPressed = false;
     window.isShiftPressed = false;
     window.isWinPressed = false;
+    window.heldKeys = new Set();
+
+    // Auto-blur inject and action buttons so they never keep keyboard focus
+    document.addEventListener('focusin', (e) => {
+        if (e.target && (e.target.classList.contains('mouse-inject-btn') || e.target.classList.contains('action-pill') || e.target.classList.contains('ghub-type-btn'))) {
+            e.target.blur();
+        }
+    });
 
     window.addEventListener('keydown', (e) => {
+        // Prevent Space key from activating focused buttons in Studio Modal
+        if (e.key === ' ' || e.code === 'Space') {
+            const modal = document.getElementById('studioModal');
+            if (modal && modal.classList.contains('open')) {
+                const tag = document.activeElement ? document.activeElement.tagName : '';
+                const isInput = tag === 'INPUT' || tag === 'TEXTAREA';
+                if (!isInput && tag === 'BUTTON') {
+                    e.preventDefault();
+                    document.activeElement.blur();
+                }
+            }
+        }
+
         // Track modifiers
         if (e.key === 'Control') window.isCtrlPressed = true;
-        if (e.key === 'Alt') window.isAltPressed = true;
-        if (e.key === 'Shift') window.isShiftPressed = true;
-        if (e.key === 'Meta') window.isWinPressed = true;
+        else if (e.key === 'Alt') window.isAltPressed = true;
+        else if (e.key === 'Shift') window.isShiftPressed = true;
+        else if (e.key === 'Meta') window.isWinPressed = true;
+        else if (e.key !== 'Escape') {
+            window.heldKeys.add(e.key);
+        }
 
         // Escape closes modal (or cancels active recording)
         if (e.key === 'Escape') {
@@ -2029,15 +3270,26 @@ function initKeyboardGlobal() {
 
     window.addEventListener('keyup', (e) => {
         if (e.key === 'Control') window.isCtrlPressed = false;
-        if (e.key === 'Alt') window.isAltPressed = false;
-        if (e.key === 'Shift') window.isShiftPressed = false;
-        if (e.key === 'Meta') window.isWinPressed = false;
+        else if (e.key === 'Alt') window.isAltPressed = false;
+        else if (e.key === 'Shift') window.isShiftPressed = false;
+        else if (e.key === 'Meta') window.isWinPressed = false;
+        else {
+            window.heldKeys.delete(e.key);
+        }
 
         if (state.modal.isRecordingKey || state.modal.isRecordingMacro) {
             e.preventDefault();
             e.stopPropagation();
             return;
         }
+    });
+
+    window.addEventListener('blur', () => {
+        window.isCtrlPressed = false;
+        window.isAltPressed = false;
+        window.isShiftPressed = false;
+        window.isWinPressed = false;
+        window.heldKeys.clear();
     });
 }
 
@@ -2119,12 +3371,14 @@ function formatKeyNice(key) {
 function saveModalAction() {
     let actionObj;
     if (state.modal.activeTab === 'single') {
+        const playType = state.modal.singleAction?.PlayType || document.getElementById('singlePlaybackMode')?.value || 'NoRepeat';
+        const repeatInterval = state.modal.singleAction?.RepeatInterval || parseInt(document.getElementById('singleRepeatDelay')?.value) || 50;
         actionObj = {
-            Type: state.modal.singleAction.Type || 'Send',
-            Cmd: state.modal.singleAction.Cmd || '',
-            Label: state.modal.singleAction.Label || state.modal.singleAction.Cmd,
-            PlayType: document.getElementById('singlePlaybackMode').value,
-            RepeatInterval: parseInt(document.getElementById('singleRepeatDelay').value) || 50
+            Type: state.modal.singleAction?.Type || 'Send',
+            Cmd: state.modal.singleAction?.Cmd || '',
+            Label: state.modal.singleAction?.Label || state.modal.singleAction?.Cmd || 'Unassigned',
+            PlayType: playType,
+            RepeatInterval: repeatInterval
         };
     } else {
         actionObj = compileMacroAction();
@@ -2197,15 +3451,15 @@ function showToast(title, message, duration = 3000) {
 }
 
 // ============================================================================
-// POINTER CALIBRATION MODE
+// ============================================================================
+// POINTER & CARD CALIBRATION MODE
 // ============================================================================
 function initCalibration() {
     const btnToggle = document.getElementById('btnCalibratePointers');
     const btnSave = document.getElementById('btnSaveCalib');
     const btnReset = document.getElementById('btnResetCalib');
     const btnClose = document.getElementById('btnCloseCalib');
-    const inputX = document.getElementById('calibInputX');
-    const inputY = document.getElementById('calibInputY');
+    const btnResetCard = document.getElementById('btnResetSelectedCard');
 
     if (btnToggle) {
         btnToggle.addEventListener('click', () => {
@@ -2231,42 +3485,15 @@ function initCalibration() {
         });
     }
 
-    if (inputX) {
-        inputX.addEventListener('input', () => {
-            const val = parseInt(inputX.value, 10);
-            if (!isNaN(val) && DIAGRAM_POINTS[state.calibSelectedButton]) {
-                DIAGRAM_POINTS[state.calibSelectedButton].x = Math.max(-200, Math.min(1100, val));
-                updateSvgLines();
+    if (btnResetCard) {
+        btnResetCard.addEventListener('click', () => {
+            const btnId = state.calibSelectedButton || state.selectedButton;
+            if (btnId) {
+                setCardOffset(btnId, 0, 0);
+                showToast('Card Position Reset', `Reset ${DIAGRAM_POINTS[btnId]?.tag || btnId} card position to default.`);
             }
         });
     }
-
-    if (inputY) {
-        inputY.addEventListener('input', () => {
-            const val = parseInt(inputY.value, 10);
-            if (!isNaN(val) && DIAGRAM_POINTS[state.calibSelectedButton]) {
-                DIAGRAM_POINTS[state.calibSelectedButton].y = Math.max(-200, Math.min(700, val));
-                updateSvgLines();
-            }
-        });
-    }
-
-    // D-Pad buttons
-    document.getElementById('dpadUp')?.addEventListener('click', () => nudgePoint(0, -state.calibStep));
-    document.getElementById('dpadDown')?.addEventListener('click', () => nudgePoint(0, state.calibStep));
-    document.getElementById('dpadLeft')?.addEventListener('click', () => nudgePoint(-state.calibStep, 0));
-    document.getElementById('dpadRight')?.addEventListener('click', () => nudgePoint(state.calibStep, 0));
-
-    // Step size buttons
-    document.querySelectorAll('#stepButtons .step-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('#stepButtons .step-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            state.calibStep = parseInt(btn.dataset.step, 10) || 1;
-            const display = document.getElementById('dpadStepDisplay');
-            if (display) display.textContent = `${state.calibStep}px`;
-        });
-    });
 
     // Keyboard Arrow Nudging
     window.addEventListener('keydown', (e) => {
@@ -2302,6 +3529,7 @@ function toggleCalibrationMode(forceState) {
     const svg = document.getElementById('mouseSvg');
 
     if (state.isCalibrating) {
+        document.body.classList.add('calibrating-mode');
         if (panel) panel.style.display = 'block';
         if (btnToggle) {
             btnToggle.classList.add('active');
@@ -2309,18 +3537,61 @@ function toggleCalibrationMode(forceState) {
         }
         if (svg) svg.classList.add('calibrating');
         renderCalibPills();
-        selectCalibButton(state.calibSelectedButton || state.selectedButton || 'G8');
+        selectCalibButton(state.calibSelectedButton || state.selectedButton || 'G8', state.calibTargetMode || 'dot');
     } else {
+        document.body.classList.remove('calibrating-mode');
         if (panel) panel.style.display = 'none';
         if (btnToggle) {
             btnToggle.classList.remove('active');
             btnToggle.textContent = '🎯 Calibrate Pointers';
         }
         if (svg) svg.classList.remove('calibrating');
+        document.querySelectorAll('.btn-card').forEach(c => c.classList.remove('calib-selected', 'calib-dragging'));
         updateSvgLines();
     }
     setTimeout(() => updateSvgLines(), 50);
     setTimeout(() => updateSvgLines(), 220);
+}
+
+function setCalibTargetMode(mode) {
+    state.calibTargetMode = (mode === 'card') ? 'card' : 'dot';
+    updateCalibCardVisuals();
+    updateSvgLines();
+}
+
+function updateCalibCardVisuals() {
+    document.querySelectorAll('.btn-card').forEach(card => {
+        const btnId = card.getAttribute('data-btn');
+        const isCalibActive = state.isCalibrating && (state.calibSelectedButton === btnId);
+        card.classList.toggle('calib-selected', isCalibActive);
+    });
+}
+
+function applyCardOffset(btnId) {
+    const card = document.getElementById(`card_${btnId}`);
+    if (!card) return;
+    const off = state.cardOffsets[btnId];
+    if (off && (off.x || off.y)) {
+        card.style.transform = `translate(${off.x}px, ${off.y}px)`;
+    } else {
+        card.style.transform = '';
+    }
+}
+
+function applyAllCardOffsets() {
+    for (const btnId in DIAGRAM_POINTS) {
+        applyCardOffset(btnId);
+    }
+}
+
+function setCardOffset(btnId, x, y) {
+    if (!state.cardOffsets) state.cardOffsets = {};
+    state.cardOffsets[btnId] = {
+        x: Math.round(Math.max(-3000, Math.min(3000, x))),
+        y: Math.round(Math.max(-2000, Math.min(2000, y)))
+    };
+    applyCardOffset(btnId);
+    updateSvgLines();
 }
 
 function renderCalibPills() {
@@ -2335,16 +3606,20 @@ function renderCalibPills() {
         pill.textContent = `${pt.tag}: ${pt.name.split(' ')[0]}`;
         pill.title = pt.name;
         pill.addEventListener('click', () => {
-            selectCalibButton(btnId);
+            selectCalibButton(btnId, state.calibTargetMode || 'dot');
         });
         bar.appendChild(pill);
     }
 }
 
-function selectCalibButton(btnId) {
+function selectCalibButton(btnId, targetMode) {
     if (!DIAGRAM_POINTS[btnId]) return;
     state.calibSelectedButton = btnId;
     state.selectedButton = btnId;
+
+    if (targetMode) {
+        state.calibTargetMode = targetMode;
+    }
 
     // Update pills active class
     document.querySelectorAll('.calib-pill').forEach(p => {
@@ -2355,27 +3630,29 @@ function selectCalibButton(btnId) {
     const nameEl = document.getElementById('calibSelectedName');
     if (nameEl) nameEl.textContent = DIAGRAM_POINTS[btnId].name;
 
-    // Update input values
-    updateCalibInputs(DIAGRAM_POINTS[btnId].x, DIAGRAM_POINTS[btnId].y);
+    updateCalibCardVisuals();
 
     // Redraw SVG with active highlighting
     updateSvgLines();
 }
 
-function updateCalibInputs(x, y) {
-    const inX = document.getElementById('calibInputX');
-    const inY = document.getElementById('calibInputY');
-    if (inX) inX.value = Math.round(x);
-    if (inY) inY.value = Math.round(y);
-}
+function syncCalibInputs() {}
+function updateCalibInputs(x, y) {}
 
 function nudgePoint(dx, dy) {
-    const pt = DIAGRAM_POINTS[state.calibSelectedButton];
-    if (!pt) return;
-    pt.x = Math.max(-200, Math.min(1100, pt.x + dx));
-    pt.y = Math.max(-200, Math.min(700, pt.y + dy));
-    updateCalibInputs(pt.x, pt.y);
-    updateSvgLines();
+    const btnId = state.calibSelectedButton;
+    if (!btnId) return;
+
+    if (state.calibTargetMode === 'card') {
+        const off = state.cardOffsets[btnId] || { x: 0, y: 0 };
+        setCardOffset(btnId, off.x + dx, off.y + dy);
+    } else {
+        const pt = DIAGRAM_POINTS[btnId];
+        if (!pt) return;
+        pt.x = Math.max(-200, Math.min(1100, pt.x + dx));
+        pt.y = Math.max(-200, Math.min(700, pt.y + dy));
+        updateSvgLines();
+    }
 }
 
 function saveCalibration() {
@@ -2386,11 +3663,22 @@ function saveCalibration() {
             y: Math.round(DIAGRAM_POINTS[btnId].y)
         };
     }
+    const cleanCardOffsets = {};
+    for (const btnId in state.cardOffsets) {
+        const off = state.cardOffsets[btnId];
+        if (off && (off.x !== 0 || off.y !== 0)) {
+            cleanCardOffsets[btnId] = {
+                x: Math.round(off.x),
+                y: Math.round(off.y)
+            };
+        }
+    }
     sendToAhk({
         action: 'saveDiagramPoints',
-        points: pointsMap
+        points: pointsMap,
+        cardOffsets: cleanCardOffsets
     });
-    showToast('Calibration Saved', 'Target coordinates successfully saved to settings.ini');
+    showToast('Calibration Saved', 'Diagram points and card positions saved to settings.ini');
 }
 
 function resetCalibration() {
@@ -2403,7 +3691,7 @@ function onHotspotPointerDown(e, btnId) {
     if (!state.isCalibrating) return;
     e.preventDefault();
     e.stopPropagation();
-    selectCalibButton(btnId);
+    selectCalibButton(btnId, 'dot');
     state.isDraggingPoint = true;
     updateSvgLines();
 
@@ -2433,6 +3721,58 @@ function onHotspotPointerDown(e, btnId) {
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+}
+
+function onCardCalibPointerDown(e, btnId) {
+    if (!state.isCalibrating) return;
+    if (e.button !== 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    selectCalibButton(btnId, 'card');
+    state.isDraggingCard = true;
+
+    const card = document.getElementById(`card_${btnId}`);
+    if (card) {
+        card.classList.add('calib-dragging');
+        try {
+            card.setPointerCapture(e.pointerId);
+        } catch (_) {}
+    }
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const curOff = state.cardOffsets[btnId] || { x: 0, y: 0 };
+    const startOffX = curOff.x;
+    const startOffY = curOff.y;
+
+    const onPointerMove = (moveEvt) => {
+        if (!state.isDraggingCard) return;
+        const dx = moveEvt.clientX - startX;
+        const dy = moveEvt.clientY - startY;
+        const newX = startOffX + dx;
+        const newY = startOffY + dy;
+        setCardOffset(btnId, newX, newY);
+    };
+
+    const onPointerUp = (upEvt) => {
+        state.isDraggingCard = false;
+        if (card) {
+            card.classList.remove('calib-dragging');
+            try {
+                card.releasePointerCapture(upEvt.pointerId);
+            } catch (_) {}
+        }
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+        updateSvgLines();
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
 }
 
 // ============================================================================
@@ -3524,6 +4864,27 @@ function initButtonContextMenu() {
         });
     }
 
+    const ctxConfigure = document.getElementById('ctxBtnConfigure');
+    const ctxDelete = document.getElementById('ctxBtnDelete');
+
+    if (ctxConfigure) {
+        ctxConfigure.addEventListener('click', () => {
+            if (state.contextTargetButton) {
+                openButtonConfigModal(state.contextTargetButton);
+            }
+            closeButtonContextMenu();
+        });
+    }
+
+    if (ctxDelete) {
+        ctxDelete.addEventListener('click', () => {
+            if (state.contextTargetButton) {
+                confirmDeleteButton(state.contextTargetButton);
+            }
+            closeButtonContextMenu();
+        });
+    }
+
     // Submenu hover bridge to prevent flickering when moving cursor between item and submenu
     let submenuTimer = null;
     const fkeyItem = document.getElementById('ctxBtnChangeFKey');
@@ -3582,6 +4943,20 @@ function openButtonContextMenu(e, btnId) {
         }
     }
 
+    // Delete item state (Primary Left and Right click cannot be deleted)
+    const ctxDelete = document.getElementById('ctxBtnDelete');
+    if (ctxDelete) {
+        if (btnId === 'LeftClick' || btnId === 'RightClick') {
+            ctxDelete.classList.add('disabled');
+            ctxDelete.style.pointerEvents = 'none';
+            ctxDelete.style.opacity = '0.35';
+        } else {
+            ctxDelete.classList.remove('disabled');
+            ctxDelete.style.pointerEvents = '';
+            ctxDelete.style.opacity = '';
+        }
+    }
+
     // Hardware F-Key Submenu
     const currentFKey = state.hardwareFKeys ? state.hardwareFKeys[btnId] : null;
     if (currentFKey) {
@@ -3635,7 +5010,7 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
     if (!submenu) return;
     submenu.innerHTML = '';
 
-    const allFKeys = ['F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'F21'];
+    const allFKeys = ['F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'F21', 'F22', 'F23', 'F24'];
 
     allFKeys.forEach(fKey => {
         // Find which button currently has this fKey
@@ -3658,7 +5033,7 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
         item.className = `ctx-sub-item ${isCurrent ? 'current-fkey' : ''}`;
         item.innerHTML = `
             <span class="fkey-tag">${fKey}</span>
-            <span class="fkey-assigned-btn">${isCurrent ? '✓ Current' : (assignedName ? `(${assignedName})` : '')}</span>
+            <span class="fkey-assigned-btn">${isCurrent ? '✓ Current' : (assignedName ? `(${assignedName})` : '<span style="color:var(--text-muted); font-size:10px;">Available</span>')}</span>
         `;
 
         item.addEventListener('click', (e) => {
@@ -3666,18 +5041,72 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
             closeButtonContextMenu();
             if (isCurrent) return;
 
+            const oldKeyOfCurrent = state.hardwareFKeys?.[currentBtnId] || '';
+
             if (assignedBtnId && assignedBtnId !== currentBtnId) {
+                // Another button already has this key -> swap so each has at most one unique key
+                if (oldKeyOfCurrent) {
+                    state.hardwareFKeys[assignedBtnId] = oldKeyOfCurrent;
+                } else {
+                    delete state.hardwareFKeys[assignedBtnId];
+                }
+                state.hardwareFKeys[currentBtnId] = fKey;
                 sendToAhk({
                     action: 'swapHardwareFKeys',
                     btnId1: currentBtnId,
                     btnId2: assignedBtnId
                 });
-                showToast('Swapping F-Keys...', `${currentBtnId} ↔ ${assignedBtnId} (${fKey})`);
+                showToast('F-Keys Swapped', `${currentBtnId} (${fKey}) ↔ ${assignedBtnId} (${oldKeyOfCurrent || 'None'})`);
+            } else {
+                // Key is currently unassigned -> assign cleanly to currentBtnId
+                for (const b in state.hardwareFKeys) {
+                    if (state.hardwareFKeys[b] === fKey) delete state.hardwareFKeys[b];
+                }
+                state.hardwareFKeys[currentBtnId] = fKey;
+                sendToAhk({
+                    action: 'setHardwareFKey',
+                    btnId: currentBtnId,
+                    fkey: fKey
+                });
+                showToast('F-Key Assigned', `${currentBtnId} assigned ${fKey}`);
             }
+
+            sendButtonsToAhk();
+            renderAllCards();
+            if (typeof renderCalibPills === 'function') renderCalibPills();
         });
 
         submenu.appendChild(item);
     });
+
+    // Unassign / Clear F-Key Option
+    const clearItem = document.createElement('div');
+    clearItem.className = `ctx-sub-item ${!currentFKey ? 'current-fkey' : ''}`;
+    clearItem.style.borderTop = '1px solid var(--border-subtle)';
+    clearItem.style.marginTop = '4px';
+    clearItem.style.paddingTop = '6px';
+    clearItem.innerHTML = `
+        <span class="fkey-tag" style="color:var(--text-muted);">None</span>
+        <span class="fkey-assigned-btn" style="color:var(--text-muted);">${!currentFKey ? '✓ Current' : 'Clear / Unassign'}</span>
+    `;
+    clearItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeButtonContextMenu();
+        if (!currentFKey) return;
+        if (state.hardwareFKeys?.[currentBtnId]) {
+            delete state.hardwareFKeys[currentBtnId];
+        }
+        sendToAhk({
+            action: 'setHardwareFKey',
+            btnId: currentBtnId,
+            fkey: ''
+        });
+        sendButtonsToAhk();
+        renderAllCards();
+        if (typeof renderCalibPills === 'function') renderCalibPills();
+        showToast('F-Key Cleared', `${currentBtnId} hardware trigger unassigned`);
+    });
+    submenu.appendChild(clearItem);
 }
 
 function copyButtonMappingAction(btnId) {
@@ -3768,29 +5197,55 @@ function renderOmmGrid() {
     if (!grid) return;
     grid.innerHTML = '';
 
-    OMM_BUTTONS.forEach(item => {
-        const currentFKey = (state.hardwareFKeys && state.hardwareFKeys[item.btnId]) 
-            ? state.hardwareFKeys[item.btnId] 
-            : item.defaultFKey;
+    // Collect all buttons in the active layout that are assignable (exclude standard primary left/right/scrolls)
+    const items = [];
+    const seenButtons = new Set();
 
+    for (const btnId in DIAGRAM_POINTS) {
+        if (btnId === 'LeftClick' || btnId === 'RightClick' || btnId === 'WheelUp' || btnId === 'WheelDown') continue;
+        const pt = DIAGRAM_POINTS[btnId];
+        const currentFKey = (state.hardwareFKeys && state.hardwareFKeys[btnId]) ? state.hardwareFKeys[btnId] : '';
+        items.push({
+            btnId: btnId,
+            label: pt.name || btnId,
+            fKey: currentFKey
+        });
+        seenButtons.add(btnId);
+    }
+
+    if (items.length === 0) {
+        OMM_BUTTONS.forEach(item => {
+            const currentFKey = (state.hardwareFKeys && state.hardwareFKeys[item.btnId]) 
+                ? state.hardwareFKeys[item.btnId] 
+                : item.defaultFKey;
+            items.push({
+                btnId: item.btnId,
+                label: item.label,
+                fKey: currentFKey
+            });
+        });
+    }
+
+    items.forEach(item => {
+        const hasKey = item.fKey && item.fKey !== '';
         const card = document.createElement('div');
         card.className = 'omm-card';
         card.innerHTML = `
             <div class="omm-card-header">
                 <span class="omm-card-title">${item.label}</span>
-                <span class="omm-card-fkey" id="ommFKeyBadge_${item.btnId}">${currentFKey}</span>
+                <span class="omm-card-fkey" id="ommFKeyBadge_${item.btnId}" style="${hasKey ? '' : 'background:rgba(255,255,255,0.06); color:var(--text-muted); border-color:transparent;'}">${hasKey ? item.fKey : 'No Key'}</span>
             </div>
-            <button class="omm-inject-btn" id="btnInject_${item.btnId}">
-                <span>⚡</span> Inject ${currentFKey} (3s)
+            <button class="omm-inject-btn" id="btnInject_${item.btnId}" ${hasKey ? '' : 'disabled style="opacity:0.4; cursor:not-allowed;"'}>
+                <span>⚡</span> ${hasKey ? `Inject ${item.fKey} (3s)` : 'Configure Key First'}
             </button>
         `;
 
         const injectBtn = card.querySelector(`#btnInject_${item.btnId}`);
-        if (injectBtn) {
+        if (injectBtn && hasKey) {
             injectBtn.addEventListener('click', () => {
                 sendToAhk({
                     action: 'injectFKey',
-                    key: currentFKey,
+                    key: item.fKey,
                     buttonId: item.btnId
                 });
             });
@@ -3955,4 +5410,1267 @@ function setButtonCustomName(btnId, newName) {
 
     showToast('Button Renamed', newName ? `Renamed to "${newName}"` : `Restored ${btnId} to default name`);
 }
+
+// ============================================================================
+// CUSTOM MOUSE IMAGE & BUTTONS CONFIGURATION
+// ============================================================================
+function sendButtonsToAhk() {
+    const buttonsList = [];
+    for (const bId in DIAGRAM_POINTS) {
+        const pt = DIAGRAM_POINTS[bId];
+        const fkey = state.hardwareFKeys?.[bId] || '';
+        buttonsList.push({
+            id: bId,
+            name: pt.name || bId,
+            tag: pt.tag || bId,
+            side: pt.side || 'left',
+            x: Math.round(pt.x),
+            y: Math.round(pt.y),
+            hardwareKey: fkey,
+            fkey: fkey
+        });
+    }
+    sendToAhk({
+        action: 'saveCustomButtons',
+        buttons: buttonsList
+    });
+}
+
+const POPULAR_MOUSE_PRESETS = [
+    {
+        id: 'g502x',
+        name: 'Logitech G502 X / Hero',
+        tag: 'Logitech',
+        badge: '13 Controls',
+        desc: 'Hybrid optical-mechanical switches, sniper paddle, and dual-mode tilt wheel.',
+        image: '../assets/g502x.png',
+        buttons: DEFAULT_BUTTONS_CONFIG
+    },
+    {
+        id: 'basilisk_v3',
+        name: 'Razer Basilisk V3 / Pro',
+        tag: 'Razer',
+        badge: '11 Controls',
+        desc: 'Ergonomic shape with multi-function sniper trigger paddle, smart-reel tilt wheel, and chroma RGB.',
+        image: '../assets/razer_basilisk_v3.png',
+        buttons: [
+            { id: 'LeftClick',    x: 260, y: 100, side: 'left',  name: 'Left Click (M1)',        tag: 'M1',   hardwareKey: '' },
+            { id: 'Sniper',       x: 265, y: 275, side: 'left',  name: 'Multi-Function Paddle',   tag: 'SNIP', hardwareKey: 'F15' },
+            { id: 'Forward',      x: 285, y: 235, side: 'left',  name: 'Side Forward (M5)',       tag: 'M5',   hardwareKey: 'F16' },
+            { id: 'Back',         x: 355, y: 280, side: 'left',  name: 'Side Back (M4)',          tag: 'M4',   hardwareKey: 'F14' },
+            { id: 'RightClick',   x: 395, y: 100, side: 'right', name: 'Right Click (M2)',       tag: 'M2',   hardwareKey: '' },
+            { id: 'TiltLeft',     x: 320, y: 70,  side: 'right', name: 'Wheel Tilt Left',        tag: 'TL',   hardwareKey: 'F17' },
+            { id: 'WheelUp',      x: 300, y: 35,  side: 'right', name: 'Wheel Scroll Up',        tag: 'W-UP', hardwareKey: '' },
+            { id: 'Middle',       x: 350, y: 60,  side: 'right', name: 'Wheel Click (M3)',       tag: 'MID',  hardwareKey: 'F13' },
+            { id: 'WheelDown',    x: 380, y: 70,  side: 'right', name: 'Wheel Scroll Down',      tag: 'W-DN', hardwareKey: '' },
+            { id: 'TiltRight',    x: 380, y: 30,  side: 'right', name: 'Wheel Tilt Right',       tag: 'TR',   hardwareKey: 'F18' },
+            { id: 'ScrollMode',   x: 420, y: 95,  side: 'right', name: 'Smart-Reel Mode Button', tag: 'MODE', hardwareKey: 'F19' },
+            { id: 'DpiCycle',     x: 455, y: 120, side: 'right', name: 'DPI Stage Cycle',        tag: 'DPI',  hardwareKey: 'F20' }
+        ]
+    },
+    {
+        id: 'naga_v2',
+        name: 'Razer Naga V2 Pro (MMO)',
+        tag: 'Razer',
+        badge: '16 Controls (12-Key Grid)',
+        desc: '12-button mechanical thumb grid for MMO/macros, dual-mode tilt wheel, and top DPI switches.',
+        image: '../assets/razer_naga_v2.png',
+        buttons: [
+            { id: 'LeftClick',    x: 245, y: 95,  side: 'left',  name: 'Left Click (M1)',        tag: 'M1',   hardwareKey: '' },
+            { id: 'Grid1',        x: 275, y: 250, side: 'left',  name: 'MMO Key 1',              tag: '1',    hardwareKey: 'F14' },
+            { id: 'Grid2',        x: 305, y: 265, side: 'left',  name: 'MMO Key 2',              tag: '2',    hardwareKey: 'F15' },
+            { id: 'Grid3',        x: 340, y: 290, side: 'left',  name: 'MMO Key 3',              tag: '3',    hardwareKey: 'F16' },
+            { id: 'Grid4',        x: 250, y: 275, side: 'left',  name: 'MMO Key 4',              tag: '4',    hardwareKey: 'F22' },
+            { id: 'Grid5',        x: 280, y: 295, side: 'left',  name: 'MMO Key 5',              tag: '5',    hardwareKey: '' },
+            { id: 'Grid6',        x: 315, y: 320, side: 'left',  name: 'MMO Key 6',              tag: '6',    hardwareKey: '' },
+            { id: 'Grid7',        x: 230, y: 305, side: 'left',  name: 'MMO Key 7',              tag: '7',    hardwareKey: '' },
+            { id: 'Grid8',        x: 260, y: 330, side: 'left',  name: 'MMO Key 8',              tag: '8',    hardwareKey: '' },
+            { id: 'Grid9',        x: 295, y: 355, side: 'left',  name: 'MMO Key 9',              tag: '9',    hardwareKey: '' },
+            { id: 'Grid10',       x: 215, y: 335, side: 'left',  name: 'MMO Key 10',             tag: '10',   hardwareKey: '' },
+            { id: 'Grid11',       x: 240, y: 360, side: 'left',  name: 'MMO Key 11',             tag: '11',   hardwareKey: '' },
+            { id: 'Grid12',       x: 275, y: 390, side: 'left',  name: 'MMO Key 12',             tag: '12',   hardwareKey: '' },
+            { id: 'RightClick',   x: 390, y: 95,  side: 'right', name: 'Right Click (M2)',       tag: 'M2',   hardwareKey: '' },
+            { id: 'TiltLeft',     x: 320, y: 70,  side: 'right', name: 'Wheel Tilt Left',        tag: 'TL',   hardwareKey: 'F17' },
+            { id: 'WheelUp',      x: 305, y: 40,  side: 'right', name: 'Wheel Scroll Up',        tag: 'W-UP', hardwareKey: '' },
+            { id: 'Middle',       x: 350, y: 65,  side: 'right', name: 'Wheel Click (M3)',       tag: 'MID',  hardwareKey: 'F13' },
+            { id: 'WheelDown',    x: 375, y: 75,  side: 'right', name: 'Wheel Scroll Down',      tag: 'W-DN', hardwareKey: '' },
+            { id: 'TiltRight',    x: 380, y: 35,  side: 'right', name: 'Wheel Tilt Right',       tag: 'TR',   hardwareKey: 'F18' },
+            { id: 'DpiUp',        x: 440, y: 110, side: 'right', name: 'DPI Up Button',          tag: 'DPI+', hardwareKey: 'F20' },
+            { id: 'DpiDown',      x: 475, y: 135, side: 'right', name: 'DPI Down Button',        tag: 'DPI-', hardwareKey: 'F21' }
+        ]
+    },
+    {
+        id: 'g604',
+        name: 'Logitech G604 Lightspeed',
+        tag: 'Logitech',
+        badge: '15 Controls (6 Thumb)',
+        desc: '6 thumb keys, dual top index DPI keys, dual-mode metal hyperfast scroll wheel.',
+        image: '../assets/logitech_g604.png',
+        buttons: [
+            { id: 'LeftClick',    x: 189, y: 10,  side: 'left',  name: 'Left Click (M1)',        tag: 'M1',   hardwareKey: '' },
+            { id: 'G8',           x: 110, y: 49,  side: 'left',  name: 'G8 (DPI Up)',            tag: 'G8',   hardwareKey: 'F20' },
+            { id: 'G7',           x: 164, y: 86,  side: 'left',  name: 'G7 (DPI Down)',          tag: 'G7',   hardwareKey: 'F21' },
+            { id: 'ThumbG4',      x: 209, y: 190, side: 'left',  name: 'Thumb G4 (Top Front)',   tag: 'G4',   hardwareKey: 'F16' },
+            { id: 'ThumbG5',      x: 275, y: 238, side: 'left',  name: 'Thumb G5 (Top Mid)',     tag: 'G5',   hardwareKey: 'F14' },
+            { id: 'ThumbG6',      x: 343, y: 296, side: 'left',  name: 'Thumb G6 (Top Rear)',    tag: 'G6',   hardwareKey: 'F15' },
+            { id: 'ThumbG7',      x: 205, y: 239, side: 'left',  name: 'Thumb G7 (Bot Front)',   tag: 'G7S',  hardwareKey: 'F22' },
+            { id: 'ThumbG8',      x: 264, y: 287, side: 'left',  name: 'Thumb G8 (Bot Mid)',     tag: 'G8S',  hardwareKey: 'F23' },
+            { id: 'ThumbG9',      x: 330, y: 332, side: 'left',  name: 'Thumb G9 (Bot Rear)',    tag: 'G9S',  hardwareKey: 'F24' },
+            { id: 'RightClick',   x: 452, y: -15, side: 'right', name: 'Right Click (M2)',       tag: 'M2',   hardwareKey: '' },
+            { id: 'TiltLeft',     x: 271, y: -2,  side: 'right', name: 'Wheel Tilt Left',        tag: 'TL',   hardwareKey: 'F17' },
+            { id: 'WheelUp',      x: 252, y: -62, side: 'right', name: 'Wheel Scroll Up',        tag: 'W-UP', hardwareKey: '' },
+            { id: 'Middle',       x: 324, y: -40, side: 'right', name: 'Wheel Click (M3)',       tag: 'MID',  hardwareKey: 'F13' },
+            { id: 'WheelDown',    x: 371, y: 3,   side: 'right', name: 'Wheel Scroll Down',      tag: 'W-DN', hardwareKey: '' },
+            { id: 'TiltRight',    x: 373, y: -57, side: 'right', name: 'Wheel Tilt Right',       tag: 'TR',   hardwareKey: 'F18' },
+            { id: 'ProfileCycle', x: 454, y: 75,  side: 'right', name: 'Profile / Mode Button',  tag: 'PROF', hardwareKey: 'F19' }
+        ]
+    },
+    {
+        id: 'gprox',
+        name: 'Logitech G Pro X Superlight',
+        tag: 'Logitech',
+        badge: '5 Buttons (Esports)',
+        desc: 'Ultra-lightweight competitive esports mouse with clean ambidextrous ergonomics.',
+        image: '../assets/logitech_gprox.png',
+        buttons: [
+            { id: 'LeftClick',    x: 275, y: 155, side: 'left',  name: 'Left Click (M1)',        tag: 'M1',   hardwareKey: '' },
+            { id: 'Forward',      x: 365, y: 260, side: 'left',  name: 'Side Forward (M5)',       tag: 'M5',   hardwareKey: 'F16' },
+            { id: 'Back',         x: 420, y: 305, side: 'left',  name: 'Side Back (M4)',          tag: 'M4',   hardwareKey: 'F14' },
+            { id: 'RightClick',   x: 415, y: 150, side: 'right', name: 'Right Click (M2)',       tag: 'M2',   hardwareKey: '' },
+            { id: 'WheelUp',      x: 325, y: 80,  side: 'right', name: 'Wheel Scroll Up',        tag: 'W-UP', hardwareKey: '' },
+            { id: 'Middle',       x: 360, y: 110, side: 'right', name: 'Wheel Click (M3)',       tag: 'MID',  hardwareKey: 'F13' },
+            { id: 'WheelDown',    x: 390, y: 120, side: 'right', name: 'Wheel Scroll Down',      tag: 'W-DN', hardwareKey: '' }
+        ]
+    },
+    {
+        id: 'rival5',
+        name: 'SteelSeries Rival 5',
+        tag: 'SteelSeries',
+        badge: '9 Controls (Flick Switch)',
+        desc: 'Multi-genre ergonomic mouse with quick-action silver sniper trigger and up/down flick switch.',
+        image: '../assets/steelseries_rival5.png',
+        buttons: [
+            { id: 'LeftClick',    x: 260, y: 120, side: 'left',  name: 'Left Click (M1)',        tag: 'M1',   hardwareKey: '' },
+            { id: 'Sniper',       x: 280, y: 295, side: 'left',  name: 'Silver Quick-Action Trigger', tag: 'SNIP', hardwareKey: 'F15' },
+            { id: 'FlickUp',      x: 325, y: 230, side: 'left',  name: 'Flick Switch Up',        tag: 'FL-UP',hardwareKey: 'F20' },
+            { id: 'FlickDown',    x: 365, y: 255, side: 'left',  name: 'Flick Switch Down',      tag: 'FL-DN',hardwareKey: 'F21' },
+            { id: 'Forward',      x: 320, y: 270, side: 'left',  name: 'Side Forward (M5)',       tag: 'M5',   hardwareKey: 'F16' },
+            { id: 'Back',         x: 360, y: 290, side: 'left',  name: 'Side Back (M4)',          tag: 'M4',   hardwareKey: 'F14' },
+            { id: 'RightClick',   x: 405, y: 105, side: 'right', name: 'Right Click (M2)',       tag: 'M2',   hardwareKey: '' },
+            { id: 'WheelUp',      x: 310, y: 50,  side: 'right', name: 'Wheel Scroll Up',        tag: 'W-UP', hardwareKey: '' },
+            { id: 'Middle',       x: 350, y: 80,  side: 'right', name: 'Wheel Click (M3)',       tag: 'MID',  hardwareKey: 'F13' },
+            { id: 'WheelDown',    x: 380, y: 90,  side: 'right', name: 'Wheel Scroll Down',      tag: 'W-DN', hardwareKey: '' },
+            { id: 'DpiSwitch',    x: 435, y: 125, side: 'right', name: 'CPI / DPI Switch',       tag: 'CPI',  hardwareKey: 'F19' }
+        ]
+    }
+];
+
+function getCurrentButtonsConfigExport() {
+    const list = [];
+    for (const btnId in DIAGRAM_POINTS) {
+        const pt = DIAGRAM_POINTS[btnId];
+        list.push({
+            id: btnId,
+            x: pt.x,
+            y: pt.y,
+            side: pt.side || 'left',
+            name: pt.name || btnId,
+            tag: pt.tag || btnId,
+            hardwareKey: (state.hardwareFKeys && state.hardwareFKeys[btnId]) ? state.hardwareFKeys[btnId] : ''
+        });
+    }
+    return list;
+}
+
+function initMouseImageModal() {
+    const btnOpen = document.getElementById('btnChangeMouseImage');
+    const modal = document.getElementById('mouseImageModal');
+    const btnClose = document.getElementById('btnCloseMouseImageModal');
+    const btnCancel = document.getElementById('btnCancelMouseImageModal');
+    const btnBrowse = document.getElementById('btnBrowseMouseImage');
+    const btnSaveCurrent = document.getElementById('btnSaveCurrentAsPreset');
+    const fileInput = document.getElementById('mouseImageFileInput');
+    const btnReset = document.getElementById('btnResetMouseImage');
+    const previewImg = document.getElementById('customImagePreview');
+    const presetGrid = document.getElementById('mousePresetGrid');
+    const presetNameEl = document.getElementById('presetSelectedName');
+    const presetDescEl = document.getElementById('presetSelectedDesc');
+    const btnApplyImage = document.getElementById('btnApplyPresetImage');
+    const btnApplyWithLayout = document.getElementById('btnApplyPresetWithLayout');
+
+    // New Preset Modal Elements
+    const newPresetModal = document.getElementById('newMousePresetModal');
+    const btnCloseNewModal = document.getElementById('btnCloseNewMousePresetModal');
+    const btnCancelNewModal = document.getElementById('btnCancelNewMousePreset');
+    const btnConfirmNewPreset = document.getElementById('btnConfirmSaveNewMousePreset');
+    const newPresetThumb = document.getElementById('newPresetThumbPreview');
+    const txtNewPresetName = document.getElementById('txtNewPresetName');
+    const txtNewPresetBadge = document.getElementById('txtNewPresetBadge');
+
+    let pendingCustomImageData = '';
+
+    if (!modal) return;
+
+    let selectedPreset = POPULAR_MOUSE_PRESETS[0];
+
+    function getAllPresets() {
+        return [...POPULAR_MOUSE_PRESETS, ...(state.customMousePresets || [])];
+    }
+
+    function detectCurrentPreset() {
+        const mouseImg = document.getElementById('mouseImg');
+        const curSrc = (mouseImg && mouseImg.src) ? mouseImg.src.toLowerCase() : '';
+        const all = getAllPresets();
+        for (const preset of all) {
+            const presetFilename = preset.image.split('/').pop().split('?')[0].toLowerCase();
+            if (presetFilename && curSrc.includes(presetFilename)) {
+                return preset;
+            }
+        }
+        return all[0] || POPULAR_MOUSE_PRESETS[0];
+    }
+
+    function renderPresetCards() {
+        if (!presetGrid) return;
+        presetGrid.innerHTML = '';
+
+        const all = getAllPresets();
+
+        all.forEach(preset => {
+            const card = document.createElement('div');
+            const isActive = selectedPreset && selectedPreset.id === preset.id;
+            const isCustom = !!preset.isCustom;
+            card.className = `mouse-preset-card ${isActive ? 'active' : ''}`;
+            card.dataset.presetId = preset.id;
+
+            card.innerHTML = `
+                ${isCustom ? `<button type="button" class="preset-delete-btn" title="Delete custom mouse preset">✕</button>` : ''}
+                <img src="${preset.image}" alt="${preset.name}" class="mouse-preset-thumb">
+                <div class="mouse-preset-name" title="${preset.name}">${preset.name}</div>
+                <div class="mouse-preset-badge ${isCustom ? 'custom-badge' : ''}">${preset.badge || (isCustom ? 'Custom' : '')}</div>
+            `;
+
+            if (isCustom) {
+                const delBtn = card.querySelector('.preset-delete-btn');
+                if (delBtn) {
+                    delBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Are you sure you want to delete custom mouse option "${preset.name}"?`)) {
+                            sendToAhk({
+                                action: 'deleteCustomMousePreset',
+                                presetId: preset.id
+                            });
+                            state.customMousePresets = (state.customMousePresets || []).filter(p => p.id !== preset.id);
+                            if (selectedPreset && selectedPreset.id === preset.id) {
+                                selectedPreset = POPULAR_MOUSE_PRESETS[0];
+                                updateSelectedPresetUI();
+                            }
+                            renderPresetCards();
+                        }
+                    });
+                }
+            }
+
+            card.addEventListener('click', () => {
+                selectedPreset = preset;
+                updateSelectedPresetUI();
+            });
+
+            presetGrid.appendChild(card);
+        });
+    }
+
+    window.renderPresetCardsGlobal = renderPresetCards;
+
+    function updateSelectedPresetUI() {
+        if (!selectedPreset) return;
+
+        // Highlight active card
+        if (presetGrid) {
+            const cards = presetGrid.querySelectorAll('.mouse-preset-card');
+            cards.forEach(c => {
+                c.classList.toggle('active', c.dataset.presetId === selectedPreset.id);
+            });
+        }
+
+        // Update preview image, name, and description
+        if (previewImg) previewImg.src = selectedPreset.image;
+        if (presetNameEl) presetNameEl.textContent = selectedPreset.name;
+        if (presetDescEl) presetDescEl.textContent = selectedPreset.desc;
+    }
+
+    function openModal() {
+        selectedPreset = detectCurrentPreset();
+        renderPresetCards();
+        updateSelectedPresetUI();
+        modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+        modal.style.display = 'none';
+    }
+
+    function openNewModal(defaultName, imgSrc) {
+        pendingCustomImageData = imgSrc;
+        if (newPresetThumb) newPresetThumb.src = imgSrc;
+        if (txtNewPresetName) txtNewPresetName.value = defaultName || 'Custom Mouse';
+        if (txtNewPresetBadge) txtNewPresetBadge.value = 'Custom';
+        if (newPresetModal) newPresetModal.style.display = 'flex';
+    }
+
+    function closeNewModal() {
+        if (newPresetModal) newPresetModal.style.display = 'none';
+    }
+
+    if (btnOpen) btnOpen.addEventListener('click', openModal);
+    if (btnClose) btnClose.addEventListener('click', closeModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeModal);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    if (btnCloseNewModal) btnCloseNewModal.addEventListener('click', closeNewModal);
+    if (btnCancelNewModal) btnCancelNewModal.addEventListener('click', closeNewModal);
+    if (newPresetModal) {
+        newPresetModal.addEventListener('click', (e) => {
+            if (e.target === newPresetModal) closeNewModal();
+        });
+    }
+
+    // Apply Preset: Image Only
+    if (btnApplyImage) {
+        btnApplyImage.addEventListener('click', () => {
+            if (!selectedPreset) return;
+            const mouseImg = document.getElementById('mouseImg');
+            if (mouseImg) mouseImg.src = selectedPreset.image;
+
+            sendToAhk({
+                action: 'saveMouseImage',
+                image: selectedPreset.image
+            });
+
+            showToast('Mouse Image', `Applied ${selectedPreset.name} visual`);
+            setTimeout(updateSvgLines, 100);
+            closeModal();
+        });
+    }
+
+    // Apply Preset: Image + Recommended Button Layout
+    if (btnApplyWithLayout) {
+        btnApplyWithLayout.addEventListener('click', () => {
+            if (!selectedPreset) return;
+            const mouseImg = document.getElementById('mouseImg');
+            if (mouseImg) mouseImg.src = selectedPreset.image;
+
+            // Save image path
+            sendToAhk({
+                action: 'saveMouseImage',
+                image: selectedPreset.image
+            });
+
+            // Save buttons layout
+            if (selectedPreset.buttons && selectedPreset.buttons.length > 0) {
+                sendToAhk({
+                    action: 'saveCustomButtons',
+                    buttons: selectedPreset.buttons
+                });
+
+                // Clear manual card offsets so layout flows naturally
+                sendToAhk({ action: 'resetCardOffsets' });
+                state.cardOffsets = {};
+
+                // Apply immediately to frontend stage
+                applyButtonsConfig(selectedPreset.buttons);
+            }
+
+            showToast('Mouse Model Applied', `Loaded ${selectedPreset.name} layout`);
+            setTimeout(updateSvgLines, 150);
+            closeModal();
+        });
+    }
+
+    // Custom File Browse -> Prompts to Save as Permanent Preset
+    if (btnBrowse && fileInput) {
+        btnBrowse.addEventListener('click', () => {
+            fileInput.value = '';
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+                openNewModal(cleanName, dataUrl);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Save Current Layout as New Preset
+    if (btnSaveCurrent) {
+        btnSaveCurrent.addEventListener('click', () => {
+            const mouseImg = document.getElementById('mouseImg');
+            const curSrc = (mouseImg && mouseImg.src) ? mouseImg.src : '../assets/g502x.png';
+            openNewModal('My Custom Setup', curSrc);
+        });
+    }
+
+    // Confirm Save in New Mouse Preset Modal
+    if (btnConfirmNewPreset) {
+        btnConfirmNewPreset.addEventListener('click', () => {
+            const name = (txtNewPresetName && txtNewPresetName.value.trim()) 
+                ? txtNewPresetName.value.trim() 
+                : 'Custom Mouse';
+            const badge = (txtNewPresetBadge && txtNewPresetBadge.value.trim()) 
+                ? txtNewPresetBadge.value.trim() 
+                : 'Custom';
+
+            const pId = 'custom_' + Date.now();
+            const currentButtons = getCurrentButtonsConfigExport();
+
+            const newPreset = {
+                id: pId,
+                name: name,
+                desc: `Custom user mouse model (${name})`,
+                badge: badge,
+                image: pendingCustomImageData,
+                isCustom: true,
+                buttons: currentButtons
+            };
+
+            // Send to AHK backend for permanent storage in settings.ini & assets/
+            sendToAhk({
+                action: 'saveCustomMousePreset',
+                preset: newPreset
+            });
+
+            // Update local state immediately
+            state.customMousePresets = state.customMousePresets || [];
+            state.customMousePresets.push(newPreset);
+            selectedPreset = newPreset;
+
+            // Apply immediately to the live stage
+            const mouseImg = document.getElementById('mouseImg');
+            if (mouseImg) mouseImg.src = pendingCustomImageData;
+            if (previewImg) previewImg.src = pendingCustomImageData;
+
+            renderPresetCards();
+            updateSelectedPresetUI();
+            setTimeout(updateSvgLines, 100);
+
+            closeNewModal();
+            showToast('Mouse Option Saved', `Permanently added "${name}" to your mouse gallery!`);
+        });
+    }
+
+    // Reset to Factory G502 X
+    if (btnReset) {
+        btnReset.addEventListener('click', () => {
+            const defPath = '../assets/g502x.png';
+            if (previewImg) previewImg.src = defPath;
+            const mouseImg = document.getElementById('mouseImg');
+            if (mouseImg) mouseImg.src = defPath;
+
+            sendToAhk({ action: 'resetMouseImage' });
+            sendToAhk({ action: 'resetCustomButtons' });
+            sendToAhk({ action: 'resetDiagramPoints' });
+
+            state.cardOffsets = {};
+            applyButtonsConfig(DEFAULT_BUTTONS_CONFIG);
+
+            showToast('Mouse Layout Reset', 'Restored Logitech G502 X factory default');
+            setTimeout(updateSvgLines, 100);
+            closeModal();
+        });
+    }
+}
+
+function initButtonConfigModal() {
+    const btnAdd = document.getElementById('btnAddCustomButton');
+    const modal = document.getElementById('buttonConfigModal');
+    const btnClose = document.getElementById('btnCloseButtonConfigModal');
+    const btnCancel = document.getElementById('btnCancelButtonConfig');
+    const btnSave = document.getElementById('btnSaveButtonConfig');
+
+    if (!modal) return;
+
+    if (btnAdd) {
+        btnAdd.addEventListener('click', () => {
+            openButtonConfigModal();
+        });
+    }
+
+    if (btnClose) {
+        btnClose.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
+
+    if (btnCancel) {
+        btnCancel.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.style.display = 'none';
+    });
+
+    if (btnSave) {
+        btnSave.addEventListener('click', saveButtonConfigForm);
+    }
+}
+
+function openButtonConfigModal(btnId) {
+    const modal = document.getElementById('buttonConfigModal');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('btnConfigModalTitle');
+    const origIdEl = document.getElementById('btnConfigOriginalId');
+    const idEl = document.getElementById('btnConfigId');
+    const nameEl = document.getElementById('btnConfigName');
+    const tagEl = document.getElementById('btnConfigTag');
+    const sideEl = document.getElementById('btnConfigSide');
+    const keyEl = document.getElementById('btnConfigHardwareKey');
+
+    const curKey = (btnId && state.hardwareFKeys?.[btnId]) || '';
+
+    // Dynamically annotate hardware key options with availability and in-use status
+    if (keyEl) {
+        const keyOptions = [
+            { val: '', label: 'None / Virtual (No Hardware Intercept)' },
+            { val: 'F13', label: 'F13 (Default: Mouse 3 / Middle)' },
+            { val: 'F14', label: 'F14 (Default: Back / Mouse 4)' },
+            { val: 'F15', label: 'F15 (Default: DPI Shift / Sniper)' },
+            { val: 'F16', label: 'F16 (Default: Forward / Mouse 5)' },
+            { val: 'F17', label: 'F17 (Default: Tilt Left)' },
+            { val: 'F18', label: 'F18 (Default: Tilt Right)' },
+            { val: 'F19', label: 'F19 (Default: Profile Cycle / G9)' },
+            { val: 'F20', label: 'F20 (Default: DPI Up / G8)' },
+            { val: 'F21', label: 'F21 (Default: DPI Down / G7)' },
+            { val: 'F22', label: 'F22 (Available Key)' },
+            { val: 'F23', label: 'F23 (Available Key)' },
+            { val: 'F24', label: 'F24 (Available Key)' },
+            { val: 'XButton1', label: 'Mouse 4 (XButton1)' },
+            { val: 'XButton2', label: 'Mouse 5 (XButton2)' }
+        ];
+        keyEl.innerHTML = '';
+        keyOptions.forEach(opt => {
+            const el = document.createElement('option');
+            el.value = opt.val;
+            if (!opt.val) {
+                el.textContent = opt.label;
+            } else {
+                let inUseBy = '';
+                if (state.hardwareFKeys) {
+                    for (const b in state.hardwareFKeys) {
+                        if (state.hardwareFKeys[b] === opt.val) {
+                            inUseBy = b;
+                            break;
+                        }
+                    }
+                }
+                if (inUseBy && inUseBy !== btnId) {
+                    const otherTagName = DIAGRAM_POINTS[inUseBy]?.tag || inUseBy;
+                    el.textContent = `${opt.val} — [In use: ${otherTagName}] (Will reassign)`;
+                } else if (inUseBy === btnId) {
+                    el.textContent = `${opt.val} — (Current)`;
+                } else {
+                    el.textContent = `${opt.val} — (Available)`;
+                }
+            }
+            keyEl.appendChild(el);
+        });
+        keyEl.value = curKey;
+    }
+
+    if (btnId && DIAGRAM_POINTS[btnId]) {
+        // Edit existing button
+        const pt = DIAGRAM_POINTS[btnId];
+        if (titleEl) titleEl.textContent = 'CONFIGURE BUTTON';
+        if (origIdEl) origIdEl.value = btnId;
+        if (idEl) {
+            idEl.value = btnId;
+            idEl.disabled = true;
+        }
+        if (nameEl) nameEl.value = pt.name || btnId;
+        if (tagEl) tagEl.value = pt.tag || btnId;
+        if (sideEl) sideEl.value = pt.side || 'left';
+    } else {
+        // Add new button
+        if (titleEl) titleEl.textContent = 'ADD MOUSE BUTTON';
+        if (origIdEl) origIdEl.value = '';
+        if (idEl) {
+            idEl.value = '';
+            idEl.disabled = false;
+        }
+        if (nameEl) nameEl.value = '';
+        if (tagEl) tagEl.value = '';
+        if (sideEl) sideEl.value = 'left';
+    }
+
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        if (idEl && !idEl.disabled) {
+            idEl.focus();
+        } else if (nameEl) {
+            nameEl.focus();
+        }
+    }, 50);
+}
+
+function saveButtonConfigForm() {
+    const modal = document.getElementById('buttonConfigModal');
+    const origId = document.getElementById('btnConfigOriginalId').value.trim();
+    let id = document.getElementById('btnConfigId').value.trim().replace(/[^a-zA-Z0-9_]/g, '');
+    const name = document.getElementById('btnConfigName').value.trim() || id;
+    const tag = document.getElementById('btnConfigTag').value.trim() || id.slice(0, 5);
+    const side = document.getElementById('btnConfigSide').value || 'left';
+    const fkey = document.getElementById('btnConfigHardwareKey').value || '';
+
+    if (!origId && !id) {
+        showToast('Validation Error', 'Please enter a valid Button ID');
+        return;
+    }
+
+    const targetId = origId || id;
+
+    if (!origId && DIAGRAM_POINTS[targetId]) {
+        showToast('Validation Error', `Button ID "${targetId}" already exists`);
+        return;
+    }
+
+    if (origId && DIAGRAM_POINTS[origId]) {
+        // Update existing button
+        const existing = DIAGRAM_POINTS[origId];
+        existing.name = name;
+        existing.tag = tag;
+        existing.side = side;
+    } else {
+        // Create new button
+        const btnCount = Object.keys(DIAGRAM_POINTS).length;
+        const defX = (side === 'right') ? 430 : 250;
+        const defY = 120 + ((btnCount * 28) % 260);
+        DIAGRAM_POINTS[targetId] = {
+            x: defX,
+            y: defY,
+            side: side,
+            name: name,
+            tag: tag
+        };
+    }
+
+    // Hardware key mapping - STRICT 1-TO-1 UNIQUENESS
+    if (fkey) {
+        // Enforce: do not allow more than one button with the same F button
+        for (const otherBtn in state.hardwareFKeys) {
+            if (otherBtn !== targetId && state.hardwareFKeys[otherBtn] === fkey) {
+                delete state.hardwareFKeys[otherBtn];
+                const otherName = DIAGRAM_POINTS[otherBtn]?.name || otherBtn;
+                showToast('F-Key Reassigned', `${fkey} transferred to ${name}. Cleared from ${otherName} (no duplicate F-keys).`);
+            }
+        }
+        state.hardwareFKeys[targetId] = fkey;
+    } else if (state.hardwareFKeys?.[targetId]) {
+        delete state.hardwareFKeys[targetId];
+    }
+
+    if (modal) modal.style.display = 'none';
+
+    renderAllCards();
+    if (typeof renderCalibPills === 'function') {
+        renderCalibPills();
+    }
+    selectButton(targetId);
+    sendButtonsToAhk();
+    showToast('Button Saved', `Configured button: ${name}`);
+}
+
+function confirmDeleteButton(btnId) {
+    if (!DIAGRAM_POINTS[btnId]) return;
+
+    if (btnId === 'LeftClick' || btnId === 'RightClick') {
+        showToast('Action Prohibited', 'Primary mouse click buttons (Left/Right Click) cannot be deleted.');
+        return;
+    }
+
+    const btnName = DIAGRAM_POINTS[btnId]?.name || btnId;
+    if (!confirm(`Are you sure you want to delete "${btnName}"?`)) {
+        return;
+    }
+
+    delete DIAGRAM_POINTS[btnId];
+    if (state.hardwareFKeys?.[btnId]) {
+        delete state.hardwareFKeys[btnId];
+    }
+    if (state.cardOffsets?.[btnId]) {
+        delete state.cardOffsets[btnId];
+    }
+    if (state.customButtonNames?.[btnId]) {
+        delete state.customButtonNames[btnId];
+    }
+
+    if (state.selectedButton === btnId) {
+        const remaining = Object.keys(DIAGRAM_POINTS);
+        state.selectedButton = remaining[0] || 'G8';
+    }
+
+    renderAllCards();
+    if (typeof renderCalibPills === 'function') {
+        renderCalibPills();
+    }
+    selectButton(state.selectedButton);
+
+    sendToAhk({
+        action: 'deleteCustomButton',
+        btnId: btnId
+    });
+    sendButtonsToAhk();
+    showToast('Button Deleted', `Removed ${btnName}`);
+}
+
+// ============================================================================
+// COMPLETE STUDIO BACKUP & RESTORE (IMPORT & EXPORT EVERYTHING)
+// ============================================================================
+let pendingBackupData = null;
+
+function generateFullBackupPayload() {
+    // Gather all mouse buttons in current layout
+    const buttonsList = [];
+    for (const [btnId, pt] of Object.entries(DIAGRAM_POINTS)) {
+        buttonsList.push({
+            id: btnId,
+            name: pt.name || btnId,
+            tag: pt.tag || '',
+            side: pt.side || 'left',
+            x: Math.round(pt.x),
+            y: Math.round(pt.y),
+            hardwareKey: state.hardwareFKeys?.[btnId] || ''
+        });
+    }
+
+    const mouseImgEl = document.getElementById('mouseImg');
+    const currentMouseImage = mouseImgEl ? mouseImgEl.getAttribute('src') : '../assets/g502x.png';
+
+    return {
+        app: "OBM_G502X_Manager",
+        version: "2.0.0",
+        timestamp: new Date().toISOString(),
+        general: {
+            defaultProfile: state.profiles?.find(p => p.isDefault)?.name || 'Desktop',
+            alwaysOnTop: !!state.isAlwaysOnTop,
+            autoSwitch: !!state.autoSwitch,
+            lockedProfile: state.lockedProfile || '',
+            rapidFire: !!state.isRapidFire,
+            showOSD: document.getElementById('chkShowOSD')?.checked ?? true,
+            muteWhenFocused: !!state.muteWhenFocused,
+            mouseImage: currentMouseImage
+        },
+        profiles: (state.profiles || []).map(p => ({
+            name: p.name,
+            targetExe: p.targetExe || '',
+            icon: p.icon || 'generic',
+            isDefault: !!p.isDefault,
+            switchOnHover: !!p.switchOnHover,
+            desc: p.desc || (p.name + ' Profile')
+        })),
+        mappings: state.mappings || {},
+        mouseLayout: {
+            image: currentMouseImage,
+            buttons: buttonsList,
+            diagramPoints: JSON.parse(JSON.stringify(DIAGRAM_POINTS)),
+            cardOffsets: JSON.parse(JSON.stringify(state.cardOffsets || {})),
+            customButtonNames: JSON.parse(JSON.stringify(state.customButtonNames || {})),
+            hardwareFKeys: JSON.parse(JSON.stringify(state.hardwareFKeys || {}))
+        },
+        customMousePresets: state.customMousePresets || [],
+        rawIni: state.rawIni || ''
+    };
+}
+
+function downloadBackupFile(filename, content, mimeType = 'application/json') {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 200);
+}
+
+function openBackupModal(initialTab = 'export') {
+    const modal = document.getElementById('backupModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    switchBackupTab(initialTab);
+}
+
+function closeBackupModal() {
+    const modal = document.getElementById('backupModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+}
+
+function switchBackupTab(tab) {
+    const tabExport = document.getElementById('tabBackupExport');
+    const tabImport = document.getElementById('tabBackupImport');
+    const panelExport = document.getElementById('panelBackupExport');
+    const panelImport = document.getElementById('panelBackupImport');
+
+    if (tab === 'import') {
+        if (tabImport) {
+            tabImport.classList.add('active');
+            tabImport.style.color = '#fff';
+            tabImport.style.borderBottomColor = 'var(--accent-cyan)';
+        }
+        if (tabExport) {
+            tabExport.classList.remove('active');
+            tabExport.style.color = 'var(--text-muted)';
+            tabExport.style.borderBottomColor = 'transparent';
+        }
+        if (panelExport) panelExport.style.display = 'none';
+        if (panelImport) panelImport.style.display = 'block';
+    } else {
+        if (tabExport) {
+            tabExport.classList.add('active');
+            tabExport.style.color = '#fff';
+            tabExport.style.borderBottomColor = 'var(--accent-cyan)';
+        }
+        if (tabImport) {
+            tabImport.classList.remove('active');
+            tabImport.style.color = 'var(--text-muted)';
+            tabImport.style.borderBottomColor = 'transparent';
+        }
+        if (panelExport) panelExport.style.display = 'block';
+        if (panelImport) panelImport.style.display = 'none';
+        updateBackupStatsGrid();
+    }
+}
+
+function updateBackupStatsGrid() {
+    const grid = document.getElementById('backupExportStatsGrid');
+    if (!grid) return;
+
+    const profCount = (state.profiles && state.profiles.length > 0) ? state.profiles.length : 1;
+    const btnCount = Object.keys(DIAGRAM_POINTS).length;
+    const fkeyCount = Object.keys(state.hardwareFKeys || {}).length;
+    const presetCount = (state.customMousePresets ? state.customMousePresets.length : 0) + (typeof POPULAR_MOUSE_PRESETS !== 'undefined' ? POPULAR_MOUSE_PRESETS.length : 6);
+    
+    let totalMappings = 0;
+    if (state.mappings) {
+        for (const p in state.mappings) {
+            totalMappings += Object.keys(state.mappings[p] || {}).length;
+        }
+    }
+
+    grid.innerHTML = `
+        <div class="backup-stat-card">
+            <span class="backup-stat-num">${profCount}</span>
+            <span class="backup-stat-lbl">Profiles</span>
+        </div>
+        <div class="backup-stat-card">
+            <span class="backup-stat-num">${btnCount}</span>
+            <span class="backup-stat-lbl">Mouse Buttons</span>
+        </div>
+        <div class="backup-stat-card">
+            <span class="backup-stat-num">${fkeyCount}</span>
+            <span class="backup-stat-lbl">Hardware F-Keys</span>
+        </div>
+        <div class="backup-stat-card">
+            <span class="backup-stat-num">${totalMappings}</span>
+            <span class="backup-stat-lbl">Mapped Controls</span>
+        </div>
+        <div class="backup-stat-card">
+            <span class="backup-stat-num">${presetCount}</span>
+            <span class="backup-stat-lbl">Mouse Models</span>
+        </div>
+        <div class="backup-stat-card">
+            <span class="backup-stat-num">${state.autoSwitch ? 'ON' : 'OFF'}</span>
+            <span class="backup-stat-lbl">Auto-Switch</span>
+        </div>
+    `;
+}
+
+function handleLoadedBackupFile(fileName, content) {
+    if (!content || typeof content !== 'string') {
+        showToast('Invalid File', 'Backup file appears to be empty or corrupted.', 3500);
+        return;
+    }
+
+    const inspectCard = document.getElementById('backupInspectCard');
+    const inspectIcon = document.getElementById('backupInspectIcon');
+    const inspectFileName = document.getElementById('backupInspectFileName');
+    const inspectFileSize = document.getElementById('backupInspectFileSize');
+    const inspectBadge = document.getElementById('backupInspectBadge');
+    const inspectDetails = document.getElementById('backupInspectDetails');
+    const btnApply = document.getElementById('btnApplyBackupImport');
+
+    const sizeKb = (content.length / 1024).toFixed(1);
+    if (inspectFileName) inspectFileName.textContent = fileName;
+    if (inspectFileSize) inspectFileSize.textContent = `${sizeKb} KB`;
+
+    // Try parsing as JSON first
+    let isJson = false;
+    let parsedJson = null;
+    try {
+        parsedJson = JSON.parse(content);
+        if (parsedJson && (parsedJson.profiles || parsedJson.mappings || parsedJson.mouseLayout || parsedJson.rawIni)) {
+            isJson = true;
+        }
+    } catch (_) {}
+
+    if (isJson && parsedJson) {
+        pendingBackupData = {
+            type: 'json',
+            payload: parsedJson,
+            rawIni: parsedJson.rawIni || ''
+        };
+
+        if (inspectIcon) inspectIcon.textContent = '📦';
+        if (inspectBadge) {
+            inspectBadge.textContent = '✔ Valid JSON Backup';
+            inspectBadge.style.color = '#a6e3a1';
+            inspectBadge.style.background = 'rgba(166, 227, 161, 0.15)';
+            inspectBadge.style.borderColor = 'rgba(166, 227, 161, 0.3)';
+        }
+
+        const profCount = Array.isArray(parsedJson.profiles) ? parsedJson.profiles.length : Object.keys(parsedJson.mappings || {}).length;
+        const btnCount = parsedJson.mouseLayout?.buttons ? parsedJson.mouseLayout.buttons.length : (parsedJson.mouseLayout?.diagramPoints ? Object.keys(parsedJson.mouseLayout.diagramPoints).length : 'Auto');
+        const presetsCount = Array.isArray(parsedJson.customMousePresets) ? parsedJson.customMousePresets.length : 0;
+        const hasHardwareFKeys = parsedJson.mouseLayout?.hardwareFKeys ? Object.keys(parsedJson.mouseLayout.hardwareFKeys).length : 0;
+        const backupTime = parsedJson.timestamp ? new Date(parsedJson.timestamp).toLocaleString() : 'Unknown';
+
+        if (inspectDetails) {
+            inspectDetails.innerHTML = `
+                <div><strong>📁 Profiles:</strong> ${profCount} app profile(s)</div>
+                <div><strong>🖱️ Buttons:</strong> ${btnCount} mouse controls</div>
+                <div><strong>⚡ Hardware Keys:</strong> ${hasHardwareFKeys} F-keys mapped</div>
+                <div><strong>🖼️ Presets:</strong> ${presetsCount} custom mouse models</div>
+                <div style="grid-column: span 2; color: var(--text-muted); font-size: 11px; margin-top: 4px;">
+                    <strong>🕒 Created:</strong> ${backupTime} • <strong>App:</strong> ${parsedJson.app || 'OBM Studio'} v${parsedJson.version || '2.0'}
+                </div>
+            `;
+        }
+    } else {
+        // Treat as settings.ini
+        const profMatches = (content.match(/\[Profile_[^\]]+\]/g) || []).length;
+        const hasDiagramPoints = content.includes('[DiagramPoints]');
+        const hasHardwareKeys = content.includes('[HardwareFKeys]');
+
+        pendingBackupData = {
+            type: 'ini',
+            rawIni: content
+        };
+
+        if (inspectIcon) inspectIcon.textContent = '📄';
+        if (inspectBadge) {
+            inspectBadge.textContent = '✔ Valid settings.ini';
+            inspectBadge.style.color = '#38bdf8';
+            inspectBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+            inspectBadge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+        }
+
+        if (inspectDetails) {
+            inspectDetails.innerHTML = `
+                <div><strong>📄 Format:</strong> Raw AutoHotkey settings.ini</div>
+                <div><strong>📁 Profiles:</strong> ~${profMatches} profile section(s)</div>
+                <div><strong>🖱️ Layout:</strong> ${hasDiagramPoints ? 'Contains Diagram Coordinates' : 'Standard'}</div>
+                <div><strong>⚡ Hardware Keys:</strong> ${hasHardwareKeys ? 'Contains Hardware F-Keys' : 'Default'}</div>
+                <div style="grid-column: span 2; color: var(--text-muted); font-size: 11px; margin-top: 4px;">
+                    Direct restoration will safely replace settings.ini (a .bak backup is created automatically).
+                </div>
+            `;
+        }
+    }
+
+    if (inspectCard) inspectCard.style.display = 'block';
+    if (btnApply) {
+        btnApply.disabled = false;
+        btnApply.style.opacity = '1';
+        btnApply.style.cursor = 'pointer';
+        btnApply.textContent = '📥 Apply & Restore Configuration';
+    }
+
+    switchBackupTab('import');
+    showToast('File Ready', `Inspected ${fileName}. Choose restore mode and apply.`);
+}
+
+function initBackupModal() {
+    const btnOpenHeader = document.getElementById('btnOpenBackupModal');
+    const btnOpenToolbar = document.getElementById('btnToolbarBackup');
+    const modal = document.getElementById('backupModal');
+    const btnClose = document.getElementById('btnCloseBackupModal');
+    const btnCancel = document.getElementById('btnCancelBackupModal');
+    const tabExport = document.getElementById('tabBackupExport');
+    const tabImport = document.getElementById('tabBackupImport');
+
+    if (btnOpenHeader) btnOpenHeader.addEventListener('click', () => openBackupModal('export'));
+    if (btnOpenToolbar) btnOpenToolbar.addEventListener('click', () => openBackupModal('export'));
+    if (btnClose) btnClose.addEventListener('click', closeBackupModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeBackupModal);
+
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeBackupModal();
+        });
+    }
+
+    if (tabExport) tabExport.addEventListener('click', () => switchBackupTab('export'));
+    if (tabImport) tabImport.addEventListener('click', () => switchBackupTab('import'));
+
+    // Download JSON
+    const btnDownloadJson = document.getElementById('btnDownloadJsonBackup');
+    if (btnDownloadJson) {
+        btnDownloadJson.addEventListener('click', () => {
+            const payload = generateFullBackupPayload();
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const fileName = `OBM_Studio_Backup_${dateStr}.json`;
+            downloadBackupFile(fileName, JSON.stringify(payload, null, 2), 'application/json');
+            showToast('Backup Exported', `Downloaded ${fileName}`);
+        });
+    }
+
+    // Save JSON via Windows Dialog
+    const btnSaveJsonDialog = document.getElementById('btnSaveJsonViaDialog');
+    if (btnSaveJsonDialog) {
+        btnSaveJsonDialog.addEventListener('click', () => {
+            const payload = generateFullBackupPayload();
+            sendToAhk({
+                action: 'exportBackupToFile',
+                jsonContent: JSON.stringify(payload, null, 2)
+            });
+        });
+    }
+
+    // Download Raw settings.ini
+    const btnDownloadIni = document.getElementById('btnDownloadIniBackup');
+    if (btnDownloadIni) {
+        btnDownloadIni.addEventListener('click', () => {
+            if (state.rawIni) {
+                downloadBackupFile('settings.ini', state.rawIni, 'text/plain');
+                showToast('INI Exported', 'Downloaded settings.ini');
+            } else {
+                showToast('Fetching INI', 'Requesting latest settings.ini from backend...');
+                sendToAhk({ action: 'getInitialState' });
+                setTimeout(() => {
+                    if (state.rawIni) {
+                        downloadBackupFile('settings.ini', state.rawIni, 'text/plain');
+                        showToast('INI Exported', 'Downloaded settings.ini');
+                    }
+                }, 500);
+            }
+        });
+    }
+
+    // Drag and Drop & Web file browse
+    const dropZone = document.getElementById('backupDropZone');
+    const fileInput = document.getElementById('backupFileInput');
+    const btnBrowseWeb = document.getElementById('btnBrowseBackupWeb');
+    const btnBrowseAhk = document.getElementById('btnBrowseBackupAhk');
+
+    if (dropZone && fileInput) {
+        dropZone.addEventListener('click', (e) => {
+            if (e.target !== fileInput && !e.target.closest('button')) {
+                fileInput.click();
+            }
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    handleLoadedBackupFile(file.name, evt.target.result);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    handleLoadedBackupFile(file.name, evt.target.result);
+                };
+                reader.readAsText(file);
+            }
+            fileInput.value = '';
+        });
+    }
+
+    if (btnBrowseWeb && fileInput) {
+        btnBrowseWeb.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+    }
+
+    if (btnBrowseAhk) {
+        btnBrowseAhk.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sendToAhk({ action: 'browseBackupFile' });
+        });
+    }
+
+    // Apply Import & Restore
+    const btnApplyImport = document.getElementById('btnApplyBackupImport');
+    if (btnApplyImport) {
+        btnApplyImport.addEventListener('click', () => {
+            if (!pendingBackupData) {
+                showToast('No Backup Selected', 'Please drop or browse a backup file first.');
+                return;
+            }
+
+            const restoreModeRadios = document.querySelectorAll('input[name="restoreMode"]');
+            let selectedMode = 'replace';
+            restoreModeRadios.forEach(r => {
+                if (r.checked) selectedMode = r.value;
+            });
+
+            btnApplyImport.disabled = true;
+            btnApplyImport.style.opacity = '0.6';
+            btnApplyImport.textContent = '⏳ Restoring Configuration...';
+
+            if (pendingBackupData.type === 'ini') {
+                sendToAhk({
+                    action: 'importFullBackup',
+                    mode: 'raw_ini',
+                    rawIni: pendingBackupData.rawIni
+                });
+            } else {
+                sendToAhk({
+                    action: 'importFullBackup',
+                    mode: selectedMode,
+                    backup: pendingBackupData.payload,
+                    rawIni: pendingBackupData.rawIni || ''
+                });
+            }
+        });
+    }
+}
+
+// ============================================================================
+// STUDIO SETTINGS MODAL CONTROLLER
+// ============================================================================
+function openStudioSettingsModal() {
+    const modal = document.getElementById('studioSettingsModal');
+    if (!modal) return;
+
+    // Sync settings checkboxes with current state
+    const chkMute = document.getElementById('chkSettingsMute');
+    if (chkMute) chkMute.checked = !!state.muteWhenFocused;
+    const chkOSD = document.getElementById('chkSettingsOSD');
+    if (chkOSD) chkOSD.checked = document.getElementById('chkShowOSD')?.checked ?? true;
+    const chkTop = document.getElementById('chkSettingsTop');
+    if (chkTop) chkTop.checked = !!state.isAlwaysOnTop;
+
+    modal.style.display = 'flex';
+}
+
+function closeStudioSettingsModal() {
+    const modal = document.getElementById('studioSettingsModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function initStudioSettingsModal() {
+    const btnOpenStage = document.getElementById('btnOpenStudioSettings');
+    const btnOpenHeader = document.getElementById('btnHeaderSettings');
+    const modal = document.getElementById('studioSettingsModal');
+    const btnClose = document.getElementById('btnSettingsModalClose');
+    const btnDone = document.getElementById('btnSettingsCloseFooter');
+
+    if (btnOpenStage) {
+        btnOpenStage.addEventListener('click', () => openStudioSettingsModal());
+    }
+    if (btnOpenHeader) {
+        btnOpenHeader.addEventListener('click', () => openStudioSettingsModal());
+    }
+    if (btnClose) {
+        btnClose.addEventListener('click', () => closeStudioSettingsModal());
+    }
+    if (btnDone) {
+        btnDone.addEventListener('click', () => closeStudioSettingsModal());
+    }
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeStudioSettingsModal();
+        });
+    }
+
+    // Auto-close settings modal when launching any of the individual tools from it
+    const subToolButtons = [
+        'btnChangeMouseImage',
+        'btnAddCustomButton',
+        'btnCalibratePointers',
+        'btnOpenOmmSetup',
+        'btnToolbarBackup'
+    ];
+    subToolButtons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.addEventListener('click', () => {
+                closeStudioSettingsModal();
+            });
+        }
+    });
+
+    // Wire up quick toggles inside settings modal to mirror main checkboxes
+    const chkSettingsMute = document.getElementById('chkSettingsMute');
+    if (chkSettingsMute) {
+        chkSettingsMute.addEventListener('change', (e) => {
+            state.muteWhenFocused = e.target.checked;
+            const mainChk = document.getElementById('chkMuteWhenFocused');
+            if (mainChk) mainChk.checked = state.muteWhenFocused;
+            sendToAhk({ action: 'toggleMuteWhenFocused', enabled: state.muteWhenFocused });
+        });
+    }
+
+    const chkSettingsOSD = document.getElementById('chkSettingsOSD');
+    if (chkSettingsOSD) {
+        chkSettingsOSD.addEventListener('change', (e) => {
+            const mainChk = document.getElementById('chkShowOSD');
+            if (mainChk) mainChk.checked = e.target.checked;
+            sendToAhk({ action: 'toggleOSD', enabled: e.target.checked });
+        });
+    }
+
+    const chkSettingsTop = document.getElementById('chkSettingsTop');
+    if (chkSettingsTop) {
+        chkSettingsTop.addEventListener('change', (e) => {
+            state.isAlwaysOnTop = e.target.checked;
+            const mainChk = document.getElementById('chkAlwaysOnTop');
+            if (mainChk) mainChk.checked = state.isAlwaysOnTop;
+            sendToAhk({ action: 'setAlwaysOnTop', enabled: state.isAlwaysOnTop });
+        });
+    }
+}
+
+
 

@@ -77,8 +77,8 @@ class WebViewGuiManager {
         ProfileEngine.OnButtonStateChanged := (btnId, isDown) => WebViewGuiManager.OnButtonStateChangedHandler(btnId, isDown)
         ProfileEngine.OnShiftStateChanged := (layerNum, isActive) => WebViewGuiManager.OnShiftStateChangedHandler(isActive, (layerNum = 2 ? "GShift2" : "GShift1"))
 
-        ; Clean any orphaned WebView2 renderer processes from prior runs
-        this.CleanOrphanedProcesses()
+        ; Clean any orphaned WebView2 renderer processes from prior runs asynchronously
+        SetTimer(() => this.CleanOrphanedProcesses(), -1500)
 
         ; Create GUI
         opt := "+Resize -MaximizeBox " . (this.IsAlwaysOnTop ? "+AlwaysOnTop" : "-AlwaysOnTop")
@@ -350,6 +350,15 @@ class WebViewGuiManager {
                 if (OSD.Enabled)
                     OSD.Show("Notifications: Enabled")
 
+            case "toggleMuteWhenFocused":
+                enabled := req.Has("enabled") ? req["enabled"] : !ProfileEngine.MuteWhenStudioFocused
+                ProfileEngine.MuteWhenStudioFocused := enabled ? true : false
+                IniWrite(ProfileEngine.MuteWhenStudioFocused ? "1" : "0", ProfileEngine.ConfigPath, "Settings", "MuteWhenFocused")
+                this.PostMessage(Map("type", "muteWhenFocusedChanged", "enabled", ProfileEngine.MuteWhenStudioFocused ? true : false))
+                if (OSD.Enabled) {
+                    OSD.Show("Test in Focus: " . (ProfileEngine.MuteWhenStudioFocused ? "ACTIVE" : "OFF"), ProfileEngine.MuteWhenStudioFocused ? "Buttons highlight without executing actions" : "Normal button actions active")
+                }
+
             case "getRunningApps":
                 procs := ProfileEngine.GetRunningProcesses()
                 this.PostMessage(Map("type", "runningAppsList", "apps", procs))
@@ -412,6 +421,14 @@ class WebViewGuiManager {
                     OSD.Show("F-Keys Swapped", b1 . " ↔ " . b2)
                 }
 
+            case "setHardwareFKey":
+                btnId := req.Has("btnId") ? req["btnId"] : ""
+                fKey := req.Has("fkey") ? req["fkey"] : ""
+                if (btnId != "" && ProfileEngine.SetHardwareFKey(btnId, fKey)) {
+                    this.PostMessage(Map("type", "hardwareFKeysUpdated", "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport()))
+                    OSD.Show("F-Key Updated", btnId . " ➔ " . (fKey != "" ? fKey : "None"))
+                }
+
             case "copySingleButtonMapping":
                 p := req.Has("profile") ? req["profile"] : ProfileEngine.CurrentProfile
                 fId := req.Has("fromBtnId") ? req["fromBtnId"] : ""
@@ -469,20 +486,135 @@ class WebViewGuiManager {
             case "saveDiagramPoints":
                 if (req.Has("points")) {
                     this.SaveDiagramPoints(req["points"])
-                    this.PostMessage(Map(
-                        "type", "diagramPointsSaved",
-                        "success", true
-                    ))
-                    OSD.Show("Pointer Calibration", "Saved pointer coordinates to settings.ini")
                 }
+                if (req.Has("cardOffsets")) {
+                    this.SaveCardOffsets(req["cardOffsets"])
+                }
+                this.PostMessage(Map(
+                    "type", "diagramPointsSaved",
+                    "success", true
+                ))
+                OSD.Show("Pointer & Card Calibration", "Saved coordinates & card positions to settings.ini")
 
             case "resetDiagramPoints":
                 this.ResetDiagramPoints()
+                this.ResetCardOffsets()
                 this.PostMessage(Map(
                     "type", "diagramPointsReset",
-                    "diagramPoints", this.LoadDiagramPoints()
+                    "diagramPoints", this.LoadDiagramPoints(),
+                    "cardOffsets", Map()
                 ))
-                OSD.Show("Pointer Calibration", "Restored default pointer coordinates")
+                OSD.Show("Pointer & Card Calibration", "Restored default layout & coordinates")
+
+            case "resetCardOffsets":
+                this.ResetCardOffsets()
+                this.PostMessage(Map(
+                    "type", "cardOffsetsReset",
+                    "cardOffsets", Map()
+                ))
+
+            case "saveMouseImage":
+                if (req.Has("image")) {
+                    savedPath := this.SaveMouseImage(req["image"])
+                    this.PostMessage(Map(
+                        "type", "mouseImageSaved",
+                        "mouseImage", savedPath
+                    ))
+                    OSD.Show("Custom Mouse Image", "Saved custom mouse diagram image")
+                }
+
+            case "resetMouseImage":
+                this.ResetMouseImage()
+                this.PostMessage(Map(
+                    "type", "mouseImageReset",
+                    "mouseImage", ""
+                ))
+                OSD.Show("Mouse Image", "Restored default Logitech G502 X image")
+
+            case "saveCustomButtons":
+                if (req.Has("buttons")) {
+                    ProfileEngine.SaveCustomButtons(req["buttons"])
+                    this.PostMessage(Map(
+                        "type", "customButtonsSaved",
+                        "buttons", ProfileEngine.LoadCustomButtons()
+                    ))
+                    OSD.Show("Custom Buttons", "Saved mouse button layout")
+                }
+
+            case "deleteCustomButton":
+                if (req.Has("btnId")) {
+                    ProfileEngine.DeleteCustomButton(req["btnId"])
+                    this.PostMessage(Map(
+                        "type", "customButtonDeleted",
+                        "btnId", req["btnId"]
+                    ))
+                    OSD.Show("Custom Button Deleted", req["btnId"] . " removed from layout")
+                }
+
+            case "resetCustomButtons":
+                ProfileEngine.ResetCustomButtons()
+                this.PostMessage(Map(
+                    "type", "customButtonsReset"
+                ))
+                OSD.Show("Custom Buttons", "Restored factory default button layout")
+
+            case "saveCustomMousePreset":
+                if (req.Has("preset")) {
+                    presets := this.SaveCustomMousePreset(req["preset"])
+                    this.PostMessage(Map(
+                        "type", "customMousePresetsUpdated",
+                        "presets", presets
+                    ))
+                    OSD.Show("Mouse Preset Saved", "Saved new custom mouse option")
+                }
+
+            case "deleteCustomMousePreset":
+                if (req.Has("presetId")) {
+                    presets := this.DeleteCustomMousePreset(req["presetId"])
+                    this.PostMessage(Map(
+                        "type", "customMousePresetsUpdated",
+                        "presets", presets
+                    ))
+                    OSD.Show("Mouse Preset Deleted", "Removed custom mouse option")
+                }
+
+            case "importFullBackup":
+                backupData := req.Has("backup") ? req["backup"] : ""
+                mode := req.Has("mode") ? req["mode"] : "replace"
+                rawIni := req.Has("rawIni") ? req["rawIni"] : ""
+                if (this.ImportFullBackup(backupData, mode, rawIni)) {
+                    this.SendInitialState()
+                    OSD.Show("Backup Restored", "All profiles, layouts & settings restored!")
+                    this.PostMessage(Map("type", "backupImportSuccess", "message", "Configuration successfully imported"))
+                } else {
+                    this.PostMessage(Map("type", "backupImportFailed", "error", "Failed to restore backup file"))
+                }
+
+            case "exportBackupToFile":
+                jsonContent := req.Has("jsonContent") ? req["jsonContent"] : ""
+                defaultName := "OBM_G502X_Backup_" . FormatTime(, "yyyy-MM-dd") . ".json"
+                selectedFile := FileSelect("S16", defaultName, "Export Studio Backup", "JSON Files (*.json);;All Files (*.*)")
+                if (selectedFile != "") {
+                    if (!InStr(selectedFile, ".json"))
+                        selectedFile .= ".json"
+                    try FileDelete(selectedFile)
+                    FileAppend(jsonContent, selectedFile, "UTF-8")
+                    OSD.Show("Backup Exported", "Saved to " . selectedFile)
+                    this.PostMessage(Map("type", "backupExported", "path", selectedFile))
+                }
+
+            case "browseBackupFile":
+                selectedFile := FileSelect("3", "", "Select Backup File to Import", "Backup Files (*.json; *.ini);;JSON Files (*.json);;INI Files (*.ini);;All Files (*.*)")
+                if (selectedFile != "" && FileExist(selectedFile)) {
+                    content := FileRead(selectedFile, "UTF-8")
+                    fileName := RegExReplace(selectedFile, "^.*[\\/]", "")
+                    this.PostMessage(Map(
+                        "type", "backupFileSelected",
+                        "fileName", fileName,
+                        "filePath", selectedFile,
+                        "content", content
+                    ))
+                }
         }
     }
 
@@ -515,10 +647,16 @@ class WebViewGuiManager {
                 "rapidFire", ProfileEngine.RapidFireEnabled ? true : false,
                 "alwaysOnTop", this.IsAlwaysOnTop ? true : false,
                 "showOSD", OSD.Enabled ? true : false,
+                "muteWhenFocused", ProfileEngine.MuteWhenStudioFocused ? true : false,
                 "mappings", mappings,
                 "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport(),
                 "diagramPoints", diagPoints,
-                "buttonNames", this.LoadButtonNames()
+                "cardOffsets", this.LoadCardOffsets(),
+                "buttonNames", this.LoadButtonNames(),
+                "mouseImage", this.LoadMouseImage(),
+                "customButtons", ProfileEngine.LoadCustomButtons(),
+                "customMousePresets", this.LoadCustomMousePresets(),
+                "rawIni", FileExist(A_ScriptDir . "\settings.ini") ? FileRead(A_ScriptDir . "\settings.ini", "UTF-8") : ""
             )
             this.Log("SendInitialState: calling PostMessage...")
             this.PostMessage(stateObj)
@@ -645,6 +783,7 @@ class WebViewGuiManager {
     static RecorderHook := ""
     static RecKeysDown := Map()
     static RecModifiers := Map()
+    static RecComboKeys := []
     static RecCapturedResult := ""
     static RecMacroActiveKeys := Map()
     static RecMacroLastTime := 0
@@ -652,6 +791,7 @@ class WebViewGuiManager {
     static RecMacroRealDelays := false
     static FocusWatchdogFn := ObjBindMethod(WebViewGuiManager, "CheckRecordingFocus")
     static ReleaseSafetyFn := ObjBindMethod(WebViewGuiManager, "ForceReleaseRecordedHook")
+    static FinalizeComboFn := ObjBindMethod(WebViewGuiManager, "FinalizeSingleCombo")
 
     static IsRecording() {
         return this.IsRecordingActive
@@ -668,6 +808,7 @@ class WebViewGuiManager {
         this.RecordingMode := mode
         this.RecKeysDown.Clear()
         this.RecModifiers.Clear()
+        this.RecComboKeys := []
         this.RecCapturedResult := ""
         this.RecMacroActiveKeys.Clear()
         this.RecMacroLastTime := A_TickCount
@@ -706,6 +847,8 @@ class WebViewGuiManager {
         SetTimer(fnWatchdog, 0)
         fnSafety := this.ReleaseSafetyFn
         SetTimer(fnSafety, 0)
+        fnFinalize := this.FinalizeComboFn
+        SetTimer(fnFinalize, 0)
 
         if (this.RecorderHook != "") {
             try this.RecorderHook.Stop()
@@ -716,6 +859,7 @@ class WebViewGuiManager {
         this.RecordingMode := ""
         this.RecKeysDown.Clear()
         this.RecModifiers.Clear()
+        this.RecComboKeys := []
         this.RecCapturedResult := ""
         this.RecMacroActiveKeys.Clear()
     }
@@ -731,6 +875,25 @@ class WebViewGuiManager {
             this.StopRecording()
             this.PostMessage(Map("type", "cancelRecording", "reason", "lostFocus"))
         }
+    }
+
+    static IsStudioFocused() {
+        if (!this.MainGui || !WinExist(this.MainGui.Hwnd)) {
+            return false
+        }
+        if (WinActive("ahk_id " . this.MainGui.Hwnd)) {
+            return true
+        }
+        try {
+            activeHwnd := WinActive("A")
+            if (activeHwnd) {
+                rootHwnd := DllCall("GetAncestor", "Ptr", activeHwnd, "UInt", 2, "Ptr") ; GA_ROOT = 2
+                if (rootHwnd = this.MainGui.Hwnd) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     static NormalizeKey(vk, sc) {
@@ -776,59 +939,64 @@ class WebViewGuiManager {
         if (kName = "")
             return
 
-        ; If a combo was already captured and we're waiting for key release, ignore further downs
-        if (this.RecCapturedResult != "")
-            return
+        ; Cancel any pending finalize debounce timer as user is actively typing keys
+        fnFinalize := this.FinalizeComboFn
+        SetTimer(fnFinalize, 0)
 
-        this.RecKeysDown[kName] := true
-
-        ; If modifier pressed
-        if (kName = "Ctrl" || kName = "Alt" || kName = "Shift" || kName = "Win") {
-            this.RecModifiers[kName] := true
-            this.PostMessage(Map(
-                "type", "modifierStateChanged",
-                "ctrl", this.RecModifiers.Has("Ctrl") ? true : false,
-                "alt", this.RecModifiers.Has("Alt") ? true : false,
-                "shift", this.RecModifiers.Has("Shift") ? true : false,
-                "win", this.RecModifiers.Has("Win") ? true : false
-            ))
-            this.PostMessage(Map(
-                "type", "liveKeyPreview",
-                "preview", this.BuildModifierPreview()
-            ))
-            return
-        }
-
-        ; If Escape pressed alone with no modifiers, cancel recording
-        if (kName = "Escape" && this.RecModifiers.Count = 0) {
+        ; If Escape pressed alone with no other keys down and no captured result, cancel recording
+        if (kName = "Escape" && this.RecKeysDown.Count = 0 && this.RecModifiers.Count = 0 && this.RecComboKeys.Length = 0) {
             this.StopRecording()
             this.PostMessage(Map("type", "cancelRecording", "reason", "escape"))
             return
         }
 
-        ; Non-modifier key pressed! Build combination
-        mods := this.RecModifiers.Clone()
-        if (GetKeyState("Ctrl", "P") && !mods.Has("Ctrl"))
-            mods["Ctrl"] := true
-        if (GetKeyState("Alt", "P") && !mods.Has("Alt"))
-            mods["Alt"] := true
-        if (GetKeyState("Shift", "P") && !mods.Has("Shift"))
-            mods["Shift"] := true
-        if ((GetKeyState("LWin", "P") || GetKeyState("RWin", "P")) && !mods.Has("Win"))
-            mods["Win"] := true
+        this.RecKeysDown[kName] := true
 
-        res := this.BuildSingleCombo(mods, kName)
-        this.RecCapturedResult := res
+        ; Check modifier keys vs regular keys
+        if (kName = "Ctrl" || kName = "Alt" || kName = "Shift" || kName = "Win") {
+            this.RecModifiers[kName] := true
+        } else {
+            ; Check if already in RecComboKeys
+            hasKey := false
+            for existing in this.RecComboKeys {
+                if (existing = kName) {
+                    hasKey := true
+                    break
+                }
+            }
+            if (!hasKey) {
+                this.RecComboKeys.Push(kName)
+            }
+        }
+
+        ; Sync physical modifier state
+        if (GetKeyState("Ctrl", "P") && !this.RecModifiers.Has("Ctrl"))
+            this.RecModifiers["Ctrl"] := true
+        if (GetKeyState("Alt", "P") && !this.RecModifiers.Has("Alt"))
+            this.RecModifiers["Alt"] := true
+        if (GetKeyState("Shift", "P") && !this.RecModifiers.Has("Shift"))
+            this.RecModifiers["Shift"] := true
+        if ((GetKeyState("LWin", "P") || GetKeyState("RWin", "P")) && !this.RecModifiers.Has("Win"))
+            this.RecModifiers["Win"] := true
 
         this.PostMessage(Map(
-            "type", "singleKeyRecorded",
+            "type", "modifierStateChanged",
+            "ctrl", this.RecModifiers.Has("Ctrl") ? true : false,
+            "alt", this.RecModifiers.Has("Alt") ? true : false,
+            "shift", this.RecModifiers.Has("Shift") ? true : false,
+            "win", this.RecModifiers.Has("Win") ? true : false
+        ))
+
+        res := this.BuildSingleCombo(this.RecModifiers, this.RecComboKeys)
+        this.RecCapturedResult := res
+
+        ; Real-time live preview update of all keys currently in combination
+        this.PostMessage(Map(
+            "type", "liveKeyPreview",
+            "preview", res.Label,
             "ahkCmd", res.Cmd,
             "niceLabel", res.Label
         ))
-
-        ; Fallback safety timer: stop hook after 500ms even if keyup is somehow not triggered
-        fnSafety := this.ReleaseSafetyFn
-        SetTimer(fnSafety, -500)
     }
 
     static OnSingleKeyUp(vk, sc) {
@@ -836,91 +1004,108 @@ class WebViewGuiManager {
         if (kName = "")
             return
 
-        wasModifier := (kName = "Ctrl" || kName = "Alt" || kName = "Shift" || kName = "Win")
-        hadModifier := this.RecModifiers.Has(kName)
-
         if (this.RecKeysDown.Has(kName))
             this.RecKeysDown.Delete(kName)
 
-        ; If no non-modifier key was captured yet and a modifier was released:
-        ; Allow a single modifier like only Alt or only Shift to be mapped!
-        if (this.RecCapturedResult = "" && wasModifier && hadModifier) {
-            mods := this.RecModifiers.Clone()
-            res := this.BuildSingleCombo(mods, kName)
-            this.RecCapturedResult := res
+        ; When all pressed keys are physically released, wait 200ms debounce
+        ; If no further key is pressed within 200ms, finalize the recorded combination!
+        if (this.RecKeysDown.Count = 0 && this.RecCapturedResult != "") {
+            fnFinalize := this.FinalizeComboFn
+            SetTimer(fnFinalize, -200)
+        }
+    }
 
-            this.PostMessage(Map(
-                "type", "singleKeyRecorded",
-                "ahkCmd", res.Cmd,
-                "niceLabel", res.Label
-            ))
-
-            this.RecModifiers.Clear()
-            this.StopRecording()
+    static FinalizeSingleCombo() {
+        if (!this.IsRecordingActive || this.RecCapturedResult = "")
             return
-        }
 
-        if (this.RecModifiers.Has(kName)) {
-            this.RecModifiers.Delete(kName)
-            this.PostMessage(Map(
-                "type", "modifierStateChanged",
-                "ctrl", this.RecModifiers.Has("Ctrl") ? true : false,
-                "alt", this.RecModifiers.Has("Alt") ? true : false,
-                "shift", this.RecModifiers.Has("Shift") ? true : false,
-                "win", this.RecModifiers.Has("Win") ? true : false
-            ))
-            if (this.RecCapturedResult = "") {
-                this.PostMessage(Map(
-                    "type", "liveKeyPreview",
-                    "preview", this.BuildModifierPreview()
-                ))
-            }
-        }
+        res := this.RecCapturedResult
+        this.PostMessage(Map(
+            "type", "singleKeyRecorded",
+            "ahkCmd", res.Cmd,
+            "niceLabel", res.Label
+        ))
 
-        ; When all keys are physically released, safely stop the hook
-        if (this.RecCapturedResult != "" && this.RecKeysDown.Count = 0) {
-            this.StopRecording()
-        }
+        this.StopRecording()
     }
 
     static ForceReleaseRecordedHook() {
         if (this.RecCapturedResult != "") {
-            this.StopRecording()
+            this.FinalizeSingleCombo()
         }
     }
 
-    static BuildSingleCombo(mods, keyName) {
+    static BuildSingleCombo(mods, keys) {
+        if (!IsObject(keys)) {
+            keys := (keys != "") ? [keys] : []
+        }
+
         prefix := ""
-        lbl := ""
+        lblParts := []
 
-        isCtrlKey := (keyName = "Ctrl" || keyName = "LControl" || keyName = "RControl")
-        isAltKey := (keyName = "Alt" || keyName = "LAlt" || keyName = "RAlt")
-        isShiftKey := (keyName = "Shift" || keyName = "LShift" || keyName = "RShift")
-        isWinKey := (keyName = "Win" || keyName = "LWin" || keyName = "RWin")
-
-        if (mods.Has("Ctrl") && !isCtrlKey) {
+        if (mods.Has("Ctrl")) {
             prefix .= "^"
-            lbl .= "Ctrl + "
+            lblParts.Push("Ctrl")
         }
-        if (mods.Has("Alt") && !isAltKey) {
+        if (mods.Has("Alt")) {
             prefix .= "!"
-            lbl .= "Alt + "
+            lblParts.Push("Alt")
         }
-        if (mods.Has("Shift") && !isShiftKey) {
+        if (mods.Has("Shift")) {
             prefix .= "+"
-            lbl .= "Shift + "
+            lblParts.Push("Shift")
         }
-        if (mods.Has("Win") && !isWinKey) {
+        if (mods.Has("Win")) {
             prefix .= "#"
-            lbl .= "Win + "
+            lblParts.Push("Win")
         }
 
-        niceKey := isWinKey ? "Win" : (isCtrlKey ? "Ctrl" : (isAltKey ? "Alt" : (isShiftKey ? "Shift" : ((StrLen(keyName) = 1) ? StrUpper(keyName) : keyName))))
-        ahkKey := isWinKey ? "LWin" : (isCtrlKey ? "Ctrl" : (isAltKey ? "Alt" : (isShiftKey ? "Shift" : ((StrLen(keyName) = 1) ? StrLower(keyName) : keyName))))
+        cleanKeys := []
+        for k in keys {
+            if (k = "Ctrl" || k = "Alt" || k = "Shift" || k = "Win")
+                continue
 
-        cmd := prefix . "{" . ahkKey . "}"
-        lbl := lbl . niceKey
+            niceKey := (StrLen(k) = 1) ? StrUpper(k) : k
+            lblParts.Push(niceKey)
+
+            ahkKey := (StrLen(k) = 1) ? StrLower(k) : k
+            cleanKeys.Push(ahkKey)
+        }
+
+        if (cleanKeys.Length = 0) {
+            if (lblParts.Length > 0) {
+                lastMod := lblParts[lblParts.Length]
+                return { Cmd: "{" . lastMod . "}", Label: this.JoinComboParts(lblParts) }
+            }
+            return { Cmd: "", Label: "" }
+        }
+
+        if (cleanKeys.Length = 1) {
+            k := cleanKeys[1]
+            cmd := prefix . "{" . k . "}"
+            lbl := this.JoinComboParts(lblParts)
+            return { Cmd: cmd, Label: lbl }
+        }
+
+        ; Multiple non-modifier keys in combination (e.g. W + D, or Shift + G + Enter)
+        downSeq := ""
+        upSeq := ""
+        for k in cleanKeys {
+            downSeq .= "{" . k . " down}"
+            upSeq := "{" . k . " up}" . upSeq
+        }
+
+        cmd := "{Blind}" . prefix . downSeq . upSeq
+        lbl := this.JoinComboParts(lblParts)
         return { Cmd: cmd, Label: lbl }
+    }
+
+    static JoinComboParts(parts) {
+        res := ""
+        for idx, p in parts {
+            res .= (idx = 1 ? "" : " + ") . p
+        }
+        return res
     }
 
     static BuildModifierPreview() {
@@ -1028,19 +1213,19 @@ class WebViewGuiManager {
     ; DIAGRAM POINTER CALIBRATION
     ; =========================================================================
     static DefaultDiagramPoints := Map(
-        "LeftClick",    Map("x", 268, "y", 88),
-        "G8",           Map("x", 201, "y", 87),
-        "G7",           Map("x", 242, "y", 126),
-        "DpiShift",     Map("x", 270, "y", 264),
-        "Forward",      Map("x", 287, "y", 229),
-        "Back",         Map("x", 361, "y", 281),
-        "RightClick",   Map("x", 388, "y", 88),
-        "TiltLeft",     Map("x", 322, "y", 73),
-        "WheelUp",      Map("x", 304, "y", 33),
-        "Middle",       Map("x", 355, "y", 58),
-        "WheelDown",    Map("x", 383, "y", 67),
-        "TiltRight",    Map("x", 382, "y", 27),
-        "ProfileCycle", Map("x", 444, "y", 105)
+        "LeftClick",    Map("x", 213, "y", 25),
+        "G8",           Map("x", 96, "y", 41),
+        "G7",           Map("x", 178, "y", 128),
+        "DpiShift",     Map("x", 166, "y", 251),
+        "Forward",      Map("x", 213, "y", 218),
+        "Back",         Map("x", 310, "y", 293),
+        "RightClick",   Map("x", 414, "y", -33),
+        "TiltLeft",     Map("x", 266, "y", -5),
+        "WheelUp",      Map("x", 241, "y", -66),
+        "Middle",       Map("x", 306, "y", -37),
+        "WheelDown",    Map("x", 346, "y", -9),
+        "TiltRight",    Map("x", 349, "y", -59),
+        "ProfileCycle", Map("x", 406, "y", 34)
     )
 
     static LoadDiagramPoints() {
@@ -1080,6 +1265,42 @@ class WebViewGuiManager {
         }
     }
 
+    static LoadCardOffsets() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        out := Map()
+        for btnId, defPt in this.DefaultDiagramPoints {
+            try {
+                xStr := IniRead(iniPath, "CardOffsets", btnId . "_X", "")
+                yStr := IniRead(iniPath, "CardOffsets", btnId . "_Y", "")
+                if (xStr != "" || yStr != "") {
+                    out[btnId] := Map("x", (xStr != "" ? Integer(xStr) : 0), "y", (yStr != "" ? Integer(yStr) : 0))
+                }
+            }
+        }
+        return out
+    }
+
+    static SaveCardOffsets(offsetsMap) {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try {
+            for btnId, pt in offsetsMap {
+                if (IsObject(pt) && pt.Has("x") && pt.Has("y")) {
+                    IniWrite(String(pt["x"]), iniPath, "CardOffsets", btnId . "_X")
+                    IniWrite(String(pt["y"]), iniPath, "CardOffsets", btnId . "_Y")
+                }
+            }
+        } catch as err {
+            this.Log("Error saving card offsets: " . err.Message)
+        }
+    }
+
+    static ResetCardOffsets() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try {
+            IniDelete(iniPath, "CardOffsets")
+        }
+    }
+
     static LoadButtonNames() {
         iniPath := A_ScriptDir . "\settings.ini"
         out := Map()
@@ -1104,6 +1325,192 @@ class WebViewGuiManager {
         } catch as err {
             this.Log("Error saving button name: " . err.Message)
         }
+    }
+
+    ; =========================================================================
+    ; CUSTOM MOUSE IMAGE PERSISTENCE
+    ; =========================================================================
+    static LoadMouseImage() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try {
+            img := IniRead(iniPath, "General", "MouseImage", "")
+            return img
+        }
+        return ""
+    }
+
+    static SaveMouseImage(imgDataOrPath) {
+        iniPath := A_ScriptDir . "\settings.ini"
+        if (imgDataOrPath = "") {
+            try IniDelete(iniPath, "General", "MouseImage")
+            return ""
+        }
+        finalPath := imgDataOrPath
+        ; If it's a base64 data URI, decode and save to assets/custom_mouse.png
+        if (InStr(imgDataOrPath, "data:image/")) {
+            assetsDir := A_ScriptDir . "\assets"
+            if (!DirExist(assetsDir))
+                try DirCreate(assetsDir)
+            saveFile := assetsDir . "\custom_mouse.png"
+            commaPos := InStr(imgDataOrPath, ",")
+            if (commaPos) {
+                b64 := SubStr(imgDataOrPath, commaPos + 1)
+                this.WriteBase64ToFile(saveFile, b64)
+                finalPath := "../assets/custom_mouse.png?t=" . A_TickCount
+            }
+        }
+        try IniWrite(finalPath, iniPath, "General", "MouseImage")
+        return finalPath
+    }
+
+    static ResetMouseImage() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try IniDelete(iniPath, "General", "MouseImage")
+        customImgFile := A_ScriptDir . "\assets\custom_mouse.png"
+        if (FileExist(customImgFile))
+            try FileDelete(customImgFile)
+    }
+
+    static WriteBase64ToFile(filePath, b64String) {
+        try {
+            size := 0
+            DllCall("crypt32\CryptStringToBinaryW", "Str", b64String, "UInt", StrLen(b64String), "UInt", 1, "Ptr", 0, "UInt*", &size, "Ptr", 0, "Ptr", 0)
+            if (size > 0) {
+                buf := Buffer(size)
+                DllCall("crypt32\CryptStringToBinaryW", "Str", b64String, "UInt", StrLen(b64String), "UInt", 1, "Ptr", buf.Ptr, "UInt*", &size, "Ptr", 0, "Ptr", 0)
+                fileObj := FileOpen(filePath, "w")
+                fileObj.RawWrite(buf, size)
+                fileObj.Close()
+            }
+        }
+    }
+
+    ; =========================================================================
+    ; USER-DEFINED PERMANENT MOUSE PRESETS
+    ; =========================================================================
+    static LoadCustomMousePresets() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        out := []
+        try {
+            listStr := IniRead(iniPath, "MousePresets", "List", "")
+            if (listStr = "") {
+                return out
+            }
+            pIds := StrSplit(listStr, ",")
+            for _, pId in pIds {
+                pId := Trim(pId)
+                if (pId = "") {
+                    continue
+                }
+                secName := "MousePreset_" . pId
+                name := IniRead(iniPath, secName, "Name", pId)
+                desc := IniRead(iniPath, secName, "Desc", "Custom mouse preset")
+                badge := IniRead(iniPath, secName, "Badge", "Custom")
+                image := IniRead(iniPath, secName, "Image", "")
+                buttonsJson := IniRead(iniPath, secName, "Buttons", "")
+
+                presetMap := Map(
+                    "id", pId,
+                    "name", name,
+                    "desc", desc,
+                    "badge", badge,
+                    "image", image,
+                    "isCustom", true
+                )
+                if (buttonsJson != "") {
+                    try {
+                        parsedBtns := JSON.parse(buttonsJson)
+                        presetMap["buttons"] := parsedBtns
+                    }
+                }
+                out.Push(presetMap)
+            }
+        } catch as err {
+            this.Log("Error loading custom mouse presets: " . err.Message)
+        }
+        return out
+    }
+
+    static SaveCustomMousePreset(presetObj) {
+        iniPath := A_ScriptDir . "\settings.ini"
+        pId := presetObj.Has("id") && presetObj["id"] != "" ? presetObj["id"] : ("custom_" . A_TickCount)
+        name := presetObj.Has("name") && presetObj["name"] != "" ? presetObj["name"] : "Custom Mouse"
+        desc := presetObj.Has("desc") ? presetObj["desc"] : "Custom mouse model"
+        badge := presetObj.Has("badge") ? presetObj["badge"] : "Custom"
+        rawImg := presetObj.Has("image") ? presetObj["image"] : ""
+
+        imgPath := rawImg
+        if (InStr(rawImg, "data:image/")) {
+            assetsDir := A_ScriptDir . "\assets"
+            if (!DirExist(assetsDir)) {
+                try DirCreate(assetsDir)
+            }
+            saveFile := assetsDir . "\" . pId . ".png"
+            commaPos := InStr(rawImg, ",")
+            if (commaPos) {
+                b64 := SubStr(rawImg, commaPos + 1)
+                this.WriteBase64ToFile(saveFile, b64)
+                imgPath := "../assets/" . pId . ".png?t=" . A_TickCount
+            }
+        }
+
+        secName := "MousePreset_" . pId
+        try IniWrite(name, iniPath, secName, "Name")
+        try IniWrite(desc, iniPath, secName, "Desc")
+        try IniWrite(badge, iniPath, secName, "Badge")
+        try IniWrite(imgPath, iniPath, secName, "Image")
+
+        if (presetObj.Has("buttons") && IsObject(presetObj["buttons"])) {
+            try {
+                jsonBtns := JSON.stringify(presetObj["buttons"])
+                IniWrite(jsonBtns, iniPath, secName, "Buttons")
+            }
+        }
+
+        ; Update MousePresets List
+        listStr := ""
+        try listStr := IniRead(iniPath, "MousePresets", "List", "")
+        pIds := StrSplit(listStr, ",")
+        found := false
+        for _, id in pIds {
+            if (Trim(id) = pId) {
+                found := true
+                break
+            }
+        }
+        if (!found) {
+            newList := (listStr != "" ? listStr . "," : "") . pId
+            try IniWrite(newList, iniPath, "MousePresets", "List")
+        }
+
+        ; Set as active mouse image
+        try IniWrite(imgPath, iniPath, "General", "MouseImage")
+
+        return this.LoadCustomMousePresets()
+    }
+
+    static DeleteCustomMousePreset(presetId) {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try IniDelete(iniPath, "MousePreset_" . presetId)
+
+        listStr := ""
+        try listStr := IniRead(iniPath, "MousePresets", "List", "")
+        pIds := StrSplit(listStr, ",")
+        newList := ""
+        for _, id in pIds {
+            id := Trim(id)
+            if (id != "" && id != presetId) {
+                newList := (newList != "" ? (newList . ",") : "") . id
+            }
+        }
+        try IniWrite(newList, iniPath, "MousePresets", "List")
+
+        imgFile := A_ScriptDir . "\assets\" . presetId . ".png"
+        if (FileExist(imgFile)) {
+            try FileDelete(imgFile)
+        }
+
+        return this.LoadCustomMousePresets()
     }
 
     ; =========================================================================
@@ -1234,6 +1641,212 @@ class WebViewGuiManager {
             "isShift", isActive ? true : false,
             "shiftName", shiftName
         ))
+    }
+
+    ; =========================================================================
+    ; COMPLETE STUDIO BACKUP & RESTORE (IMPORT / EXPORT)
+    ; =========================================================================
+    static ImportFullBackup(backupObj, mode := "replace", rawIni := "") {
+        iniPath := A_ScriptDir . "\settings.ini"
+
+        ; Create safety backup of existing settings.ini before restoring
+        try {
+            if FileExist(iniPath) {
+                FileCopy(iniPath, iniPath . ".bak", 1)
+            }
+        }
+
+        ; If raw INI string is supplied, write directly
+        if (rawIni != "" && (mode == "raw_ini" || (!IsObject(backupObj) || backupObj.Count == 0))) {
+            try {
+                if FileExist(iniPath) {
+                    FileDelete(iniPath)
+                }
+                FileAppend(rawIni, iniPath, "UTF-8")
+                ProfileEngine.Init(iniPath)
+                return true
+            } catch as err {
+                this.Log("Error importing raw INI: " . err.Message)
+                return false
+            }
+        }
+
+        if (!IsObject(backupObj)) {
+            return false
+        }
+
+        try {
+            ; 1. General Settings
+            if (backupObj.Has("general") && IsObject(backupObj["general"])) {
+                gen := backupObj["general"]
+                if (gen.Has("defaultProfile") && gen["defaultProfile"] != "") {
+                    IniWrite(gen["defaultProfile"], iniPath, "General", "DefaultProfile")
+                }
+                if (gen.Has("alwaysOnTop")) {
+                    IniWrite(gen["alwaysOnTop"] ? "1" : "0", iniPath, "General", "AlwaysOnTop")
+                }
+                if (gen.Has("mouseImage") && gen["mouseImage"] != "") {
+                    IniWrite(gen["mouseImage"], iniPath, "General", "MouseImage")
+                }
+                if (gen.Has("showOSD")) {
+                    IniWrite(gen["showOSD"] ? "1" : "0", iniPath, "Settings", "ShowOSD")
+                }
+                if (gen.Has("muteWhenFocused")) {
+                    IniWrite(gen["muteWhenFocused"] ? "1" : "0", iniPath, "Settings", "MuteWhenFocused")
+                }
+                if (gen.Has("autoSwitch")) {
+                    IniWrite(gen["autoSwitch"] ? "1" : "0", iniPath, "Profiles", "AutoSwitchEnabled")
+                }
+                if (gen.Has("lockedProfile")) {
+                    IniWrite(gen["lockedProfile"], iniPath, "Profiles", "LockedProfile")
+                }
+            }
+
+            ; 2. Profiles List & Metadata
+            if (backupObj.Has("profiles") && IsObject(backupObj["profiles"])) {
+                profs := backupObj["profiles"]
+                existingProfsStr := IniRead(iniPath, "Profiles", "List", "")
+                existingArr := StrSplit(existingProfsStr, ",")
+                existingMap := Map()
+                for _, p in existingArr {
+                    pTrim := Trim(p)
+                    if (pTrim != "") {
+                        existingMap[pTrim] := true
+                    }
+                }
+
+                importedList := []
+                for _, p in profs {
+                    pName := p.Has("name") ? Trim(p["name"]) : ""
+                    if (pName = "") {
+                        continue
+                    }
+                    importedList.Push(pName)
+                    sec := "Profile_" . pName
+                    if (p.Has("targetExe")) {
+                        IniWrite(p["targetExe"], iniPath, sec, "TargetExe")
+                    }
+                    if (p.Has("icon")) {
+                        IniWrite(p["icon"], iniPath, sec, "Icon")
+                    }
+                    if (p.Has("isDefault")) {
+                        IniWrite(p["isDefault"] ? "1" : "0", iniPath, sec, "IsDefault")
+                    }
+                    if (p.Has("switchOnHover")) {
+                        IniWrite(p["switchOnHover"] ? "1" : "0", iniPath, sec, "SwitchOnHover")
+                    }
+                    if (p.Has("desc")) {
+                        IniWrite(p["desc"], iniPath, sec, "Desc")
+                    }
+                }
+
+                if (mode == "replace") {
+                    listStr := ""
+                    for idx, name in importedList {
+                        listStr .= (idx = 1 ? "" : ",") . name
+                    }
+                    IniWrite(listStr, iniPath, "Profiles", "List")
+                } else {
+                    ; Merge mode: add any new profiles to existing list
+                    for _, name in importedList {
+                        if (!existingMap.Has(name)) {
+                            existingArr.Push(name)
+                            existingMap[name] := true
+                        }
+                    }
+                    mergedStr := ""
+                    for idx, name in existingArr {
+                        if (name != "") {
+                            mergedStr .= (mergedStr = "" ? "" : ",") . name
+                        }
+                    }
+                    IniWrite(mergedStr, iniPath, "Profiles", "List")
+                }
+            }
+
+            ; 3. Button Mappings across all profiles and layers
+            if (backupObj.Has("mappings") && IsObject(backupObj["mappings"])) {
+                mappings := backupObj["mappings"]
+                for profName, profBtns in mappings {
+                    if (!IsObject(profBtns)) {
+                        continue
+                    }
+                    for btnId, btnLayers in profBtns {
+                        if (!IsObject(btnLayers)) {
+                            continue
+                        }
+                        for layerName, actObj in btnLayers {
+                            if (IsObject(actObj)) {
+                                ProfileEngine.SaveButtonLayer(profName, btnId, layerName, actObj)
+                            }
+                        }
+                    }
+                }
+            }
+
+            ; 4. Mouse Layout & Buttons (coordinates, offsets, f-keys)
+            if (backupObj.Has("mouseLayout") && IsObject(backupObj["mouseLayout"])) {
+                mLayout := backupObj["mouseLayout"]
+
+                if (mLayout.Has("image") && mLayout["image"] != "") {
+                    IniWrite(mLayout["image"], iniPath, "General", "MouseImage")
+                }
+
+                if (mLayout.Has("buttons") && IsObject(mLayout["buttons"])) {
+                    ProfileEngine.SaveCustomButtons(mLayout["buttons"])
+                }
+
+                if (mLayout.Has("diagramPoints") && IsObject(mLayout["diagramPoints"])) {
+                    for bId, pt in mLayout["diagramPoints"] {
+                        if (IsObject(pt)) {
+                            if (pt.Has("x")) {
+                                IniWrite(String(pt["x"]), iniPath, "DiagramPoints", bId . "_X")
+                            }
+                            if (pt.Has("y")) {
+                                IniWrite(String(pt["y"]), iniPath, "DiagramPoints", bId . "_Y")
+                            }
+                        }
+                    }
+                }
+
+                if (mLayout.Has("cardOffsets") && IsObject(mLayout["cardOffsets"])) {
+                    this.SaveCardOffsets(mLayout["cardOffsets"])
+                }
+
+                if (mLayout.Has("customButtonNames") && IsObject(mLayout["customButtonNames"])) {
+                    for bId, cName in mLayout["customButtonNames"] {
+                        this.SaveButtonName(bId, cName)
+                    }
+                }
+
+                if (mLayout.Has("hardwareFKeys") && IsObject(mLayout["hardwareFKeys"])) {
+                    assignedFKeys := Map()
+                    try IniDelete(iniPath, "HardwareFKeys")
+                    for bId, fKey in mLayout["hardwareFKeys"] {
+                        if (fKey != "" && !assignedFKeys.Has(fKey)) {
+                            assignedFKeys[fKey] := bId
+                            IniWrite(fKey, iniPath, "HardwareFKeys", bId)
+                        }
+                    }
+                }
+            }
+
+            ; 5. Custom Mouse Presets Gallery
+            if (backupObj.Has("customMousePresets") && IsObject(backupObj["customMousePresets"])) {
+                for _, preset in backupObj["customMousePresets"] {
+                    if (IsObject(preset)) {
+                        this.SaveCustomMousePreset(preset)
+                    }
+                }
+            }
+
+            ; 6. Reload engine
+            ProfileEngine.Init(iniPath)
+            return true
+        } catch as err {
+            this.Log("Error in ImportFullBackup: " . err.Message . " in line " . err.Line)
+            return false
+        }
     }
 
     static SetWindowIcon(hwnd) {

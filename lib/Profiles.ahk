@@ -25,6 +25,7 @@ class ProfileEngine {
     static RapidFireEnabled := false
     static RapidFireActive := false
     static RapidFireInterval := 50 ; ms (~20 CPS)
+    static MuteWhenStudioFocused := true
     static DefaultHardwareFKeys := Map(
         "Middle", "F13",
         "Back", "F14",
@@ -96,6 +97,7 @@ class ProfileEngine {
             this.AutoSwitchEnabled := (IniRead(this.ConfigPath, "Profiles", "AutoSwitchEnabled", "1") = "1")
             this.LockedProfile := IniRead(this.ConfigPath, "Profiles", "LockedProfile", "")
             OSD.Enabled := (IniRead(this.ConfigPath, "Settings", "ShowOSD", "1") = "1")
+            this.MuteWhenStudioFocused := (IniRead(this.ConfigPath, "Settings", "MuteWhenFocused", "1") = "1")
         }
 
         ; Load metadata for each profile
@@ -119,13 +121,34 @@ class ProfileEngine {
             this.EnsureProfileIcon(prof, this.ProfileMetadata[prof].TargetExe)
         }
 
-        ; Load Hardware F-Key assignments
+        ; Load Hardware F-Key assignments (enforcing strict 1-to-1 uniqueness)
         this.ButtonToFKeyMap := Map()
         this.FKeyToButtonMap := Map()
         for btnId, defFKey in this.DefaultHardwareFKeys {
             assignedFKey := IniRead(this.ConfigPath, "HardwareFKeys", btnId, defFKey)
-            this.ButtonToFKeyMap[btnId] := assignedFKey
-            this.FKeyToButtonMap[assignedFKey] := btnId
+            if (assignedFKey != "" && !this.FKeyToButtonMap.Has(assignedFKey)) {
+                this.ButtonToFKeyMap[btnId] := assignedFKey
+                this.FKeyToButtonMap[assignedFKey] := btnId
+            }
+        }
+        ; Load custom button hardware key assignments
+        try {
+            customBtns := this.LoadCustomButtons()
+            for btn in customBtns {
+                bId := btn.Has("id") ? btn["id"] : ""
+                if (bId != "" && btn.Has("hardwareKey") && btn["hardwareKey"] != "") {
+                    hKey := btn["hardwareKey"]
+                    ; If duplicate key found, revoke it from the previous button
+                    if (this.FKeyToButtonMap.Has(hKey)) {
+                        oldB := this.FKeyToButtonMap[hKey]
+                        if (oldB != bId && this.ButtonToFKeyMap.Has(oldB)) {
+                            this.ButtonToFKeyMap.Delete(oldB)
+                        }
+                    }
+                    this.ButtonToFKeyMap[bId] := hKey
+                    this.FKeyToButtonMap[hKey] := bId
+                }
+            }
         }
 
         for profile in this.Profiles {
@@ -689,19 +712,94 @@ class ProfileEngine {
     }
 
     static SwapHardwareFKeys(btnId1, btnId2) {
-        if (!this.ButtonToFKeyMap.Has(btnId1) || !this.ButtonToFKeyMap.Has(btnId2))
+        if (btnId1 == "" || btnId2 == "")
             return false
 
-        fKey1 := this.ButtonToFKeyMap[btnId1]
-        fKey2 := this.ButtonToFKeyMap[btnId2]
+        fKey1 := this.ButtonToFKeyMap.Has(btnId1) ? this.ButtonToFKeyMap[btnId1] : ""
+        fKey2 := this.ButtonToFKeyMap.Has(btnId2) ? this.ButtonToFKeyMap[btnId2] : ""
 
-        this.ButtonToFKeyMap[btnId1] := fKey2
-        this.ButtonToFKeyMap[btnId2] := fKey1
-        this.FKeyToButtonMap[fKey2] := btnId1
-        this.FKeyToButtonMap[fKey1] := btnId2
+        if (fKey1 == "" && fKey2 == "")
+            return false
 
-        IniWrite(fKey2, this.ConfigPath, "HardwareFKeys", btnId1)
-        IniWrite(fKey1, this.ConfigPath, "HardwareFKeys", btnId2)
+        ; Remove old mappings
+        if (this.ButtonToFKeyMap.Has(btnId1)) {
+            this.ButtonToFKeyMap.Delete(btnId1)
+            IniDelete(this.ConfigPath, "HardwareFKeys", btnId1)
+        }
+        if (fKey1 != "" && this.FKeyToButtonMap.Has(fKey1)) {
+            this.FKeyToButtonMap.Delete(fKey1)
+        }
+
+        if (this.ButtonToFKeyMap.Has(btnId2)) {
+            this.ButtonToFKeyMap.Delete(btnId2)
+            IniDelete(this.ConfigPath, "HardwareFKeys", btnId2)
+        }
+        if (fKey2 != "" && this.FKeyToButtonMap.Has(fKey2)) {
+            this.FKeyToButtonMap.Delete(fKey2)
+        }
+
+        ; Reassign fKey2 to btnId1
+        if (fKey2 != "") {
+            this.ButtonToFKeyMap[btnId1] := fKey2
+            this.FKeyToButtonMap[fKey2] := btnId1
+            IniWrite(fKey2, this.ConfigPath, "HardwareFKeys", btnId1)
+            IniWrite(fKey2, this.ConfigPath, "Button_" . btnId1, "Key")
+        } else {
+            IniWrite("", this.ConfigPath, "Button_" . btnId1, "Key")
+        }
+
+        ; Reassign fKey1 to btnId2
+        if (fKey1 != "") {
+            this.ButtonToFKeyMap[btnId2] := fKey1
+            this.FKeyToButtonMap[fKey1] := btnId2
+            IniWrite(fKey1, this.ConfigPath, "HardwareFKeys", btnId2)
+            IniWrite(fKey1, this.ConfigPath, "Button_" . btnId2, "Key")
+        } else {
+            IniWrite("", this.ConfigPath, "Button_" . btnId2, "Key")
+        }
+
+        return true
+    }
+
+    static SetHardwareFKey(btnId, newFKey) {
+        if (btnId == "")
+            return false
+
+        ; Enforce strict 1-to-1 uniqueness: remove newFKey from any other button that has it
+        if (newFKey != "") {
+            for b, k in this.ButtonToFKeyMap {
+                if (k == newFKey && b != btnId) {
+                    this.ButtonToFKeyMap.Delete(b)
+                    IniDelete(this.ConfigPath, "HardwareFKeys", b)
+                    IniWrite("", this.ConfigPath, "Button_" . b, "Key")
+                    break
+                }
+            }
+            if (this.FKeyToButtonMap.Has(newFKey)) {
+                this.FKeyToButtonMap.Delete(newFKey)
+            }
+        }
+
+        ; Remove old key from btnId
+        if (this.ButtonToFKeyMap.Has(btnId)) {
+            oldKey := this.ButtonToFKeyMap[btnId]
+            this.ButtonToFKeyMap.Delete(btnId)
+            if (this.FKeyToButtonMap.Has(oldKey)) {
+                this.FKeyToButtonMap.Delete(oldKey)
+            }
+            IniDelete(this.ConfigPath, "HardwareFKeys", btnId)
+        }
+
+        ; Assign new key
+        if (newFKey != "") {
+            this.ButtonToFKeyMap[btnId] := newFKey
+            this.FKeyToButtonMap[newFKey] := btnId
+            IniWrite(newFKey, this.ConfigPath, "HardwareFKeys", btnId)
+            IniWrite(newFKey, this.ConfigPath, "Button_" . btnId, "Key")
+        } else {
+            IniWrite("", this.ConfigPath, "Button_" . btnId, "Key")
+        }
+
         return true
     }
 
@@ -761,10 +859,7 @@ class ProfileEngine {
                 return this.ExtractExeIcon(sourcePath, outPng)
             }
             ; For JPG / JPEG / BMP / other image files: load with GDI+ and save as PNG
-            token := 0
-            si := Buffer(24, 0)
-            NumPut("UInt", 1, si, 0)
-            if (DllCall("gdiplus\GdiplusStartup", "Ptr*", &token, "Ptr", si.Ptr, "Ptr", 0) != 0)
+            if (!GdipHelper.Init())
                 return false
             pBitmap := 0
             DllCall("gdiplus\GdipCreateBitmapFromFile", "WStr", sourcePath, "Ptr*", &pBitmap)
@@ -774,7 +869,6 @@ class ProfileEngine {
                 DllCall("gdiplus\GdipSaveImageToFile", "Ptr", pBitmap, "Str", outPng, "Ptr", clsidPng.Ptr, "Ptr", 0)
                 DllCall("gdiplus\GdipDisposeImage", "Ptr", pBitmap)
             }
-            DllCall("gdiplus\GdiplusShutdown", "Ptr", token)
             return FileExist(outPng) ? true : false
         } catch {
             return false
@@ -832,10 +926,7 @@ class ProfileEngine {
 
     static ExtractExeIcon(fullPath, outPng) {
         try {
-            token := 0
-            si := Buffer(24, 0)
-            NumPut("UInt", 1, si, 0)
-            if (DllCall("gdiplus\GdiplusStartup", "Ptr*", &token, "Ptr", si.Ptr, "Ptr", 0) != 0)
+            if (!GdipHelper.Init())
                 return false
 
             pathBuf := Buffer(520, 0)
@@ -854,7 +945,6 @@ class ProfileEngine {
                     DllCall("gdiplus\GdipDisposeImage", "Ptr", pBitmap)
                 }
             }
-            DllCall("gdiplus\GdiplusShutdown", "Ptr", token)
             return FileExist(outPng) ? true : false
         } catch {
             return false
@@ -871,10 +961,7 @@ class ProfileEngine {
             if (!hIcon)
                 hIcon := DllCall("GetClassLongPtr", "Ptr", hwnd, "Int", -34, "Ptr") ; GCLP_HICONSM
             if (hIcon) {
-                token := 0
-                si := Buffer(24, 0)
-                NumPut("UInt", 1, si, 0)
-                if (DllCall("gdiplus\GdiplusStartup", "Ptr*", &token, "Ptr", si.Ptr, "Ptr", 0) == 0) {
+                if (GdipHelper.Init()) {
                     pBitmap := 0
                     DllCall("gdiplus\GdipCreateBitmapFromHICON", "Ptr", hIcon, "Ptr*", &pBitmap)
                     if (pBitmap) {
@@ -883,7 +970,6 @@ class ProfileEngine {
                         DllCall("gdiplus\GdipSaveImageToFile", "Ptr", pBitmap, "Str", outPng, "Ptr", clsidPng.Ptr, "Ptr", 0)
                         DllCall("gdiplus\GdipDisposeImage", "Ptr", pBitmap)
                     }
-                    DllCall("gdiplus\GdiplusShutdown", "Ptr", token)
                 }
             }
             return FileExist(outPng) ? true : false
@@ -965,6 +1051,12 @@ class ProfileEngine {
         }
         if (normType = "Special" && normCmd = "GShift2") {
             this.HandleShift2Modifier(btnId, isDown)
+            return
+        }
+
+        ; If Studio app is in focus and MuteWhenStudioFocused is active,
+        ; prevent any mapping from executing (only visual highlight in NotifyButton fires)
+        if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
             return
         }
 
@@ -1079,9 +1171,44 @@ class ProfileEngine {
         if ((act.Type = "Send" || act.Type = "Default") && act.Cmd != "") {
             holdKey := this.GetHoldableKey(act.Cmd)
             if (holdKey != "") {
-                this.ActiveHeldButtons[btnId] := holdKey
+                this.ActiveHeldButtons[btnId] := "{" . holdKey . " up}"
                 Send("{Blind}{" . holdKey . " down}")
                 return
+            }
+            ; Modifier + Mouse button hold support (e.g. ^{LButton}, !{RButton}, +{MButton})
+            if (RegExMatch(act.Cmd, "^([!^#]+)\{(LButton|RButton|MButton|XButton1|XButton2)\}$", &modMbMatch)) {
+                mods := modMbMatch[1]
+                mb := modMbMatch[2]
+                this.ActiveHeldButtons[btnId] := "{" . mb . " up}"
+                Send("{Blind}" . mods . "{" . mb . " down}")
+                return
+            }
+            ; Combo hold support: e.g. multi-key chords ({w down}{d down}), or mouse combos ({s down}{LButton}{s up})
+            if (InStr(act.Cmd, " down}")) {
+                downCmd := ""
+                upCmd := ""
+                pos := 1
+                while (RegExMatch(act.Cmd, "i)\{([A-Za-z0-9_]+)\s+down\}", &kMatch, pos)) {
+                    keyName := kMatch[1]
+                    downCmd .= "{" . keyName . " down}"
+                    upCmd := "{" . keyName . " up}" . upCmd
+                    pos := kMatch.Pos + kMatch.Len
+                }
+                if (RegExMatch(act.Cmd, "i)\{(LButton|RButton|MButton|XButton1|XButton2)\}", &mbMatch)) {
+                    mbName := mbMatch[1]
+                    downCmd .= "{" . mbName . " down}"
+                    upCmd := "{" . mbName . " up}" . upCmd
+                }
+                if (downCmd != "") {
+                    modPrefix := ""
+                    if (RegExMatch(act.Cmd, "i)\{Blind\}([!^#]+)", &modMatch))
+                        modPrefix := modMatch[1]
+                    else if (RegExMatch(act.Cmd, "^([!^#]+)", &modMatch))
+                        modPrefix := modMatch[1]
+                    this.ActiveHeldButtons[btnId] := upCmd
+                    Send("{Blind}" . modPrefix . downCmd)
+                    return
+                }
             }
         }
         this.ExecuteActionOnce(act)
@@ -1089,9 +1216,11 @@ class ProfileEngine {
 
     static ExecuteActionUp(act, btnId) {
         if (this.ActiveHeldButtons.Has(btnId)) {
-            holdKey := this.ActiveHeldButtons[btnId]
+            releaseCmd := this.ActiveHeldButtons[btnId]
             this.ActiveHeldButtons.Delete(btnId)
-            Send("{Blind}{" . holdKey . " up}")
+            if (!InStr(releaseCmd, "{"))
+                releaseCmd := "{" . releaseCmd . " up}"
+            Send("{Blind}" . releaseCmd)
         }
     }
 
@@ -1154,28 +1283,48 @@ class ProfileEngine {
 
     static StartHold(btnId, act) {
         this.StopHold(btnId)
-        this.ExecuteActionOnce(act)
         interval := (act.HasOwnProp("RepeatInterval") && act.RepeatInterval > 0) ? act.RepeatInterval : 50
-        fn := () => ProfileEngine.ExecuteActionOnce(act)
+        
+        fn() {
+            if (!ProfileEngine.ActiveHoldTimers.Has(btnId))
+                return
+            ProfileEngine.ExecuteActionOnce(act)
+            if (ProfileEngine.ActiveHoldTimers.Has(btnId))
+                SetTimer(fn, -interval)
+        }
+        
         this.ActiveHoldTimers[btnId] := fn
-        SetTimer(fn, interval)
+        this.ExecuteActionOnce(act)
+        if (this.ActiveHoldTimers.Has(btnId))
+            SetTimer(fn, -interval)
     }
 
     static StopHold(btnId) {
         if (this.ActiveHoldTimers.Has(btnId)) {
             fn := this.ActiveHoldTimers[btnId]
-            SetTimer(fn, 0)
+            if (IsObject(fn))
+                SetTimer(fn, 0)
             this.ActiveHoldTimers.Delete(btnId)
         }
     }
 
     static StartToggle(btnId, act) {
         this.StopToggle(btnId)
-        this.ExecuteActionOnce(act)
         interval := (act.HasOwnProp("RepeatInterval") && act.RepeatInterval > 0) ? act.RepeatInterval : 50
-        fn := () => ProfileEngine.ExecuteActionOnce(act)
+        
+        fn() {
+            if (!ProfileEngine.ActiveToggleTimers.Has(btnId))
+                return
+            ProfileEngine.ExecuteActionOnce(act)
+            if (ProfileEngine.ActiveToggleTimers.Has(btnId))
+                SetTimer(fn, -interval)
+        }
+        
         this.ActiveToggleTimers[btnId] := fn
-        SetTimer(fn, interval)
+        this.ExecuteActionOnce(act)
+        if (this.ActiveToggleTimers.Has(btnId))
+            SetTimer(fn, -interval)
+            
         OSD.Show("Toggle: RUNNING", act.Label)
         SoundBeep(1200, 60)
     }
@@ -1183,7 +1332,8 @@ class ProfileEngine {
     static StopToggle(btnId) {
         if (this.ActiveToggleTimers.Has(btnId)) {
             fn := this.ActiveToggleTimers[btnId]
-            SetTimer(fn, 0)
+            if (IsObject(fn))
+                SetTimer(fn, 0)
             this.ActiveToggleTimers.Delete(btnId)
             OSD.Show("Toggle: STOPPED", "Idle")
             SoundBeep(700, 60)
@@ -1308,11 +1458,17 @@ class ProfileEngine {
 
     static HandleLeftClick(isDown) {
         this.NotifyButton("LeftClick", isDown)
+        if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
+            return
+        }
         this.DispatchButton("LeftClick", isDown)
     }
 
     static HandleRightClick(isDown) {
         this.NotifyButton("RightClick", isDown)
+        if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
+            return
+        }
         this.DispatchButton("RightClick", isDown)
     }
 
@@ -1367,6 +1523,17 @@ class ProfileEngine {
             SetTimer(() => this.NotifyButton(btnId, false), -150)
         }
 
+        ; If Studio app is in focus and MuteWhenStudioFocused is active,
+        ; allow native wheel scrolling inside Studio GUI instead of triggering custom macro/mapping
+        if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
+            if (direction = "Up") {
+                Send("{Blind}{WheelUp}")
+            } else {
+                Send("{Blind}{WheelDown}")
+            }
+            return
+        }
+
         ; If action is unassigned or Default native wheel, pass-through natively!
         if ((act.Type = "Default" && (act.Cmd == "" || act.Cmd == "{" . btnId . "}")) || act.Cmd == "" || (act.Type = "Send" && act.Cmd == "{" . btnId . "}")) {
             if (direction = "Up") {
@@ -1413,5 +1580,156 @@ class ProfileEngine {
         if (fn) {
             fn(btnName, isPressed)
         }
+    }
+
+    ; ========================================================
+    ; CUSTOM BUTTONS PERSISTENCE & MANAGEMENT
+    ; ========================================================
+    static LoadCustomButtons() {
+        btnListStr := IniRead(this.ConfigPath, "Buttons", "List", "")
+        if (btnListStr = "")
+            return []
+
+        btnArray := []
+        Loop Parse, btnListStr, "," {
+            bId := Trim(A_LoopField)
+            if (bId = "")
+                continue
+            sec := "Button_" . bId
+            name := IniRead(this.ConfigPath, sec, "Name", bId)
+            tag := IniRead(this.ConfigPath, sec, "Tag", bId)
+            side := IniRead(this.ConfigPath, sec, "Side", "left")
+            key := IniRead(this.ConfigPath, sec, "Key", "")
+            xVal := IniRead(this.ConfigPath, "DiagramPoints", bId . "_X", "250")
+            yVal := IniRead(this.ConfigPath, "DiagramPoints", bId . "_Y", "250")
+
+            btnObj := Map(
+                "id", bId,
+                "name", name,
+                "tag", tag,
+                "side", side,
+                "hardwareKey", key,
+                "x", Integer(xVal),
+                "y", Integer(yVal)
+            )
+            btnArray.Push(btnObj)
+        }
+        return btnArray
+    }
+
+    static SaveCustomButtons(buttonsList) {
+        idList := []
+        assignedKeys := Map()
+
+        for _, btn in buttonsList {
+            bId := btn.Has("id") ? btn["id"] : ""
+            if (bId = "") {
+                continue
+            }
+            idList.Push(bId)
+            sec := "Button_" . bId
+            if (btn.Has("name")) {
+                IniWrite(btn["name"], this.ConfigPath, sec, "Name")
+            }
+            if (btn.Has("tag")) {
+                IniWrite(btn["tag"], this.ConfigPath, sec, "Tag")
+            }
+            if (btn.Has("side")) {
+                IniWrite(btn["side"], this.ConfigPath, sec, "Side")
+            }
+
+            key := btn.Has("hardwareKey") ? btn["hardwareKey"] : (btn.Has("fkey") ? btn["fkey"] : "")
+            ; Enforce strict 1-to-1 uniqueness: if this key was already assigned to a previous button, revoke it
+            if (key != "" && assignedKeys.Has(key)) {
+                key := ""
+            }
+            if (key != "") {
+                assignedKeys[key] := bId
+            }
+            IniWrite(key, this.ConfigPath, sec, "Key")
+
+            ; Hotspot coordinates
+            if (btn.Has("x")) {
+                IniWrite(String(btn["x"]), this.ConfigPath, "DiagramPoints", bId . "_X")
+            }
+            if (btn.Has("y")) {
+                IniWrite(String(btn["y"]), this.ConfigPath, "DiagramPoints", bId . "_Y")
+            }
+        }
+
+        ; Rebuild HardwareFKeys cleanly so no orphan or duplicate keys remain in settings.ini
+        this.ButtonToFKeyMap := Map()
+        this.FKeyToButtonMap := Map()
+        try IniDelete(this.ConfigPath, "HardwareFKeys")
+
+        for key, bId in assignedKeys {
+            this.ButtonToFKeyMap[bId] := key
+            this.FKeyToButtonMap[key] := bId
+            IniWrite(key, this.ConfigPath, "HardwareFKeys", bId)
+        }
+
+        ; Save list of buttons
+        listStr := ""
+        for idx, id in idList {
+            listStr .= (idx = 1 ? "" : ",") . id
+        }
+        IniWrite(listStr, this.ConfigPath, "Buttons", "List")
+    }
+
+    static DeleteCustomButton(btnId) {
+        if (btnId = "") {
+            return
+        }
+
+        ; Clean from ButtonToFKeyMap and HardwareFKeys
+        if (this.ButtonToFKeyMap.Has(btnId)) {
+            key := this.ButtonToFKeyMap[btnId]
+            this.ButtonToFKeyMap.Delete(btnId)
+            if (this.FKeyToButtonMap.Has(key)) {
+                this.FKeyToButtonMap.Delete(key)
+            }
+            IniDelete(this.ConfigPath, "HardwareFKeys", btnId)
+        }
+
+        ; Delete button metadata and calibration
+        IniDelete(this.ConfigPath, "Button_" . btnId)
+        IniDelete(this.ConfigPath, "DiagramPoints", btnId . "_X")
+        IniDelete(this.ConfigPath, "DiagramPoints", btnId . "_Y")
+        IniDelete(this.ConfigPath, "CardOffsets", btnId . "_X")
+        IniDelete(this.ConfigPath, "CardOffsets", btnId . "_Y")
+
+        ; Delete from all profile mappings
+        for prof in this.Profiles {
+            IniDelete(this.ConfigPath, "Mapping_" . prof . "_" . btnId)
+            if (this.ActiveMappings.Has(prof) && this.ActiveMappings[prof].Has(btnId)) {
+                this.ActiveMappings[prof].Delete(btnId)
+            }
+        }
+
+        ; Remove from Buttons List
+        currList := IniRead(this.ConfigPath, "Buttons", "List", "")
+        newList := []
+        Loop Parse, currList, "," {
+            id := Trim(A_LoopField)
+            if (id != "" && id != btnId) {
+                newList.Push(id)
+            }
+        }
+        newListStr := ""
+        for idx, id in newList {
+            newListStr .= (idx = 1 ? "" : ",") . id
+        }
+        IniWrite(newListStr, this.ConfigPath, "Buttons", "List")
+    }
+
+    static ResetCustomButtons() {
+        currList := IniRead(this.ConfigPath, "Buttons", "List", "")
+        Loop Parse, currList, "," {
+            id := Trim(A_LoopField)
+            if (id != "") {
+                IniDelete(this.ConfigPath, "Button_" . id)
+            }
+        }
+        IniDelete(this.ConfigPath, "Buttons")
     }
 }
