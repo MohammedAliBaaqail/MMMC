@@ -302,6 +302,28 @@ SaveAndExit() {
 #HotIf
 
 ; ========================================================
+; NATIVE PASS-THROUGH MONITORING (Left, Right, Wheel)
+; Passes native clicks/scrolls directly to Windows while
+; highlighting the buttons in the Studio hardware diagram
+; ========================================================
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsLeftClickIntercept() && !ProfileEngine.RapidFireEnabled
+
+~*LButton::ProfileEngine.NotifyButton("LeftClick", true)
+~*LButton Up::ProfileEngine.NotifyButton("LeftClick", false)
+
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsRightClickIntercept()
+
+~*RButton::ProfileEngine.NotifyButton("RightClick", true)
+~*RButton Up::ProfileEngine.NotifyButton("RightClick", false)
+
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsWheelIntercept()
+
+~*WheelUp::ProfileEngine.NotifyWheel("WheelUp")
+~*WheelDown::ProfileEngine.NotifyWheel("WheelDown")
+
+#HotIf
+
+; ========================================================
 ; RAPID-FIRE AUTO-CLICKER (#HotIf)
 ; Active only when Rapid-Fire mode is toggled ON (G8 in Gaming)
 ; ========================================================

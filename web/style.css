@@ -1862,10 +1862,12 @@ body.calibrating-mode .btn-card.calib-selected::after {
 }
 
 .btn-card.flash-pressed {
-    border-color: #fff;
-    background: rgba(0, 210, 255, 0.35);
-    box-shadow: 0 0 30px #00d2ff;
-    transform: scale(1.05);
+    border-color: #fff !important;
+    border-style: solid !important;
+    opacity: 1 !important;
+    background: rgba(0, 210, 255, 0.35) !important;
+    box-shadow: 0 0 30px #00d2ff !important;
+    transform: scale(1.05) !important;
 }
 
 .btn-card.primary-locked {

@@ -26,6 +26,7 @@ class QuickRemap {
     static TargetDisplayName := ""
     static TargetLayer := "Normal"
     static HoldingShiftButton := ""
+    static PhysicalButtonStates := Map()
     static TimeoutFn := () => QuickRemap.OnTimeout()
     static FinalizeComboFn := () => QuickRemap.FinalizeRecordedCombo()
     static InputHookObj := ""
@@ -98,6 +99,8 @@ class QuickRemap {
 
         this.State := "WAIT_BUTTON"
         this.TargetButton := ""
+        this.HoldingShiftButton := ""
+        this.PhysicalButtonStates.Clear()
         curLayer := "Normal"
         try {
             if (ProfileEngine.CurrentLayer != "")
@@ -131,6 +134,16 @@ class QuickRemap {
             btnId := ProfileEngine.FKeyToButtonMap[rawBtnId]
         }
 
+        ; Filter Windows OS typematic auto-repeat while button is physically held
+        if (isDown) {
+            if (this.PhysicalButtonStates.Has(btnId) && this.PhysicalButtonStates[btnId])
+                return ; Ignore typematic repeat event while button is physically held
+            this.PhysicalButtonStates[btnId] := true
+        } else {
+            if (this.PhysicalButtonStates.Has(btnId))
+                this.PhysicalButtonStates.Delete(btnId)
+        }
+
         ; -------------------------------------------------------------
         ; B-SHIFT MODIFIER KEY HANDLING
         ; The B-Shift button itself must NEVER be remapped!
@@ -140,6 +153,8 @@ class QuickRemap {
         if (!isAnotherShiftHeld && ProfileEngine.IsShiftModifierButton(btnId)) {
             shiftLayer := ProfileEngine.GetShiftModifierLayer(btnId)
             if (isDown) {
+                if (this.HoldingShiftButton == btnId)
+                    return ; Already holding this shift button, do not re-trigger sound or OSD
                 this.HoldingShiftButton := btnId
                 this.TargetLayer := shiftLayer
                 if (shiftLayer = "GShift2")
@@ -244,6 +259,11 @@ class QuickRemap {
         if (kName = "")
             return
 
+        ; Ignore mouse hardware F-keys (F13 - F24) and mouse button mappings
+        ; (e.g. B-Shift modifier button being held down physically)
+        if (RegExMatch(kName, "^F(1[3-9]|2[0-4])$") || ProfileEngine.FKeyToButtonMap.Has(kName))
+            return
+
         ; If Escape pressed alone with no other keys down, cancel!
         if (kName = "Escape" && this.KeysDown.Count = 0 && this.Modifiers.Count = 0 && this.ComboKeys.Length = 0) {
             this.Cancel()
@@ -290,6 +310,10 @@ class QuickRemap {
 
         kName := this.NormalizeKey(vk, sc)
         if (kName = "")
+            return
+
+        ; Ignore mouse hardware F-keys (F13 - F24) and mouse button mappings
+        if (RegExMatch(kName, "^F(1[3-9]|2[0-4])$") || ProfileEngine.FKeyToButtonMap.Has(kName))
             return
 
         if (this.KeysDown.Has(kName))
@@ -435,6 +459,7 @@ class QuickRemap {
         this.TargetDisplayName := ""
         this.TargetLayer := "Normal"
         this.HoldingShiftButton := ""
+        this.PhysicalButtonStates.Clear()
         this.KeysDown.Clear()
         this.Modifiers.Clear()
         this.ComboKeys := []

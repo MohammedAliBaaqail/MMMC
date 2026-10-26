@@ -1809,8 +1809,6 @@ class ProfileEngine {
         this.DispatchButton("RightClick", isDown)
     }
 
-    static LastWheelNotifyTime := 0
-
     ; Determines if WheelUp/WheelDown should be intercepted by AHK hook
     static NeedsWheelIntercept() {
         if (this.IsGShiftActive || this.IsGShift1Active || this.IsGShift2Active)
@@ -1837,6 +1835,17 @@ class ProfileEngine {
         return false
     }
 
+    static LastWheelNotifyTime := 0
+
+    static NotifyWheel(btnId) {
+        now := A_TickCount
+        if (now - this.LastWheelNotifyTime > 80) {
+            this.LastWheelNotifyTime := now
+            this.NotifyButton(btnId, true)
+            SetTimer(() => this.NotifyButton(btnId, false), -140)
+        }
+    }
+
     ; Native Scroll Wheel Mapping & Dispatch (No F-key required)
     static DispatchWheel(direction) {
         btnId := (direction = "Up") ? "WheelUp" : "WheelDown"
@@ -1852,13 +1861,8 @@ class ProfileEngine {
         mapping := this.GetButtonMapping(this.CurrentProfile, btnId)
         act := (layer = "GShift2") ? mapping.GShift2 : ((layer = "GShift" || layer = "GShift1") ? mapping.GShift : mapping.Normal)
 
-        ; Throttled GUI visual feedback (max once per 200ms)
-        now := A_TickCount
-        if (now - this.LastWheelNotifyTime > 200) {
-            this.LastWheelNotifyTime := now
-            this.NotifyButton(btnId, true)
-            SetTimer(() => this.NotifyButton(btnId, false), -150)
-        }
+        ; Throttled GUI visual feedback
+        this.NotifyWheel(btnId)
 
         ; If Studio app is in focus and MuteWhenStudioFocused is active,
         ; allow native wheel scrolling inside Studio GUI instead of triggering custom macro/mapping
@@ -1913,6 +1917,12 @@ class ProfileEngine {
         ; Suppress redundant UI flash on OS typematic repeats
         if (isPressed && this.PhysicalButtonStates.Has(btnName) && this.PhysicalButtonStates[btnName])
             return
+        if (isPressed) {
+            this.PhysicalButtonStates[btnName] := true
+        } else {
+            if (this.PhysicalButtonStates.Has(btnName))
+                this.PhysicalButtonStates.Delete(btnName)
+        }
         fn := this.OnButtonStateChanged
         if (fn) {
             fn(btnName, isPressed)

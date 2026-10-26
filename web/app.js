@@ -1826,7 +1826,9 @@ function flashButtonHardware(btnId, isDown) {
     });
 
     if (isDown) {
-        selectButton(btnId);
+        if (state.currentLayer !== 'Normal' || (btnId !== 'LeftClick' && btnId !== 'RightClick' && btnId !== 'WheelUp' && btnId !== 'WheelDown')) {
+            selectButton(btnId);
+        }
     }
 }
 

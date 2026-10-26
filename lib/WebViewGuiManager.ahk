@@ -1874,8 +1874,6 @@ class WebViewGuiManager {
     }
 
     static OnButtonStateChangedHandler(btnId, isDown) {
-        if (btnId = "WheelUp" || btnId = "WheelDown")
-            return
         this.PostMessage(Map(
             "type", "buttonStateChanged",
             "btnId", btnId,
