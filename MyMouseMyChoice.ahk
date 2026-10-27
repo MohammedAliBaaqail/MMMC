@@ -69,18 +69,25 @@ SetupTrayMenu()
 OSD.Show("My Mouse My Choice Active", "Profile: " . ProfileEngine.CurrentProfile . " (Ready)")
 WebViewGuiManager.Show()
 
-; Global Shortcut: Ctrl + Shift + F2 to create a profile from focused window
-^+F2::ProfileEngine.CreateProfileFromActiveWindow()
+; Global Shortcut: Ctrl + Shift + F1 for Live Quick Remap on the fly
+*^+F1::
+^+F1::QuickRemap.Start()
 
-; Global Shortcut: Ctrl + Shift + F1 to toggle Studio window visibility
-^+F1::ToggleStudioWindow()
+; Global Shortcut: Ctrl + Shift + F2 to create a profile from focused window
+*^+F2::
+^+F2::ProfileEngine.CreateProfileFromFocusedWindow()
+
+; Global Shortcut: Ctrl + Shift + F3 to toggle Studio window visibility
+*^+F3::
+^+F3::ToggleStudioWindow()
 
 ; --- Tray Menu Setup ---
 SetupTrayMenu() {
     Tray := A_TrayMenu
     Tray.Delete()
     
-    Tray.Add("Open Studio (Ctrl+Shift+F1)", (*) => ToggleStudioWindow())
+    Tray.Add("Live Quick Remap (Ctrl+Shift+F1)", (*) => QuickRemap.Start())
+    Tray.Add("Open Studio (Ctrl+Shift+F3)", (*) => ToggleStudioWindow())
     Tray.Add("Auto-Switch App Profiles", (*) => ToggleAutoSwitch())
     if (ProfileEngine.AutoSwitchEnabled) {
         Tray.Check("Auto-Switch App Profiles")
@@ -98,26 +105,18 @@ SetupTrayMenu() {
     }
     Tray.Add("Select Profile", ProfileMenu)
     
-    Tray.Add("Create Profile for Active App (Ctrl+Shift+F2)", (*) => ProfileEngine.CreateProfileFromActiveWindow())
+    Tray.Add("Create Profile for Active App (Ctrl+Shift+F2)", (*) => ProfileEngine.CreateProfileFromFocusedWindow())
     Tray.Add() ; Separator
     
     Tray.Add("Reset Mouse Layout", (*) => OnResetMouseVisual())
     Tray.Add("Reload Controller", (*) => Reload())
     Tray.Add("Exit", (*) => ExitApp())
     
-    Tray.Default := "Open Studio (Ctrl+Shift+F1)"
+    Tray.Default := "Open Studio (Ctrl+Shift+F3)"
 }
 
 ToggleStudioWindow() {
-    if (WebViewGuiManager.MainGui != "" && WinExist("ahk_id " . WebViewGuiManager.MainGui.Hwnd)) {
-        if (DllCall("IsWindowVisible", "ptr", WebViewGuiManager.MainGui.Hwnd)) {
-            WebViewGuiManager.Hide()
-        } else {
-            WebViewGuiManager.Show()
-        }
-    } else {
-        WebViewGuiManager.Show()
-    }
+    WebViewGuiManager.Toggle()
 }
 
 ToggleAutoSwitch() {
@@ -146,7 +145,83 @@ OnResetMouseVisual() {
 }
 
 ; ========================================================
-; QUICK REMAP ESCAPE CANCELLATION
+; QUICK REMAP — STEP 2 MOUSE BUTTON INTERCEPT
+; Captures whichever mouse button is pressed for remapping
+; ========================================================
+#HotIf QuickRemap.IsWaitingForButton()
+
+*F13::QuickRemap.OnMouseButtonEvent("Middle", true)
+*F13 Up::QuickRemap.OnMouseButtonEvent("Middle", false)
+
+*F14::QuickRemap.OnMouseButtonEvent("Back", true)
+*F14 Up::QuickRemap.OnMouseButtonEvent("Back", false)
+
+*F15::QuickRemap.OnMouseButtonEvent("DpiShift", true)
+*F15 Up::QuickRemap.OnMouseButtonEvent("DpiShift", false)
+
+*F16::QuickRemap.OnMouseButtonEvent("Forward", true)
+*F16 Up::QuickRemap.OnMouseButtonEvent("Forward", false)
+
+*F17::QuickRemap.OnMouseButtonEvent("TiltLeft", true)
+*F17 Up::QuickRemap.OnMouseButtonEvent("TiltLeft", false)
+
+*F18::QuickRemap.OnMouseButtonEvent("TiltRight", true)
+*F18 Up::QuickRemap.OnMouseButtonEvent("TiltRight", false)
+
+*F19::QuickRemap.OnMouseButtonEvent("ProfileCycle", true)
+*F19 Up::QuickRemap.OnMouseButtonEvent("ProfileCycle", false)
+
+*F20::QuickRemap.OnMouseButtonEvent("G8", true)
+*F20 Up::QuickRemap.OnMouseButtonEvent("G8", false)
+
+*F21::QuickRemap.OnMouseButtonEvent("G7", true)
+*F21 Up::QuickRemap.OnMouseButtonEvent("G7", false)
+
+*F22::QuickRemap.OnMouseButtonEvent("F22", true)
+*F22 Up::QuickRemap.OnMouseButtonEvent("F22", false)
+
+*F23::QuickRemap.OnMouseButtonEvent("F23", true)
+*F23 Up::QuickRemap.OnMouseButtonEvent("F23", false)
+
+*F24::QuickRemap.OnMouseButtonEvent("F24", true)
+*F24 Up::QuickRemap.OnMouseButtonEvent("F24", false)
+
+*WheelUp::QuickRemap.OnMouseButtonEvent("WheelUp", true)
+*WheelDown::QuickRemap.OnMouseButtonEvent("WheelDown", true)
+
+*MButton::QuickRemap.OnMouseButtonEvent("Middle", true)
+*MButton Up::QuickRemap.OnMouseButtonEvent("Middle", false)
+
+*XButton1::QuickRemap.OnMouseButtonEvent("Back", true)
+*XButton1 Up::QuickRemap.OnMouseButtonEvent("Back", false)
+
+*XButton2::QuickRemap.OnMouseButtonEvent("Forward", true)
+*XButton2 Up::QuickRemap.OnMouseButtonEvent("Forward", false)
+
+*LButton::QuickRemap.OnMouseButtonEvent("LeftClick", true)
+*LButton Up::QuickRemap.OnMouseButtonEvent("LeftClick", false)
+
+*RButton::QuickRemap.OnMouseButtonEvent("RightClick", true)
+*RButton Up::QuickRemap.OnMouseButtonEvent("RightClick", false)
+
+#HotIf
+
+; ========================================================
+; QUICK REMAP — STEP 3 MOUSE CLICKS IN COMBINATION
+; Supports injecting mouse clicks into combination (e.g. Ctrl + Left Click)
+; ========================================================
+#HotIf QuickRemap.IsWaitingForKey()
+
+*LButton::QuickRemap.OnMouseButtonInCombo("LButton")
+*RButton::QuickRemap.OnMouseButtonInCombo("RButton")
+*MButton::QuickRemap.OnMouseButtonInCombo("MButton")
+*XButton1::QuickRemap.OnMouseButtonInCombo("XButton1")
+*XButton2::QuickRemap.OnMouseButtonInCombo("XButton2")
+
+#HotIf
+
+; ========================================================
+; QUICK REMAP — CANCEL (ESCAPE)
 ; ========================================================
 #HotIf QuickRemap.IsActive
 

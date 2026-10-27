@@ -65,6 +65,7 @@ const state = {
     })(),
     rawIni: '',
     muteWhenFocused: true,
+    gameKeyDelay: 20,
 
     // Pointer & Card Calibration Mode State
     isCalibrating: false,
@@ -576,6 +577,10 @@ function handleEngineMessage(msg) {
                 const chkMute = document.getElementById('chkMuteWhenFocused');
                 if (chkMute) chkMute.checked = state.muteWhenFocused;
             }
+            if (msg.gameKeyDelay !== undefined) {
+                state.gameKeyDelay = Number(msg.gameKeyDelay) || 20;
+            }
+            updateGameKeyDelayUI();
             updateHeaderTogglesUI();
             updateRapidFireUI(state.isRapidFire);
             renderLgsProfiles();
@@ -833,6 +838,13 @@ function handleEngineMessage(msg) {
                 if (chkMute) chkMute.checked = msg.enabled;
                 updateHeaderTogglesUI();
                 showToast('Test in Focus', msg.enabled ? 'Active: Buttons highlight without triggering actions' : 'Off: Normal button actions active');
+            }
+            break;
+
+        case 'gameKeyDelayChanged':
+            if (msg.delay !== undefined) {
+                state.gameKeyDelay = Number(msg.delay) || 20;
+                updateGameKeyDelayUI();
             }
             break;
 
@@ -2835,6 +2847,31 @@ function initModalControls() {
         });
     }
 
+    // Tab 1: Game Key Delay Pill
+    const singleGamePill = document.getElementById('singleGameDelayPill');
+    if (singleGamePill) {
+        singleGamePill.addEventListener('click', async () => {
+            const current = state.gameKeyDelay !== undefined ? state.gameKeyDelay : 20;
+            const inputVal = await showPromptDialog({
+                title: 'Game Key Delay / Hold Duration',
+                message: 'Minimum hold duration (ms) for key presses so in-game engines never miss the input (20 ms recommended):',
+                defaultValue: current,
+                inputType: 'number',
+                min: 0,
+                max: 500,
+                inputLabel: 'Delay in milliseconds (ms):',
+                confirmText: 'Save Delay',
+                icon: 'zap'
+            });
+            if (inputVal !== null && inputVal.trim() !== '') {
+                const parsed = parseInt(inputVal.trim(), 10);
+                if (!isNaN(parsed) && parsed >= 0 && parsed <= 500) {
+                    setGameKeyDelay(parsed);
+                }
+            }
+        });
+    }
+
     // Initialize Studio Macro UI Controls
     initGhubMacroUi();
 }
@@ -2883,6 +2920,7 @@ function openButtonStudio(btnId) {
     state.modal.singleAction.PlayType = singleMode;
     setSinglePlaybackMode(singleMode);
     setSingleRepeatDelay(state.modal.singleAction.RepeatInterval || 50);
+    updateGameKeyDelayUI();
     updateSinglePreview();
 
     // Populate Tab 2 Macro steps & G HUB controls
@@ -8496,6 +8534,7 @@ function generateFullBackupPayload() {
             rapidFire: !!state.isRapidFire,
             showOSD: document.getElementById('chkShowOSD')?.checked ?? true,
             muteWhenFocused: !!state.muteWhenFocused,
+            gameKeyDelay: Number(state.gameKeyDelay) || 20,
             mouseImage: currentMouseImage
         },
         profiles: (state.profiles || []).map(p => ({
@@ -9021,6 +9060,54 @@ function initStudioSettingsModal() {
             updateHeaderTogglesUI();
         });
     }
+
+    // Wire up Game Key Delay input and preset pills
+    const inputGameDelay = document.getElementById('inputGameKeyDelay');
+    if (inputGameDelay) {
+        inputGameDelay.addEventListener('change', (e) => {
+            setGameKeyDelay(e.target.value);
+        });
+    }
+
+    const presetGroup = document.getElementById('gameDelayPresetPills');
+    if (presetGroup) {
+        presetGroup.querySelectorAll('.preset-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.getAttribute('data-delay');
+                setGameKeyDelay(val);
+            });
+        });
+    }
+}
+
+function updateGameKeyDelayUI() {
+    const delay = state.gameKeyDelay !== undefined ? state.gameKeyDelay : 20;
+
+    const pill = document.getElementById('singleGameDelayPill');
+    if (pill) {
+        pill.textContent = `${delay} ms`;
+    }
+
+    const input = document.getElementById('inputGameKeyDelay');
+    if (input && document.activeElement !== input) {
+        input.value = delay;
+    }
+
+    const presetGroup = document.getElementById('gameDelayPresetPills');
+    if (presetGroup) {
+        presetGroup.querySelectorAll('.preset-pill').forEach(btn => {
+            const val = Number(btn.getAttribute('data-delay'));
+            btn.classList.toggle('active', val === delay);
+        });
+    }
+}
+
+function setGameKeyDelay(val) {
+    const num = Math.max(0, Math.min(500, parseInt(val, 10) || 0));
+    state.gameKeyDelay = num;
+    updateGameKeyDelayUI();
+    sendToAhk({ action: 'setGameKeyDelay', delay: num });
+    showToast('Game Key Delay', `Keystroke hold & pacing set to ${num} ms`);
 }
 
 

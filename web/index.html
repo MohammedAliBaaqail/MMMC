@@ -545,6 +545,17 @@
                                 </div>
                             </div>
 
+                            <!-- GAME COMPATIBILITY HOLD / PACING DELAY -->
+                            <div class="single-delay-card game-delay-row" id="singleGameDelayRow">
+                                <div class="single-delay-header">
+                                    <div class="delay-lbl-col">
+                                        <span class="delay-lbl">GAME KEY DELAY / HOLD DURATION</span>
+                                        <span class="delay-sub">Minimum hold duration for in-game frame capture</span>
+                                    </div>
+                                    <span class="ghub-delay-badge game-delay-badge" id="singleGameDelayPill" title="Click to adjust game key delay">20 ms</span>
+                                </div>
+                            </div>
+
                             <div class="mode-explain-text" id="singleExplainText">
                                 • Direct Passthrough: Holds button down while physically held, and releases on release (no repeating).
                             </div>
@@ -1476,6 +1487,30 @@
                                 <span class="pill-dot"></span>
                                 <span><svg class="svg-icon svg-icon-xs"><use href="#icon-pin"></use></svg> Always On Top</span>
                             </label>
+                        </div>
+                    </div>
+
+                    <!-- Tile 7: Game Compatibility & Keystroke Delay -->
+                    <div class="settings-card game-delay-tile" id="cardSettingsGameDelay">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon game-icon"><svg class="svg-icon"><use href="#icon-zap"></use></svg></div>
+                            <div class="settings-card-content">
+                                <div class="settings-card-title">Game Input & Keystroke Delay</div>
+                                <div class="settings-card-desc">Minimum hold duration and pacing for single keys and combinations. Prevents 60Hz/144Hz games from dropping rapid taps or chord keys.</div>
+                            </div>
+                        </div>
+                        <div class="settings-delay-controls">
+                            <div class="delay-input-group">
+                                <input type="number" id="inputGameKeyDelay" class="settings-delay-num" min="0" max="200" step="5" value="20">
+                                <span class="delay-unit">ms</span>
+                            </div>
+                            <div class="delay-preset-pills" id="gameDelayPresetPills">
+                                <button type="button" class="preset-pill" data-delay="0">0 ms (Instant)</button>
+                                <button type="button" class="preset-pill" data-delay="15">15 ms</button>
+                                <button type="button" class="preset-pill active" data-delay="20">20 ms (Default)</button>
+                                <button type="button" class="preset-pill" data-delay="35">35 ms</button>
+                                <button type="button" class="preset-pill" data-delay="50">50 ms (Safe)</button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -40,6 +40,14 @@ class WebViewGuiManager {
         this.Init()
     }
 
+    static Hide() {
+        if (this.MainGui != "" && WinExist(this.MainGui.Hwnd)) {
+            this.SaveWindowGeometry()
+            this.StopRecording()
+            this.MainGui.Hide()
+        }
+    }
+
     static Toggle() {
         if (this.MainGui != "" && WinExist(this.MainGui.Hwnd)) {
             if (DllCall("IsWindowVisible", "Ptr", this.MainGui.Hwnd)) {
@@ -494,6 +502,18 @@ class WebViewGuiManager {
                     OSD.Show("Test in Focus: " . (ProfileEngine.MuteWhenStudioFocused ? "ACTIVE" : "OFF"), ProfileEngine.MuteWhenStudioFocused ? "Buttons highlight without executing actions" : "Normal button actions active")
                 }
 
+            case "setGameKeyDelay":
+                delayVal := req.Has("delay") ? Integer(req["delay"]) : 20
+                if (delayVal < 0)
+                    delayVal := 0
+                if (delayVal > 500)
+                    delayVal := 500
+                ProfileEngine.GameKeyDelay := delayVal
+                IniWrite(ProfileEngine.GameKeyDelay, ProfileEngine.ConfigPath, "General", "GameKeyDelay")
+                this.PostMessage(Map("type", "gameKeyDelayChanged", "delay", ProfileEngine.GameKeyDelay))
+                if (OSD.Enabled)
+                    OSD.Show("Game Key Delay: " . ProfileEngine.GameKeyDelay . " ms", "Keystroke pacing for game compatibility")
+
             case "getRunningApps":
                 procs := ProfileEngine.GetRunningProcesses()
                 this.PostMessage(Map("type", "runningAppsList", "apps", procs))
@@ -844,6 +864,7 @@ class WebViewGuiManager {
                 "alwaysOnTop", this.IsAlwaysOnTop ? true : false,
                 "showOSD", OSD.Enabled ? true : false,
                 "muteWhenFocused", ProfileEngine.MuteWhenStudioFocused ? true : false,
+                "gameKeyDelay", ProfileEngine.GameKeyDelay,
                 "mappings", mappings,
                 "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport(),
                 "diagramPoints", diagPoints,
@@ -2243,6 +2264,10 @@ class WebViewGuiManager {
                 }
                 if (gen.Has("muteWhenFocused")) {
                     IniWrite(gen["muteWhenFocused"] ? "1" : "0", iniPath, "Settings", "MuteWhenFocused")
+                }
+                if (gen.Has("gameKeyDelay")) {
+                    IniWrite(String(gen["gameKeyDelay"]), iniPath, "General", "GameKeyDelay")
+                    ProfileEngine.GameKeyDelay := Integer(gen["gameKeyDelay"])
                 }
                 if (gen.Has("autoSwitch")) {
                     IniWrite(gen["autoSwitch"] ? "1" : "0", iniPath, "Profiles", "AutoSwitchEnabled")

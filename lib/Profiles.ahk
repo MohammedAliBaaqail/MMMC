@@ -49,6 +49,8 @@ class ProfileEngine {
     static ActiveSequences := Map()
     static PhysicalButtonStates := Map()
     static ActiveHeldButtons := Map()
+    static ActiveHeldPressTimes := Map()
+    static GameKeyDelay := 20
 
     ; Callback for GUI updates
     static OnProfileChanged := ""
@@ -102,6 +104,7 @@ class ProfileEngine {
             this.LockedProfile := IniRead(this.ConfigPath, "Profiles", "LockedProfile", "")
             OSD.Enabled := (IniRead(this.ConfigPath, "Settings", "ShowOSD", "1") = "1")
             this.MuteWhenStudioFocused := (IniRead(this.ConfigPath, "Settings", "MuteWhenFocused", "1") = "1")
+            this.GameKeyDelay := Integer(IniRead(this.ConfigPath, "General", "GameKeyDelay", "20"))
         }
 
         ; Load metadata for each profile
@@ -494,6 +497,7 @@ class ProfileEngine {
             try Send("{Blind}" . releaseCmd)
         }
         this.ActiveHeldButtons.Clear()
+        this.ActiveHeldPressTimes.Clear()
         if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
             try Send("{Blind}{LButton up}")
         if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
@@ -510,6 +514,7 @@ class ProfileEngine {
             try Send("{Blind}" . releaseCmd)
         }
         this.ActiveHeldButtons.Clear()
+        this.ActiveHeldPressTimes.Clear()
         if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
             try Send("{Blind}{LButton up}")
         if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
@@ -958,6 +963,8 @@ class ProfileEngine {
      * Triggered via global shortcut: Ctrl + Shift + F2
      * Disallows duplicates, system processes, or unrecognized applications.
      */
+    static CreateProfileFromActiveWindow() => this.CreateProfileFromFocusedWindow()
+
     static CreateProfileFromFocusedWindow() {
         activeHwnd := WinExist("A")
         if (!activeHwnd) {
@@ -1848,6 +1855,7 @@ class ProfileEngine {
             holdKey := this.GetHoldableKey(act.Cmd)
             if (holdKey != "") {
                 this.ActiveHeldButtons[btnId] := "{" . holdKey . " up}"
+                this.ActiveHeldPressTimes[btnId] := A_TickCount
                 Send("{Blind}{" . holdKey . " down}")
                 return
             }
@@ -1860,7 +1868,17 @@ class ProfileEngine {
                     && !InStr(k, "Volume_") && !InStr(k, "Media_")) {
                     if (StrLen(k) = 1 && !InStr(mods, "+"))
                         k := StrLower(k)
-                    this.ActiveHeldButtons[btnId] := "{" . k . " up}"
+                    relCmd := "{" . k . " up}"
+                    if (InStr(mods, "^"))
+                        relCmd .= "{Ctrl up}"
+                    if (InStr(mods, "!"))
+                        relCmd .= "{Alt up}"
+                    if (InStr(mods, "+"))
+                        relCmd .= "{Shift up}"
+                    if (InStr(mods, "#"))
+                        relCmd .= "{LWin up}"
+                    this.ActiveHeldButtons[btnId] := relCmd
+                    this.ActiveHeldPressTimes[btnId] := A_TickCount
                     Send("{Blind}" . mods . "{" . k . " down}")
                     return
                 }
@@ -1888,6 +1906,7 @@ class ProfileEngine {
                     else if (RegExMatch(act.Cmd, "^([!^#]+)", &modMatch))
                         modPrefix := modMatch[1]
                     this.ActiveHeldButtons[btnId] := upCmd
+                    this.ActiveHeldPressTimes[btnId] := A_TickCount
                     Send("{Blind}" . modPrefix . downCmd)
                     return
                 }
@@ -1900,6 +1919,17 @@ class ProfileEngine {
         if (this.ActiveHeldButtons.Has(btnId)) {
             releaseCmd := this.ActiveHeldButtons[btnId]
             this.ActiveHeldButtons.Delete(btnId)
+
+            ; Enforce minimum key hold duration (Game Key Delay) to prevent rapid taps from being missed by game engine ticks
+            if (this.ActiveHeldPressTimes.Has(btnId)) {
+                pressTime := this.ActiveHeldPressTimes[btnId]
+                this.ActiveHeldPressTimes.Delete(btnId)
+                elapsed := A_TickCount - pressTime
+                if (this.GameKeyDelay > 0 && elapsed < this.GameKeyDelay) {
+                    Sleep(this.GameKeyDelay - elapsed)
+                }
+            }
+
             if (!InStr(releaseCmd, "{"))
                 releaseCmd := "{" . releaseCmd . " up}"
             Send("{Blind}" . releaseCmd)
@@ -1937,7 +1967,15 @@ class ProfileEngine {
                 Send("{Blind}" . act.Cmd)
             } else {
                 cmd := this.NormalizeSendCmd(act.Cmd)
-                Send(cmd)
+                if (this.GameKeyDelay > 0) {
+                    ; Use SendEvent with SetKeyDelay to guarantee keys remain down across game engine frames
+                    ; Delay between sequential keystrokes = half of GameKeyDelay (min 10ms); PressDuration = GameKeyDelay
+                    interDelay := Max(10, this.GameKeyDelay // 2)
+                    SetKeyDelay(interDelay, this.GameKeyDelay)
+                    SendEvent(cmd)
+                } else {
+                    Send(cmd)
+                }
             }
         } else if (act.Type = "Macro") {
             if (act.HasOwnProp("Steps") && act.Steps.Length > 0) {
