@@ -11,6 +11,7 @@ LogError(thrown, mode) {
 }
 OnExit(OnScriptExit)
 OnScriptExit(ExitReason, ExitCode) {
+    try WebViewGuiManager.SaveWindowGeometry()
     try WebViewGuiManager.Cleanup()
     try GdipHelper.Shutdown()
     FileAppend(FormatTime(, "yyyy-MM-dd HH:mm:ss") . " | SCRIPT EXIT: Reason=" . ExitReason . ", Code=" . ExitCode . "`n", A_ScriptDir . "\webview_debug.log")
@@ -105,6 +106,7 @@ SwitchProfileFromTray(p) {
 }
 
 SaveAndExit() {
+    try WebViewGuiManager.SaveWindowGeometry()
     IniWrite(ProfileEngine.CurrentProfile, ConfigFile, "General", "DefaultProfile")
     ExitApp()
 }

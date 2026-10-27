@@ -6,13 +6,15 @@
     <title>My Mouse My Choice</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="../assets/app.png">
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="dark-theme layer-normal">
     <!-- Global SVG Icon Sprite (High-Quality Lucide Vectors) -->
     <svg style="display:none;" id="svgSpriteDefs" xmlns="http://www.w3.org/2000/svg">
         <defs>
+            <symbol id="icon-alert-triangle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
             <symbol id="icon-archive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1" /> <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /> <path d="M10 12h4" /></symbol>
             <symbol id="icon-arrow-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14" /> <path d="m19 12-7 7-7-7" /></symbol>
             <symbol id="icon-arrow-left-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4" /> <path d="M4 7h16" /> <path d="m16 21 4-4-4-4" /> <path d="M20 17H4" /></symbol>
@@ -46,6 +48,7 @@
             <symbol id="icon-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
             <symbol id="icon-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2" /> <line x1="8" x2="16" y1="21" y2="21" /> <line x1="12" x2="12" y1="17" y2="21" /></symbol>
             <symbol id="icon-mouse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="7" /> <path d="M12 6v4" /></symbol>
+            <symbol id="icon-move" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15" /><polyline points="9 5 12 2 15 5" /><polyline points="15 19 12 22 9 19" /><polyline points="19 9 22 12 19 15" /><line x1="2" y1="12" x2="22" y2="12" /><line x1="12" y1="2" x2="12" y2="22" /></symbol>
             <symbol id="icon-music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/> <circle cx="6" cy="18" r="3"/> <circle cx="18" cy="16" r="3"/></symbol>
             <symbol id="icon-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" /> <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" /> <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" /> <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" /> <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /></symbol>
             <symbol id="icon-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5" /> <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" /></symbol>
@@ -78,7 +81,6 @@
                 <img src="../assets/app.png" alt="My Mouse My Choice" class="brand-app-icon">
                 <div class="brand-titles">
                     <span class="brand-title">MY MOUSE MY CHOICE</span>
-                    <span class="brand-sub">CUSTOM MOUSE STUDIO // ADVANCED CONTROL</span>
                 </div>
             </div>
             
@@ -98,7 +100,7 @@
                 <button type="button" class="header-tool-toggle active" id="btnToggleOSD" title="On-Screen Notifications (OSD): Enabled" aria-label="Toggle On-Screen Notifications">
                     <svg class="svg-icon"><use href="#icon-bell"></use></svg>
                 </button>
-                <button type="button" class="header-tool-toggle" id="btnToggleAlwaysOnTop" title="Always on Top: Inactive (Click to pin window)" aria-label="Toggle Window Pinning">
+                <button type="button" class="header-tool-toggle pin-mode" id="btnToggleAlwaysOnTop" title="Always on Top: Inactive (Click to pin window)" aria-label="Toggle Window Pinning">
                     <svg class="svg-icon"><use href="#icon-pin"></use></svg>
                 </button>
                 <button type="button" class="header-tool-toggle test-mode active" id="btnToggleMuteWhenFocused" title="Focus Test Mode: Active (Clicks highlight diagram without executing macros)" aria-label="Toggle Focus Test Mode">
@@ -159,6 +161,12 @@
             </div>
         </div>
 
+        <!-- Fixed Default / Desktop Profile Slot (Outside other profiles container) -->
+        <div class="lgs-default-profile-slot" id="lgsDefaultProfileSlot"></div>
+
+        <!-- Vertical Divider Separator -->
+        <div class="lgs-profile-separator" id="lgsProfileSeparator" aria-hidden="true"></div>
+
         <!-- Center/Right: App Profiles Carousel / Strip -->
         <div class="lgs-carousel-wrap">
             <button class="lgs-scroll-btn left" id="btnScrollProfilesLeft" title="Scroll Left">‹</button>
@@ -196,6 +204,11 @@
             </div>
         </aside>
 
+        <!-- Vertical Resizer Handle for Command Catalog -->
+        <div class="sidebar-resizer" id="sidebarResizer" title="Drag to resize sidebar • Double-click to auto-fit text">
+            <div class="resizer-handle-pill"></div>
+        </div>
+
         <!-- Center Workspace: Interactive G502 X Mouse Stage -->
         <section class="mouse-stage" id="mouseStage">
             <div class="stage-toolbar">
@@ -209,13 +222,9 @@
                         <span class="btn-icon"><svg class="svg-icon"><use href="#icon-keyboard"></use></svg></span>
                         <span class="btn-text">Record / Customize</span>
                     </button>
-                    <button class="stage-btn secondary" id="btnResetSelected" title="Reset selected button to profile default">
+                    <button class="stage-btn secondary" id="btnResetSelected" title="Reset all button mappings in this profile to default (Requires confirmation)">
                         <span class="btn-icon"><svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg></span>
                         <span class="btn-text">Reset Default</span>
-                    </button>
-                    <button class="stage-btn settings-btn" id="btnOpenStudioSettings" title="Open Studio Settings, Calibration, Mouse Image, and Tools">
-                        <span class="btn-icon"><svg class="svg-icon"><use href="#icon-settings"></use></svg></span>
-                        <span class="btn-text">Settings</span>
                     </button>
                 </div>
             </div>
@@ -225,17 +234,49 @@
                 <div class="calib-header">
                     <div class="calib-title-wrap">
                         <span class="calib-badge"><svg class="svg-icon svg-icon-sm"><use href="#icon-crosshair"></use></svg> POINTER CALIBRATION MODE</span>
-                        <span class="calib-hint">Drag any target dot directly on the mouse • Or click to reposition • Fine-tune with Arrow keys</span>
+                        <div class="calib-mode-switcher" id="calibModeSwitcher">
+                            <button type="button" class="calib-mode-btn active" id="btnCalibModeSingle" title="Calibrate individual button hotspot dots and callout cards">
+                                <svg class="svg-icon"><use href="#icon-crosshair"></use></svg>
+                                <span>Single Target</span>
+                            </button>
+                            <button type="button" class="calib-mode-btn" id="btnCalibModeMoveAll" title="Move the entire mouse image, hotspot dots, and layout together in lockstep">
+                                <svg class="svg-icon"><use href="#icon-move"></use></svg>
+                                <span>Move Everything (With Image)</span>
+                            </button>
+                        </div>
+                        <span class="calib-hint" id="calibHintText">Drag any target dot directly on the mouse • Or click to reposition • Fine-tune with Arrow keys</span>
                     </div>
                     <div class="calib-header-actions">
-                        <button class="calib-btn save" id="btnSaveCalib" title="Save coordinates to settings.ini"><svg class="svg-icon"><use href="#icon-save"></use></svg> Save Calibration</button>
-                        <button class="calib-btn reset" id="btnResetSelectedCard" title="Reset selected button card position to default"><svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg> Reset Card</button>
-                        <button class="calib-btn reset" id="btnResetCalib" title="Reset all points to factory defaults"><svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg> Reset Defaults</button>
-                        <button class="calib-btn close" id="btnCloseCalib" title="Exit calibration mode"><svg class="svg-icon"><use href="#icon-x"></use></svg> Exit</button>
+                        <button class="calib-btn save" id="btnSaveCalib" title="Save coordinates to settings.ini"><svg class="svg-icon"><use href="#icon-save"></use></svg><span>Save Calibration</span></button>
+                        <button class="calib-btn reset" id="btnResetSelectedCard" title="Reset selected button card position to default"><svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg><span>Reset Card</span></button>
+                        <button class="calib-btn reset" id="btnResetCalib" title="Reset all points to factory defaults"><svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg><span>Reset Defaults</span></button>
+                        <button class="calib-btn close" id="btnCloseCalib" title="Exit calibration mode"><svg class="svg-icon"><use href="#icon-x"></use></svg><span>Exit</span></button>
                     </div>
                 </div>
 
-                <div class="calib-body">
+                <!-- Move Everything Sub-Bar (Active when Move Everything mode is selected) -->
+                <div class="calib-move-all-bar" id="calibMoveAllBar" style="display: none;">
+                    <div class="calib-sub-group">
+                        <span class="calib-sub-title"><svg class="svg-icon"><use href="#icon-move"></use></svg> Move Everything:</span>
+                        <span class="calib-sub-desc">Drag mouse visual or stage canvas to move everything together • Or use Arrow keys (Shift for 5x)</span>
+                    </div>
+                    <div class="calib-sub-options">
+                        <label class="calib-checkbox-label" title="When checked, callout cards shift together with the mouse image and pointers">
+                            <input type="checkbox" id="chkCalibMoveCards" checked>
+                            <span>Include Callout Cards</span>
+                        </label>
+                        <div class="calib-offset-badge" id="calibOffsetBadge" title="Current mouse image translation offset">
+                            <span class="offset-label">Offset:</span>
+                            <span class="offset-val" id="calibOffsetVal">X: 0px, Y: 0px</span>
+                        </div>
+                        <button type="button" class="calib-btn reset sm" id="btnResetMouseOffset" title="Reset mouse image and points position to center (0, 0)">
+                            <svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg>
+                            <span>Reset Position</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="calib-body" id="calibBodySingle">
                     <!-- Button Selection Pills -->
                     <div class="calib-pills-bar" id="calibPillsBar">
                         <!-- Populated dynamically via JS: G8, G7, DPI Shift, Forward, Back, Tilt Left, etc. -->
@@ -282,329 +323,548 @@
         </section>
     </main>
 
-    <!-- BUTTON STUDIO MODAL (Single / Combo & Macro Recorder) -->
-    <div class="modal-backdrop" id="studioModal">
-        <div class="modal-dialog">
-            <div class="modal-header">
-                <div class="modal-header-titles">
-                    <span class="modal-title" id="modalTargetTitle">BUTTON STUDIO — G8</span>
-                    <span class="modal-subtitle" id="modalTargetMeta">Profile: Desktop • Layer: Default</span>
-                </div>
-                <button class="modal-close-btn" id="btnModalClose"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
-            </div>
-
-            <!-- Modal Dual Mode Tabs -->
-            <div class="modal-tabs">
-                <button class="modal-tab active" id="tabBtnSingle" data-tab="single">
-                    <svg class="svg-icon"><use href="#icon-keyboard"></use></svg> Single / Keystroke Combination
-                </button>
-                <button class="modal-tab" id="tabBtnMacro" data-tab="macro">
-                    <svg class="svg-icon"><use href="#icon-layers"></use></svg> Macro Recorder
-                </button>
-            </div>
-
-            <!-- Tab 1: Single / Combination of Buttons -->
-            <div class="modal-tab-content active" id="tabContentSingle">
-                <!-- Hidden inputs for backward compatibility -->
-                <select id="singlePlaybackMode" style="display:none;">
-                    <option value="NoRepeat">No Repeat</option>
-                    <option value="RepeatWhileHolding">Repeat While Holding</option>
-                    <option value="Toggle">Toggle</option>
-                </select>
-                <input type="number" id="singleRepeatDelay" value="50" min="5" max="10000" style="display:none;">
-
-                <!-- Tab 1 Topbar: Playback Mode (Matches Macro Section) -->
-                <div class="single-topbar">
-                    <div class="single-topbar-left">
-                        <span class="ghub-types-label">PLAYBACK MODE</span>
-                        <div class="ghub-types-group" id="singleTypesGroup">
-                            <button type="button" class="ghub-type-btn active" data-type="NoRepeat" data-title="No Repeat" id="btnSingleTypeNoRepeat" title="No Repeat (Plays once / holds while physically held)">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="4" y1="12" x2="20" y2="12"></line>
-                                    <polyline points="13 5 20 12 13 19"></polyline>
-                                </svg>
-                                <div class="ghub-tooltip-badge" id="singleTypeTooltipBadge">No Repeat</div>
-                            </button>
-                            <button type="button" class="ghub-type-btn" data-type="RepeatWhileHolding" data-title="Repeat While Holding" id="btnSingleTypeRepeat" title="Repeat While Holding">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21.5 2v6h-6"></path>
-                                    <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-1.19"></path>
-                                </svg>
-                            </button>
-                            <button type="button" class="ghub-type-btn" data-type="Toggle" data-title="Toggle" id="btnSingleTypeToggle" title="Toggle (Toggle loop on press)">
-                                <svg width="22" height="16" viewBox="0 0 28 18" fill="none">
-                                    <rect x="1.5" y="1.5" width="25" height="15" rx="7.5" stroke="currentColor" stroke-width="2.2"/>
-                                    <circle cx="8.5" cy="9" r="4" fill="currentColor"/>
-                                </svg>
-                            </button>
+    <!-- BUTTON STUDIO (Full-Page Expansive Workstation) -->
+    <div class="modal-backdrop studio-fullpage-backdrop" id="studioModal">
+        <div class="modal-dialog studio-fullpage-dialog">
+            <!-- Studio Full-Page Header (Top Row: Back, Title, Actions) -->
+            <div class="modal-header studio-fullpage-header">
+                <div class="studio-header-left">
+                    <button type="button" class="studio-nav-back-btn" id="btnModalClose" title="Return to Mouse Overview (Esc)">
+                        <svg class="svg-icon"><use href="#icon-arrow-left"></use></svg>
+                        <span>BACK TO MOUSE</span>
+                    </button>
+                    <div class="studio-header-divider"></div>
+                    <div class="modal-header-titles">
+                        <div class="studio-title-badge-row">
+                            <span class="studio-title-tag">BUTTON STUDIO</span>
+                            <span class="modal-title studio-target-pill" id="modalTargetTitle">BUTTON STUDIO — G8</span>
                         </div>
-                    </div>
-
-                    <div class="single-topbar-right">
-                        <!-- REPEAT / TOGGLE ACTIVATION DELAY (Matches Macro Section) -->
-                        <div class="ghub-setting-row" id="singleRepeatDelayRow" style="display: none;">
-                            <div class="ghub-repeat-delay-header">
-                                <span class="ghub-chk-text repeat-label">DELAY BETWEEN ACTIVATIONS</span>
-                                <span class="ghub-delay-badge repeat-badge" id="singleRepeatDelayPill" title="Click to edit delay between activations">50 ms</span>
-                            </div>
-                            <div class="ghub-setting-sub">Delay between each activation (repeat & toggle)</div>
-                        </div>
-
-
+                        <span class="modal-subtitle" id="modalTargetMeta">Profile: Desktop • Layer: Default</span>
                     </div>
                 </div>
 
-                <div class="mode-explain-text" id="singleExplainText">
-                    • Direct Passthrough: Holds button down while physically held, and releases on release (no repeating).
-                </div>
-
-                <!-- Live Keystroke Preview Box -->
-                <div class="keystroke-preview-box" id="singlePreviewBox">
-                    <div class="preview-inner" id="singlePreviewText">[ Press Any Key or Click Mouse Button Below ]</div>
-                </div>
-
-                <div class="preview-hint">
-                    Press any key or combination (e.g. Q, Enter, Ctrl + C, Shift + G + Enter).
-                </div>
-
-                <div class="recorder-actions-row">
-                    <button type="button" class="action-pill primary" id="btnRecordKeyToggle" tabindex="-1">
-                        <span class="rec-dot"></span> <span id="recordKeyBtnText">● Record Key</span>
-                    </button>
-                    <button type="button" class="action-pill secondary" id="btnClearRecordedKey" tabindex="-1">
-                        <svg class="svg-icon"><use href="#icon-trash-2"></use></svg> Clear Key
-                    </button>
-                    <button type="button" class="action-pill accent" id="btnAssignBShiftStudio" tabindex="-1">
-                        <svg class="svg-icon"><use href="#icon-zap"></use></svg> Assign B-Shift
-                    </button>
-                </div>
-
-                <!-- Mouse Button Injection Section -->
-                <div class="mouse-injection-section">
-                    <div class="injection-header">
-                        <span class="injection-title">INJECT MOUSE BUTTON</span>
-                        <span class="injection-sub">Click to inject into recording (supports keys like S / Ctrl / Shift / Alt held on keyboard)</span>
-                    </div>
-                    <div class="injection-btn-row">
-                        <button type="button" class="mouse-inject-btn" id="btnInjectLClick" data-mouse="LButton" tabindex="-1" title="Inject Left Click into recording">
-                            <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
-                                <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
-                                <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.2"/>
-                                <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
-                                <rect x="8.5" y="3.5" width="3" height="5" rx="1.5" fill="rgba(255, 255, 255, 0.1)" stroke="rgba(255, 255, 255, 0.25)" stroke-width="0.9"/>
-                            </svg>
-                            <span>Left Click</span>
-                        </button>
-                        <button type="button" class="mouse-inject-btn" id="btnInjectMClick" data-mouse="MButton" tabindex="-1" title="Inject Middle Click into recording">
-                            <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
-                                <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
-                                <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
-                                <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
-                                <rect x="8" y="3" width="4" height="6.5" rx="2" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.2"/>
-                            </svg>
-                            <span>Middle Click</span>
-                        </button>
-                        <button type="button" class="mouse-inject-btn" id="btnInjectRClick" data-mouse="RButton" tabindex="-1" title="Inject Right Click into recording">
-                            <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
-                                <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
-                                <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
-                                <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.2"/>
-                                <rect x="8.5" y="3.5" width="3" height="5" rx="1.5" fill="rgba(255, 255, 255, 0.1)" stroke="rgba(255, 255, 255, 0.25)" stroke-width="0.9"/>
-                            </svg>
-                            <span>Right Click</span>
-                        </button>
-                        <button type="button" class="mouse-inject-btn" id="btnInjectDClick" data-mouse="DoubleClick" tabindex="-1" title="Inject Double Click into recording">
-                            <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
-                                <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
-                                <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.2"/>
-                                <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
-                                <circle cx="10" cy="18" r="2.5" fill="var(--accent-cyan, #00d2ff)"/>
-                            </svg>
-                            <span>Double Click</span>
-                        </button>
-                    </div>
+                <!-- Studio Quick Actions (Right) -->
+                <div class="studio-header-right">
+                    <button type="button" class="studio-header-btn secondary" id="btnHeaderCancel">Cancel</button>
+                    <button type="button" class="studio-header-btn primary" id="btnHeaderSave"><svg class="svg-icon"><use href="#icon-check"></use></svg> Save & Apply</button>
                 </div>
             </div>
 
-            <!-- Tab 2: Macro Recorder (Logitech G HUB Inspired UI) -->
-            <div class="modal-tab-content ghub-macro-wrapper" id="tabContentMacro">
-                <!-- Hidden inputs for backward compatibility -->
-                <select id="macroPlaybackMode" style="display:none;">
-                    <option value="NoRepeat">No Repeat</option>
-                    <option value="RepeatWhileHolding">Repeat While Holding</option>
-                    <option value="Toggle">Toggle</option>
-                    <option value="Sequence">Sequence</option>
-                </select>
-                <input type="number" id="macroDefDelay" value="50" min="5" max="5000" style="display:none;">
-                <input type="number" id="macroRepeatDelay" value="50" min="5" max="10000" style="display:none;">
+            <!-- Studio Navigation Bar (Separate Line for Mode Switcher Tabs) -->
+            <div class="studio-nav-tabs-bar">
+                <div class="modal-tabs studio-segmented-tabs">
+                    <button type="button" class="modal-tab active" id="tabBtnSingle" data-tab="single">
+                        <svg class="svg-icon"><use href="#icon-keyboard"></use></svg> <span>Single / Combination</span>
+                    </button>
+                    <button type="button" class="modal-tab" id="tabBtnMacro" data-tab="macro">
+                        <svg class="svg-icon"><use href="#icon-layers"></use></svg> <span>Macro Recorder</span>
+                    </button>
+                    <button type="button" class="modal-tab" id="tabBtnText" data-tab="text">
+                        <svg class="svg-icon"><use href="#icon-file-text"></use></svg> <span>Insert Text Block</span>
+                    </button>
+                </div>
+            </div>
 
-                <!-- G HUB TOP BAR -->
-                <div class="ghub-topbar">
-                    <div class="ghub-topbar-left">
-                        <div class="ghub-title-row">
-                            <input type="text" id="macroNameInput" class="ghub-macro-name-input" value="alt + left clk" spellcheck="false" placeholder="Macro Name" autocomplete="off">
+            <!-- Studio Full-Page Content Scroll Container -->
+            <div class="studio-fullpage-scroll">
+                <!-- Tab 1: Single / Combination of Buttons -->
+                <div class="modal-tab-content active studio-tab-pane" id="tabContentSingle">
+                    <!-- Hidden inputs for backward compatibility -->
+                    <select id="singlePlaybackMode" style="display:none;">
+                        <option value="NoRepeat">No Repeat</option>
+                        <option value="RepeatWhileHolding">Repeat While Holding</option>
+                        <option value="Toggle">Toggle</option>
+                    </select>
+                    <input type="number" id="singleRepeatDelay" value="50" min="5" max="10000" style="display:none;">
+
+                    <div class="studio-single-grid">
+                        <!-- Left Panel: Recording & Mouse Injections -->
+                        <div class="studio-panel-card hero-recorder-card">
+                            <div class="studio-card-header">
+                                <div class="studio-card-title-group">
+                                    <span class="studio-card-tag">ACTIVE BINDING</span>
+                                    <h3 class="studio-card-title">Keystroke Recording</h3>
+                                </div>
+                                <div class="recorder-live-pill" id="singleRecordStatusBadge">
+                                    <span class="live-dot"></span>
+                                    <span id="singleStatusText">READY</span>
+                                </div>
+                            </div>
+
+                            <!-- Live Keystroke Preview Box -->
+                            <div class="keystroke-preview-box" id="singlePreviewBox" title="Click to begin recording keyboard keystroke">
+                                <div class="preview-inner" id="singlePreviewText">[ Press Any Key or Click Mouse Button Below ]</div>
+                            </div>
+
+                            <div class="recorder-actions-row">
+                                <button type="button" class="action-pill primary" id="btnRecordKeyToggle" tabindex="-1">
+                                    <span class="rec-dot"></span> <span id="recordKeyBtnText">● Record Key</span>
+                                </button>
+                                <button type="button" class="action-pill secondary" id="btnClearRecordedKey" tabindex="-1">
+                                    <svg class="svg-icon"><use href="#icon-trash-2"></use></svg> Clear Key
+                                </button>
+                                <button type="button" class="action-pill accent" id="btnAssignBShiftStudio" tabindex="-1">
+                                    <svg class="svg-icon"><use href="#icon-zap"></use></svg> Assign B-Shift
+                                </button>
+                            </div>
+
+                            <div class="preview-hint">
+                                <svg class="svg-icon svg-icon-xs"><use href="#icon-alert-triangle"></use></svg>
+                                <span>Press any key or combination on your keyboard (e.g. Q, Enter, Ctrl + C, Shift + G, Alt + Tab).</span>
+                            </div>
+
+                            <!-- Mouse Button Injection Deck -->
+                            <div class="mouse-injection-section">
+                                <div class="injection-header">
+                                    <span class="injection-title">INJECT MOUSE BUTTON</span>
+                                    <span class="injection-sub">Click to inject into combination (supports keys held on keyboard)</span>
+                                </div>
+                                <div class="injection-btn-row">
+                                    <button type="button" class="mouse-inject-btn" id="btnInjectLClick" data-mouse="LButton" tabindex="-1" title="Inject Left Click into recording">
+                                        <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
+                                            <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
+                                            <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.2"/>
+                                            <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                            <rect x="8.5" y="3.5" width="3" height="5" rx="1.5" fill="rgba(255, 255, 255, 0.1)" stroke="rgba(255, 255, 255, 0.25)" stroke-width="0.9"/>
+                                        </svg>
+                                        <span>Left Click</span>
+                                    </button>
+                                    <button type="button" class="mouse-inject-btn" id="btnInjectMClick" data-mouse="MButton" tabindex="-1" title="Inject Middle Click into recording">
+                                        <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
+                                            <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
+                                            <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                            <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                            <rect x="8" y="3" width="4" height="6.5" rx="2" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.2"/>
+                                        </svg>
+                                        <span>Middle Click</span>
+                                    </button>
+                                    <button type="button" class="mouse-inject-btn" id="btnInjectRClick" data-mouse="RButton" tabindex="-1" title="Inject Right Click into recording">
+                                        <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
+                                            <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
+                                            <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                            <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.2"/>
+                                            <rect x="8.5" y="3.5" width="3" height="5" rx="1.5" fill="rgba(255, 255, 255, 0.1)" stroke="rgba(255, 255, 255, 0.25)" stroke-width="0.9"/>
+                                        </svg>
+                                        <span>Right Click</span>
+                                    </button>
+                                    <button type="button" class="mouse-inject-btn" id="btnInjectWheelUp" data-mouse="WheelUp" tabindex="-1" title="Inject Scroll Wheel Up into recording">
+                                        <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
+                                            <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
+                                            <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                            <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                            <rect x="8" y="5" width="4" height="6.5" rx="2" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1"/>
+                                            <path d="M 7.5 16 L 10 13.5 L 12.5 16" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <path d="M 7.5 19.5 L 10 17 L 12.5 19.5" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+                                        </svg>
+                                        <span>Scroll Up</span>
+                                    </button>
+                                    <button type="button" class="mouse-inject-btn" id="btnInjectWheelDown" data-mouse="WheelDown" tabindex="-1" title="Inject Scroll Wheel Down into recording">
+                                        <svg class="mouse-svg-icon" width="16" height="22" viewBox="0 0 20 26" fill="none">
+                                            <path d="M 10 1 C 4.5 1 1 5 1 11 L 1 16 C 1 21.5 4.5 25 10 25 C 15.5 25 19 21.5 19 16 L 19 11 C 19 5 15.5 1 10 1 Z" fill="#101320" stroke="rgba(255, 255, 255, 0.28)" stroke-width="1.6"/>
+                                            <path d="M 9.2 1.6 C 5.2 1.9 1.8 5.2 1.8 9.5 L 9.2 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                            <path d="M 10.8 1.6 C 14.8 1.9 18.2 5.2 18.2 9.5 L 10.8 9.5 Z" fill="rgba(255, 255, 255, 0.04)" stroke="rgba(255, 255, 255, 0.18)" stroke-width="1.1"/>
+                                            <rect x="8" y="5" width="4" height="6.5" rx="2" fill="var(--accent-cyan, #00d2ff)" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1"/>
+                                            <path d="M 7.5 14 L 10 16.5 L 12.5 14" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+                                            <path d="M 7.5 17.5 L 10 20 L 12.5 17.5" stroke="var(--accent-cyan, #00d2ff)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        <span>Scroll Down</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="ghub-types-row">
-                            <span class="ghub-types-label">Macro types</span>
-                            <div class="ghub-types-group" id="ghubTypesGroup">
-                                <button type="button" class="ghub-type-btn" data-type="NoRepeat" data-title="No Repeat" id="btnMacroTypeNoRepeat" title="No Repeat (Plays once)">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-                                        <line x1="4" y1="12" x2="20" y2="12"></line>
-                                        <polyline points="13 5 20 12 13 19"></polyline>
-                                    </svg>
-                                </button>
-                                <button type="button" class="ghub-type-btn" data-type="RepeatWhileHolding" data-title="Repeat While Holding" id="btnMacroTypeRepeat" title="Repeat While Holding">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M21.5 2v6h-6"></path>
-                                        <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-1.19"></path>
-                                    </svg>
-                                </button>
-                                <button type="button" class="ghub-type-btn" data-type="Toggle" data-title="Toggle" id="btnMacroTypeToggle" title="Toggle (Toggle loop on press)">
-                                    <svg width="22" height="16" viewBox="0 0 28 18" fill="none">
-                                        <rect x="1.5" y="1.5" width="25" height="15" rx="7.5" stroke="currentColor" stroke-width="2.2"/>
-                                        <circle cx="8.5" cy="9" r="4" fill="currentColor"/>
-                                    </svg>
-                                </button>
-                                <button type="button" class="ghub-type-btn active" data-type="Sequence" data-title="Sequence" id="btnMacroTypeSequence" title="Sequence (On Press, While Holding, On Release)">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="7" y="7" width="13" height="13" rx="2"></rect>
-                                        <path d="M4 17V5a2 2 0 0 1 2-2h12"></path>
-                                    </svg>
-                                    <div class="ghub-tooltip-badge" id="ghubTypeTooltipBadge">Sequence</div>
-                                </button>
+
+                        <!-- Right Panel: Playback Mode & Timing Options -->
+                        <div class="studio-panel-card behavior-card">
+                            <div class="studio-card-header">
+                                <div class="studio-card-title-group">
+                                    <span class="studio-card-tag">TRIGGER LOGIC</span>
+                                    <h3 class="studio-card-title">Playback Mode</h3>
+                                </div>
+                            </div>
+
+                            <div class="single-modes-stack">
+                                <div class="ghub-types-group single-types-stack" id="singleTypesGroup">
+                                    <button type="button" class="single-mode-card-btn active" data-type="NoRepeat" data-title="No Repeat" id="btnSingleTypeNoRepeat">
+                                        <div class="mode-icon-box">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="4" y1="12" x2="20" y2="12"></line>
+                                                <polyline points="13 5 20 12 13 19"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div class="mode-meta">
+                                            <div class="mode-title-row">
+                                                <span class="mode-title">No Repeat</span>
+                                                <span class="mode-tag">Default</span>
+                                            </div>
+                                            <span class="mode-desc">Direct Passthrough. Key is held down while physically held, and released on release.</span>
+                                        </div>
+                                        <div class="ghub-tooltip-badge" id="singleTypeTooltipBadge">No Repeat</div>
+                                    </button>
+
+                                    <button type="button" class="single-mode-card-btn" data-type="RepeatWhileHolding" data-title="Repeat While Holding" id="btnSingleTypeRepeat">
+                                        <div class="mode-icon-box">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21.5 2v6h-6"></path>
+                                                <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-1.19"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="mode-meta">
+                                            <div class="mode-title-row">
+                                                <span class="mode-title">Repeat While Holding</span>
+                                                <span class="mode-tag accent">Rapid</span>
+                                            </div>
+                                            <span class="mode-desc">Repeatedly fires the combination while holding down the mouse button.</span>
+                                        </div>
+                                    </button>
+
+                                    <button type="button" class="single-mode-card-btn" data-type="Toggle" data-title="Toggle" id="btnSingleTypeToggle">
+                                        <div class="mode-icon-box">
+                                            <svg width="24" height="18" viewBox="0 0 28 18" fill="none">
+                                                <rect x="1.5" y="1.5" width="25" height="15" rx="7.5" stroke="currentColor" stroke-width="2.2"/>
+                                                <circle cx="8.5" cy="9" r="4" fill="currentColor"/>
+                                            </svg>
+                                        </div>
+                                        <div class="mode-meta">
+                                            <div class="mode-title-row">
+                                                <span class="mode-title">Toggle (Loop)</span>
+                                                <span class="mode-tag warning">Continuous</span>
+                                            </div>
+                                            <span class="mode-desc">Press once to start repeating continuously; press again to stop.</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- REPEAT / TOGGLE ACTIVATION DELAY -->
+                            <div class="single-delay-card" id="singleRepeatDelayRow" style="display: none;">
+                                <div class="single-delay-header">
+                                    <div class="delay-lbl-col">
+                                        <span class="delay-lbl">DELAY BETWEEN ACTIVATIONS</span>
+                                        <span class="delay-sub">Speed of rapid-fire loop</span>
+                                    </div>
+                                    <span class="ghub-delay-badge repeat-badge" id="singleRepeatDelayPill" title="Click to edit delay between activations">50 ms</span>
+                                </div>
+                            </div>
+
+                            <div class="mode-explain-text" id="singleExplainText">
+                                • Direct Passthrough: Holds button down while physically held, and releases on release (no repeating).
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="ghub-topbar-right">
-                        <!-- USE STANDARD DELAYS -->
-                        <div class="ghub-setting-row">
-                            <label class="ghub-chk-container">
-                                <input type="checkbox" id="chkUseStandardDelays" checked>
-                                <span class="ghub-chk-box"></span>
-                                <span class="ghub-chk-text">USE STANDARD DELAYS</span>
-                            </label>
-                            <span class="ghub-delay-badge" id="ghubDelayPill" title="Click to edit standard delay between actions">50 ms</span>
-                            <div class="ghub-setting-sub">Currently using a standard delay between actions</div>
-                        </div>
+                <!-- Tab 2: Macro Recorder (Logitech G HUB Inspired Full-Page UI) -->
+                <div class="modal-tab-content ghub-macro-wrapper studio-tab-pane" id="tabContentMacro">
+                    <!-- Hidden inputs for backward compatibility -->
+                    <select id="macroPlaybackMode" style="display:none;">
+                        <option value="NoRepeat">No Repeat</option>
+                        <option value="RepeatWhileHolding">Repeat While Holding</option>
+                        <option value="Toggle">Toggle</option>
+                        <option value="Sequence">Sequence</option>
+                    </select>
+                    <input type="number" id="macroDefDelay" value="50" min="5" max="5000" style="display:none;">
+                    <input type="number" id="macroRepeatDelay" value="50" min="5" max="10000" style="display:none;">
 
-                        <!-- DELAY BETWEEN MACRO ACTIVATIONS (For Repeat & Toggle) -->
-                        <div class="ghub-setting-row" id="ghubRepeatDelayRow" style="display: none;">
-                            <div class="ghub-repeat-delay-header">
-                                <span class="ghub-chk-text repeat-label">DELAY BETWEEN ACTIVATIONS</span>
-                                <span class="ghub-delay-badge repeat-badge" id="ghubRepeatDelayPill" title="Click to edit delay between each macro activation">50 ms</span>
+                    <div class="studio-macro-grid">
+                        <!-- Left Column: Macro Flow Workspace -->
+                        <div class="studio-panel-card macro-timeline-card">
+                            <div class="studio-card-header">
+                                <div class="studio-card-title-group">
+                                    <span class="studio-card-tag">SEQUENCE TIMELINE</span>
+                                    <h3 class="studio-card-title">Macro Flow</h3>
+                                </div>
                             </div>
-                            <div class="ghub-setting-sub">Delay between each macro activation (repeat & toggle)</div>
+
+                            <div class="macro-name-wrap">
+                                <label class="macro-name-label" for="macroNameInput">MACRO NAME</label>
+                                <input type="text" id="macroNameInput" class="ghub-macro-name-input" value="Macro 1" spellcheck="false" placeholder="Enter macro name..." autocomplete="off">
+                            </div>
+
+                            <!-- LIVE RECORDING NOTIFICATION BANNER -->
+                            <div class="ghub-recording-banner" id="ghubRecordingBanner" style="display: none;">
+                                <div class="ghub-rec-pulse-dot"></div>
+                                <span class="ghub-rec-text">RECORDING IN PROGRESS — Press keys or mouse buttons to record into <strong id="ghubRecTargetSection">ON PRESS</strong></span>
+                                <button type="button" class="ghub-rec-stop-btn" id="btnGhubStopRec"><svg class="svg-icon"><use href="#icon-square"></use></svg> STOP RECORDING</button>
+                            </div>
+
+                            <!-- MAIN WORKSPACE FLOW SECTIONS -->
+                            <div class="ghub-workspace" id="ghubWorkspace">
+                                <!-- Section: ON PRESS -->
+                                <div class="ghub-flow-section" id="ghubSecPress" data-section="press">
+                                    <div class="ghub-flow-header">
+                                        <span class="ghub-flow-title" id="ghubPressTitle">ON PRESS</span>
+                                        <span class="ghub-flow-count" id="ghubPressCount"></span>
+                                    </div>
+                                    <div class="ghub-flow-track" id="ghubTrackPress">
+                                        <!-- Populated dynamically: step blocks and [+] button -->
+                                    </div>
+                                </div>
+
+                                <!-- Section: WHILE HOLDING -->
+                                <div class="ghub-flow-section" id="ghubSecHold" data-section="hold">
+                                    <div class="ghub-flow-header">
+                                        <span class="ghub-flow-title">WHILE HOLDING</span>
+                                        <span class="ghub-flow-count" id="ghubHoldCount"></span>
+                                    </div>
+                                    <div class="ghub-flow-track" id="ghubTrackHold">
+                                        <!-- Populated dynamically -->
+                                    </div>
+                                </div>
+
+                                <!-- Section: ON RELEASE -->
+                                <div class="ghub-flow-section" id="ghubSecRelease" data-section="release">
+                                    <div class="ghub-flow-header">
+                                        <span class="ghub-flow-title">ON RELEASE</span>
+                                        <span class="ghub-flow-count" id="ghubReleaseCount"></span>
+                                    </div>
+                                    <div class="ghub-flow-track" id="ghubTrackRelease">
+                                        <!-- Populated dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- MACRO TIMING & BEHAVIOR SETTINGS DECK (MOVED TO LEFT SIDE BOTTOM) -->
+                            <div class="macro-settings-deck">
+                                <div class="macro-setting-card">
+                                    <div class="macro-setting-header">
+                                        <label class="ghub-chk-container" for="chkUseStandardDelays">
+                                            <input type="checkbox" id="chkUseStandardDelays" checked>
+                                            <span class="ghub-chk-box"></span>
+                                            <div class="macro-setting-text-col">
+                                                <span class="ghub-chk-text">USE STANDARD DELAYS</span>
+                                                <span class="macro-setting-sub">Fixed delay between actions</span>
+                                            </div>
+                                        </label>
+                                        <span class="ghub-delay-badge" id="ghubDelayPill" title="Click to edit standard delay between actions">50 ms</span>
+                                    </div>
+                                </div>
+
+                                <div class="macro-setting-card">
+                                    <label class="ghub-chk-container" for="chkShowUpDown">
+                                        <input type="checkbox" id="chkShowUpDown" checked>
+                                        <span class="ghub-chk-box"></span>
+                                        <div class="macro-setting-text-col">
+                                            <span class="ghub-chk-text">SHOW KEY DOWN / KEY UP</span>
+                                            <span class="macro-setting-sub">Display separate press and release blocks</span>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div class="macro-setting-card">
+                                    <label class="ghub-chk-container" for="chkAutoAdaptDirection">
+                                        <input type="checkbox" id="chkAutoAdaptDirection">
+                                        <span class="ghub-chk-box"></span>
+                                        <div class="macro-setting-text-col">
+                                            <span class="ghub-chk-text">SMART DIRECTION ADAPTATION</span>
+                                            <span class="macro-setting-sub">Auto flip Down/Up when dragging between sections</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Hidden summary line for state compatibility -->
+                            <div id="macroSummaryLine" style="display:none;"></div>
                         </div>
 
-                        <!-- SHOW KEY DOWN/KEY UP -->
-                        <div class="ghub-setting-row">
-                            <label class="ghub-chk-container">
-                                <input type="checkbox" id="chkShowUpDown" checked>
-                                <span class="ghub-chk-box"></span>
-                                <span class="ghub-chk-text">SHOW KEY DOWN/KEY UP</span>
-                            </label>
+                        <!-- Right Column: Trigger Logic & Settings (MATCHING SINGLE COMBINATION) -->
+                        <div class="studio-panel-card behavior-card macro-behavior-card">
+                            <div class="studio-card-header">
+                                <div class="studio-card-title-group">
+                                    <span class="studio-card-tag">TRIGGER LOGIC</span>
+                                    <h3 class="studio-card-title">Playback Mode</h3>
+                                </div>
+                            </div>
+
+                            <div class="single-modes-stack">
+                                <div class="ghub-types-group single-types-stack" id="ghubTypesGroup">
+                                    <button type="button" class="single-mode-card-btn ghub-type-btn" data-type="NoRepeat" data-title="No Repeat" id="btnMacroTypeNoRepeat">
+                                        <div class="mode-icon-box">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="4" y1="12" x2="20" y2="12"></line>
+                                                <polyline points="13 5 20 12 13 19"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div class="mode-meta">
+                                            <div class="mode-title-row">
+                                                <span class="mode-title">No Repeat</span>
+                                                <span class="mode-tag">Default</span>
+                                            </div>
+                                            <span class="mode-desc">Plays through the macro sequence once when triggered.</span>
+                                        </div>
+                                    </button>
+
+                                    <button type="button" class="single-mode-card-btn ghub-type-btn" data-type="RepeatWhileHolding" data-title="Repeat While Holding" id="btnMacroTypeRepeat">
+                                        <div class="mode-icon-box">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21.5 2v6h-6"></path>
+                                                <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-1.19"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="mode-meta">
+                                            <div class="mode-title-row">
+                                                <span class="mode-title">Repeat While Holding</span>
+                                                <span class="mode-tag accent">Rapid</span>
+                                            </div>
+                                            <span class="mode-desc">Repeats the macro sequence continuously while holding down the mouse button.</span>
+                                        </div>
+                                    </button>
+
+                                    <button type="button" class="single-mode-card-btn ghub-type-btn" data-type="Toggle" data-title="Toggle" id="btnMacroTypeToggle">
+                                        <div class="mode-icon-box">
+                                            <svg width="24" height="18" viewBox="0 0 28 18" fill="none">
+                                                <rect x="1.5" y="1.5" width="25" height="15" rx="7.5" stroke="currentColor" stroke-width="2.2"/>
+                                                <circle cx="8.5" cy="9" r="4" fill="currentColor"/>
+                                            </svg>
+                                        </div>
+                                        <div class="mode-meta">
+                                            <div class="mode-title-row">
+                                                <span class="mode-title">Toggle (Loop)</span>
+                                                <span class="mode-tag warning">Continuous</span>
+                                            </div>
+                                            <span class="mode-desc">Press once to start repeating indefinitely; press again to stop.</span>
+                                        </div>
+                                    </button>
+
+                                    <button type="button" class="single-mode-card-btn ghub-type-btn active" data-type="Sequence" data-title="Sequence" id="btnMacroTypeSequence">
+                                        <div class="mode-icon-box">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="7" y="7" width="13" height="13" rx="2"></rect>
+                                                <path d="M4 17V5a2 2 0 0 1 2-2h12"></path>
+                                            </svg>
+                                        </div>
+                                        <div class="mode-meta">
+                                            <div class="mode-title-row">
+                                                <span class="mode-title">Sequence</span>
+                                                <span class="mode-tag sequence-tag">Multi-Phase</span>
+                                            </div>
+                                            <span class="mode-desc">Executes distinct actions On Press, While Holding, and On Release.</span>
+                                        </div>
+                                        <div class="ghub-tooltip-badge" id="ghubTypeTooltipBadge">Sequence</div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- REPEAT / TOGGLE ACTIVATION DELAY CARD -->
+                            <div class="single-delay-card" id="ghubRepeatDelayRow" style="display: none;">
+                                <div class="single-delay-header">
+                                    <div class="delay-lbl-col">
+                                        <span class="delay-lbl">DELAY BETWEEN ACTIVATIONS</span>
+                                        <span class="delay-sub">Delay between each macro cycle</span>
+                                    </div>
+                                    <span class="ghub-delay-badge repeat-badge" id="ghubRepeatDelayPill" title="Click to edit delay between macro activations">50 ms</span>
+                                </div>
+                            </div>
+
+                            <div class="mode-explain-text" id="macroExplainText">
+                                • Sequence: Executes separate actions On Press, while Holding, and on Release.
+                            </div>
                         </div>
 
-                        <!-- AUTO-ADAPT ACTION DIRECTION -->
-                        <div class="ghub-setting-row">
-                            <label class="ghub-chk-container">
-                                <input type="checkbox" id="chkAutoAdaptDirection">
-                                <span class="ghub-chk-box"></span>
-                                <span class="ghub-chk-text">SMART DIRECTION ADAPTATION</span>
-                            </label>
-                            <div class="ghub-setting-sub">Auto flip Down/Up when dragging between sections</div>
+                        <!-- CONTEXT MENU POPOVER FOR ADDING ACTIONS -->
+                        <div class="ghub-action-popover" id="ghubActionPopover" style="display: none;">
+                            <button type="button" class="ghub-popover-row" data-action="record">
+                                <span class="ghub-popover-dot red"><svg class="svg-icon svg-icon-xs" style="fill: currentColor;"><use href="#icon-circle"></use></svg></span>
+                                <span class="ghub-popover-text">RECORD KEYSTROKES</span>
+                            </button>
+                            <button type="button" class="ghub-popover-row" data-action="text">
+                                <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-type"></use></svg></span>
+                                <span class="ghub-popover-text">TYPE TEXT</span>
+                            </button>
+                            <div class="ghub-popover-row has-submenu" data-action="mouse-menu">
+                                <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-mouse"></use></svg></span>
+                                <span class="ghub-popover-text">MOUSE ACTION</span>
+                                <span class="ghub-popover-arrow">›</span>
+                                <div class="ghub-submenu">
+                                    <div class="ghub-submenu-item" data-mouse="LButton">Primary Click (Left)</div>
+                                    <div class="ghub-submenu-item" data-mouse="RButton">Secondary Click (Right)</div>
+                                    <div class="ghub-submenu-item" data-mouse="MButton">Middle Click</div>
+                                    <div class="ghub-submenu-item" data-mouse="DoubleClick">Double Click</div>
+                                    <div class="ghub-submenu-item" data-mouse="WheelUp">Scroll Up</div>
+                                    <div class="ghub-submenu-item" data-mouse="WheelDown">Scroll Down</div>
+                                    <div class="ghub-submenu-item" data-mouse="XButton1">Mouse 4 (Back)</div>
+                                    <div class="ghub-submenu-item" data-mouse="XButton2">Mouse 5 (Forward)</div>
+                                </div>
+                            </div>
+                            <button type="button" class="ghub-popover-row" data-action="delay">
+                                <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-timer"></use></svg></span>
+                                <span class="ghub-popover-text">ADD DELAY</span>
+                            </button>
+                            <div class="ghub-popover-sep"></div>
+                            <button type="button" class="ghub-popover-row danger" data-action="clear-section">
+                                <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-trash-2"></use></svg></span>
+                                <span class="ghub-popover-text">CLEAR SECTION</span>
+                            </button>
                         </div>
-
-
                     </div>
                 </div>
 
-                <!-- LIVE RECORDING NOTIFICATION BANNER (appears when recording) -->
-                <div class="ghub-recording-banner" id="ghubRecordingBanner" style="display: none;">
-                    <div class="ghub-rec-pulse-dot"></div>
-                    <span class="ghub-rec-text">RECORDING IN PROGRESS — Press keys or mouse buttons to record into <strong id="ghubRecTargetSection">ON PRESS</strong></span>
-                    <button type="button" class="ghub-rec-stop-btn" id="btnGhubStopRec"><svg class="svg-icon"><use href="#icon-square"></use></svg> STOP RECORDING (Esc)</button>
-                </div>
+                <!-- Tab 3: Insert Text Block (Literal Multiline Text Typing) -->
+                <div class="modal-tab-content text-block-wrapper studio-tab-pane" id="tabContentText" style="display: none;">
+                    <div class="studio-text-grid">
+                        <!-- Left Column: Settings & Snippet Stats -->
+                        <div class="studio-panel-card text-block-left-panel">
+                            <div class="studio-card-header">
+                                <div class="studio-card-title-group">
+                                    <span class="studio-card-tag">SNIPPET DETAILS</span>
+                                    <h3 class="studio-card-title">Text Block Config</h3>
+                                </div>
+                            </div>
 
-                <!-- MAIN WORKSPACE -->
-                <div class="ghub-workspace" id="ghubWorkspace">
-                    <!-- Section: ON PRESS -->
-                    <div class="ghub-flow-section" id="ghubSecPress" data-section="press">
-                        <div class="ghub-flow-header">
-                            <span class="ghub-flow-title" id="ghubPressTitle">ON PRESS</span>
-                            <span class="ghub-flow-count" id="ghubPressCount"></span>
+                            <div class="form-group text-block-form-group">
+                                <label class="form-lbl" for="textBlockLabel">SNIPPET LABEL (OPTIONAL)</label>
+                                <input type="text" class="text-block-label-input studio-input" id="textBlockLabel" placeholder="e.g. Email Signature, Game Chat Message, Code Snippet" maxlength="60" autocomplete="off">
+                            </div>
+
+                            <div class="text-block-quick-actions-card">
+                                <span class="form-lbl">QUICK TOOLS</span>
+                                <div class="text-block-quick-btn-row">
+                                    <button type="button" class="text-block-btn" id="btnPasteClipboardText" title="Paste text from clipboard">
+                                        <svg class="svg-icon svg-icon-xs"><use href="#icon-clipboard-paste"></use></svg> Paste Clipboard
+                                    </button>
+                                    <button type="button" class="text-block-btn danger" id="btnClearTextBlock" title="Clear text content">
+                                        <svg class="svg-icon svg-icon-xs"><use href="#icon-trash-2"></use></svg> Clear Text
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="text-stats-card">
+                                <span class="form-lbl">CONTENT METRICS</span>
+                                <div class="text-stats-display" id="textBlockStats">0 characters • 0 words • 1 line</div>
+                            </div>
+
+                            <div class="text-guide-box">
+                                <div class="guide-title">
+                                    <svg class="svg-icon svg-icon-xs"><use href="#icon-file-text"></use></svg>
+                                    <span>Instant Direct Typing</span>
+                                </div>
+                                <p class="guide-text">
+                                    When pressed, this button types the text block directly into the focused window. Works reliably in games, browsers, command prompts, and remote desktops without clipboard interference.
+                                </p>
+                            </div>
                         </div>
-                        <div class="ghub-flow-track" id="ghubTrackPress">
-                            <!-- Populated dynamically: step blocks and [+] button -->
+
+                        <!-- Right Column: Monospace Editor -->
+                        <div class="studio-panel-card text-block-editor-panel">
+                            <div class="studio-card-header">
+                                <div class="studio-card-title-group">
+                                    <span class="studio-card-tag">CONTENT EDITOR</span>
+                                    <h3 class="studio-card-title">Keystroke Stream</h3>
+                                </div>
+                            </div>
+
+                            <div class="text-block-textarea-wrap fullpage-textarea-wrap">
+                                <textarea id="textBlockContent" class="text-block-textarea fullpage-textarea" placeholder="Type or paste your text block here...&#10;&#10;Supports multiple lines, special symbols, code snippets, canned responses, game commands, etc.&#10;Everything will be typed literally without modifier interference." spellcheck="false"></textarea>
+                            </div>
+                            <div class="text-block-footer-bar">
+                                <span class="text-block-hint">Tip: Newlines and formatting are preserved exactly as written.</span>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- Section: WHILE HOLDING -->
-                    <div class="ghub-flow-section" id="ghubSecHold" data-section="hold">
-                        <div class="ghub-flow-header">
-                            <span class="ghub-flow-title">WHILE HOLDING</span>
-                            <span class="ghub-flow-count" id="ghubHoldCount"></span>
-                        </div>
-                        <div class="ghub-flow-track" id="ghubTrackHold">
-                            <!-- Populated dynamically -->
-                        </div>
-                    </div>
-
-                    <!-- Section: ON RELEASE -->
-                    <div class="ghub-flow-section" id="ghubSecRelease" data-section="release">
-                        <div class="ghub-flow-header">
-                            <span class="ghub-flow-title">ON RELEASE</span>
-                            <span class="ghub-flow-count" id="ghubReleaseCount"></span>
-                        </div>
-                        <div class="ghub-flow-track" id="ghubTrackRelease">
-                            <!-- Populated dynamically -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Hidden summary line for state compatibility -->
-                <div id="macroSummaryLine" style="display:none;"></div>
-
-                <!-- CONTEXT MENU POPOVER FOR ADDING ACTIONS -->
-                <div class="ghub-action-popover" id="ghubActionPopover" style="display: none;">
-                    <button type="button" class="ghub-popover-row" data-action="record">
-                        <span class="ghub-popover-dot red"><svg class="svg-icon svg-icon-xs" style="fill: currentColor;"><use href="#icon-circle"></use></svg></span>
-                        <span class="ghub-popover-text">RECORD KEYSTROKES</span>
-                    </button>
-                    <button type="button" class="ghub-popover-row" data-action="text">
-                        <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-type"></use></svg></span>
-                        <span class="ghub-popover-text">TYPE TEXT</span>
-                    </button>
-                    <div class="ghub-popover-row has-submenu" data-action="mouse-menu">
-                        <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-mouse"></use></svg></span>
-                        <span class="ghub-popover-text">MOUSE ACTION</span>
-                        <span class="ghub-popover-arrow">›</span>
-                        <div class="ghub-submenu">
-                            <div class="ghub-submenu-item" data-mouse="LButton">Primary Click (Left)</div>
-                            <div class="ghub-submenu-item" data-mouse="RButton">Secondary Click (Right)</div>
-                            <div class="ghub-submenu-item" data-mouse="MButton">Middle Click</div>
-                            <div class="ghub-submenu-item" data-mouse="DoubleClick">Double Click</div>
-                            <div class="ghub-submenu-item" data-mouse="WheelUp">Scroll Up</div>
-                            <div class="ghub-submenu-item" data-mouse="WheelDown">Scroll Down</div>
-                            <div class="ghub-submenu-item" data-mouse="XButton1">Mouse 4 (Back)</div>
-                            <div class="ghub-submenu-item" data-mouse="XButton2">Mouse 5 (Forward)</div>
-                        </div>
-                    </div>
-                    <button type="button" class="ghub-popover-row" data-action="delay">
-                        <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-timer"></use></svg></span>
-                        <span class="ghub-popover-text">ADD DELAY</span>
-                    </button>
-                    <div class="ghub-popover-sep"></div>
-                    <button type="button" class="ghub-popover-row danger" data-action="clear-section">
-                        <span class="ghub-popover-icon"><svg class="svg-icon"><use href="#icon-trash-2"></use></svg></span>
-                        <span class="ghub-popover-text">CLEAR SECTION</span>
-                    </button>
                 </div>
             </div>
 
             <!-- Modal Action Footer -->
-            <div class="modal-footer">
+            <div class="modal-footer studio-fullpage-footer">
                 <div class="modal-footer-left">
                     <div id="singlePresetToggleWrap" class="modal-preset-toggle-row">
                         <label class="switch-toggle" for="singleSavePresetSwitch">
@@ -618,7 +878,7 @@
                     </div>
 
                     <div id="macroPresetToggleWrap" class="modal-preset-toggle-row" style="display: none;">
-                        <label class="switch-toggle" for="macroSavePresetSwitch">
+                        <label class="switch-toggle" for="macroSavePresetSwitch" checked>
                             <input type="checkbox" id="macroSavePresetSwitch" checked>
                             <span class="switch-slider"></span>
                         </label>
@@ -627,11 +887,22 @@
                             <span class="switch-desc">Save this macro to the Command Catalog under Custom</span>
                         </div>
                     </div>
+
+                    <div id="textPresetToggleWrap" class="modal-preset-toggle-row" style="display: none;">
+                        <label class="switch-toggle" for="textSavePresetSwitch">
+                            <input type="checkbox" id="textSavePresetSwitch">
+                            <span class="switch-slider"></span>
+                        </label>
+                        <div class="switch-meta">
+                            <label class="switch-title" for="textSavePresetSwitch">Save to Text Blocks</label>
+                            <span class="switch-desc">Save this text snippet to the Command Catalog under Text Blocks</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-footer-right">
-                    <button class="modal-btn save" id="btnModalSave"><svg class="svg-icon"><use href="#icon-check"></use></svg> Save & Apply</button>
                     <button class="modal-btn cancel" id="btnModalCancel">Cancel (Esc)</button>
+                    <button class="modal-btn save" id="btnModalSave"><svg class="svg-icon"><use href="#icon-check"></use></svg> Save & Apply</button>
                 </div>
             </div>
         </div>
@@ -643,7 +914,7 @@
             <div class="modal-header">
                 <div class="modal-header-titles">
                     <span class="modal-title" id="profileModalTitle">CREATE APP PROFILE</span>
-                    <span class="modal-subtitle">Configure auto-switching application targets, icon branding, and open window bindings</span>
+                    <span class="modal-subtitle" id="profileModalSubtitle">Configure auto-switching application targets, or press Ctrl+Shift+F2 on any window to create instantly</span>
                 </div>
                 <button class="modal-close-btn" id="btnCloseProfileModal"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
             </div>
@@ -651,6 +922,22 @@
             <div class="profile-modal-body fullpage-body">
                 <!-- Left Panel: Profile Setup Form -->
                 <div class="profile-setup-col">
+                    <!-- Global Window Capture Quick Hint (Ctrl+Shift+F2) -->
+                    <div class="profile-hotkey-notice" id="profileHotkeyNotice">
+                        <div class="notice-icon">
+                            <svg class="svg-icon"><use href="#icon-crosshair"></use></svg>
+                        </div>
+                        <div class="notice-text">
+                            <div class="notice-header-row">
+                                <span class="notice-tag">QUICK SHORTCUT</span>
+                                <span class="hotkey-badge-combo">
+                                    <kbd class="kbd-chip">Ctrl</kbd><span class="kbd-plus">+</span><kbd class="kbd-chip">Shift</kbd><span class="kbd-plus">+</span><kbd class="kbd-chip">F2</kbd>
+                                </span>
+                            </div>
+                            <p class="notice-desc">Press <strong>Ctrl + Shift + F2</strong> anywhere in Windows to instantly create a profile bound to your active focused window.</p>
+                        </div>
+                    </div>
+
                     <div class="form-group mb-14">
                         <label for="profInputName" class="form-lbl">Profile Name:</label>
                         <input type="text" id="profInputName" class="studio-input" placeholder="e.g. Blender, BlueStacks, Elden Ring, Photoshop" autocomplete="off">
@@ -1086,7 +1373,7 @@
                 <div class="settings-group-title">MOUSE HARDWARE & DIAGRAM</div>
                 <div class="settings-grid">
                     <!-- Tile 1: Mouse Image & Models -->
-                    <div class="settings-card" id="cardSettingsMouseImg">
+                    <div class="settings-card clickable" id="cardSettingsMouseImg">
                         <div class="settings-card-header">
                             <div class="settings-card-icon img-icon"><svg class="svg-icon"><use href="#icon-image"></use></svg></div>
                             <div class="settings-card-content">
@@ -1101,7 +1388,7 @@
                     </div>
 
                     <!-- Tile 2: Add Custom Button -->
-                    <div class="settings-card" id="cardSettingsAddBtn">
+                    <div class="settings-card clickable" id="cardSettingsAddBtn">
                         <div class="settings-card-header">
                             <div class="settings-card-icon add-icon"><svg class="svg-icon"><use href="#icon-plus"></use></svg></div>
                             <div class="settings-card-content">
@@ -1116,7 +1403,7 @@
                     </div>
 
                     <!-- Tile 3: Pointer Calibration -->
-                    <div class="settings-card" id="cardSettingsCalibrate">
+                    <div class="settings-card clickable" id="cardSettingsCalibrate">
                         <div class="settings-card-header">
                             <div class="settings-card-icon calib-icon"><svg class="svg-icon"><use href="#icon-crosshair"></use></svg></div>
                             <div class="settings-card-content">
@@ -1131,7 +1418,7 @@
                     </div>
 
                     <!-- Tile 4: Logitech OMM Setup -->
-                    <div class="settings-card" id="cardSettingsOmm">
+                    <div class="settings-card clickable" id="cardSettingsOmm">
                         <div class="settings-card-header">
                             <div class="settings-card-icon omm-icon"><svg class="svg-icon"><use href="#icon-zap"></use></svg></div>
                             <div class="settings-card-content">
@@ -1150,7 +1437,7 @@
                 <div class="settings-group-title" style="margin-top: 24px;">STUDIO DATA & SYSTEM OPTIONS</div>
                 <div class="settings-grid">
                     <!-- Tile 5: Backup & Restore -->
-                    <div class="settings-card" id="cardSettingsBackup">
+                    <div class="settings-card clickable" id="cardSettingsBackup">
                         <div class="settings-card-header">
                             <div class="settings-card-icon backup-icon"><svg class="svg-icon"><use href="#icon-archive"></use></svg></div>
                             <div class="settings-card-content">
@@ -1412,6 +1699,67 @@
         <div class="ctx-item danger" id="ctxDeleteProfile">
             <span class="ctx-icon"><svg class="svg-icon"><use href="#icon-trash-2"></use></svg></span>
             <span class="ctx-text">Delete Profile</span>
+        </div>
+    </div>
+
+    <!-- Custom Studio Themed Confirmation / Warning / Input Modal Dialog -->
+    <div class="modal-backdrop custom-dialog-backdrop" id="customConfirmModal" style="display: none;">
+        <div class="custom-dialog-card dialog-warning" id="customConfirmCard" role="dialog" aria-modal="true" aria-labelledby="customConfirmTitle">
+            <div class="custom-dialog-header">
+                <div class="custom-dialog-icon-wrap icon-warning" id="customConfirmIconWrap">
+                    <svg class="svg-icon" id="customConfirmIcon"><use href="#icon-alert-triangle"></use></svg>
+                </div>
+                <div class="custom-dialog-header-text">
+                    <h3 class="custom-dialog-title" id="customConfirmTitle">Confirmation</h3>
+                    <span class="custom-dialog-badge badge-warning" id="customConfirmBadge">WARNING</span>
+                </div>
+                <button type="button" class="custom-dialog-close-btn" id="btnCustomConfirmClose" aria-label="Close dialog">
+                    <svg class="svg-icon"><use href="#icon-x"></use></svg>
+                </button>
+            </div>
+            <div class="custom-dialog-body">
+                <p class="custom-dialog-message" id="customConfirmMsg"></p>
+                <p class="custom-dialog-details" id="customConfirmDetails" style="display: none;"></p>
+                <div class="custom-dialog-input-group" id="customConfirmInputGroup" style="display: none;">
+                    <label class="custom-dialog-input-lbl" id="customConfirmInputLbl" for="customConfirmInput">Value:</label>
+                    <input type="text" class="studio-input" id="customConfirmInput" autocomplete="off" spellcheck="false">
+                </div>
+            </div>
+            <div class="custom-dialog-footer">
+                <button type="button" class="custom-dialog-btn secondary" id="btnCustomConfirmCancel">Cancel</button>
+                <button type="button" class="custom-dialog-btn ok-btn btn-warning" id="btnCustomConfirmOk">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom App Themed Profile Hover Popover -->
+    <div id="profileHoverPopover" class="profile-hover-popover" style="display: none;" aria-hidden="true">
+        <div class="popover-header">
+            <div class="popover-icon-box" id="popoverIconBox"></div>
+            <div class="popover-title-col">
+                <div class="popover-name-row">
+                    <span class="popover-title" id="popoverTitle">Default Profile</span>
+                    <span class="popover-badge" id="popoverBadge">DEFAULT</span>
+                </div>
+                <div class="popover-subtitle" id="popoverSubtitle">explorer.exe</div>
+            </div>
+        </div>
+        <div class="popover-divider"></div>
+        <div class="popover-body">
+            <div class="popover-field">
+                <div class="popover-field-label">
+                    <svg class="svg-icon"><use href="#icon-folder"></use></svg>
+                    <span>WINDOWS LOCATION</span>
+                </div>
+                <div class="popover-field-value mono" id="popoverExePath">C:\Windows\explorer.exe</div>
+            </div>
+            <div class="popover-field">
+                <div class="popover-field-label">
+                    <svg class="svg-icon"><use href="#icon-refresh-cw"></use></svg>
+                    <span>SWITCH BEHAVIOR</span>
+                </div>
+                <div class="popover-field-value" id="popoverSwitchMode">Active on Window Focus</div>
+            </div>
         </div>
     </div>
 

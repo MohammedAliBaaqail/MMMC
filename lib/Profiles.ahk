@@ -198,6 +198,19 @@ class ProfileEngine {
                 gs2SeqHoldStr  := IniRead(this.ConfigPath, section, "GShift2_SeqHold", "")
                 gs2SeqRelStr   := IniRead(this.ConfigPath, section, "GShift2_SeqRelease", "")
 
+                if (normType = "Text") {
+                    normCmd := StrReplace(normCmd, "\n", "`n")
+                    normCmd := StrReplace(normCmd, "\\", "\")
+                }
+                if (gsType = "Text") {
+                    gsCmd := StrReplace(gsCmd, "\n", "`n")
+                    gsCmd := StrReplace(gsCmd, "\\", "\")
+                }
+                if (gs2Type = "Text") {
+                    gs2Cmd := StrReplace(gs2Cmd, "\n", "`n")
+                    gs2Cmd := StrReplace(gs2Cmd, "\\", "\")
+                }
+
                 this.ActiveMappings[profile][btnId] := {
                     Normal: {
                         Type: normType, Cmd: normCmd, Label: normLbl,
@@ -260,7 +273,14 @@ class ProfileEngine {
             prefix := (layer = "GShift2") ? "GShift2_" : ((layer = "GShift" || layer = "GShift1") ? "GShift_" : "Normal_")
             section := "Mapping_" . profile . "_" . btnId
             IniWrite(actionObj.Type, this.ConfigPath, section, prefix . "Type")
-            IniWrite(actionObj.Cmd, this.ConfigPath, section, prefix . "Cmd")
+            savedCmd := actionObj.Cmd
+            if (actionObj.HasOwnProp("Type") && actionObj.Type = "Text") {
+                savedCmd := StrReplace(savedCmd, "\", "\\")
+                savedCmd := StrReplace(savedCmd, "`r`n", "\n")
+                savedCmd := StrReplace(savedCmd, "`n", "\n")
+                savedCmd := StrReplace(savedCmd, "`r", "\n")
+            }
+            IniWrite(savedCmd, this.ConfigPath, section, prefix . "Cmd")
             IniWrite(actionObj.Label, this.ConfigPath, section, prefix . "Label")
             playType := actionObj.HasOwnProp("PlayType") ? actionObj.PlayType : "NoRepeat"
             interval := actionObj.HasOwnProp("RepeatInterval") ? actionObj.RepeatInterval : 50
@@ -332,10 +352,31 @@ class ProfileEngine {
     }
 
     static ResetMappingToDefault(profile, btnId) {
-        if (this.DefaultMappings.Has(profile) && this.DefaultMappings[profile].Has(btnId)) {
-            def := this.DefaultMappings[profile][btnId]
-            this.SaveMapping(profile, btnId, def.Normal, def.GShift)
+        defProfile := this.DefaultMappings.Has(profile) ? profile : "Desktop"
+        if (!this.DefaultMappings.Has(defProfile))
+            defProfile := "Desktop"
+
+        if (this.DefaultMappings.Has(defProfile) && this.DefaultMappings[defProfile].Has(btnId)) {
+            def := this.DefaultMappings[defProfile][btnId]
+            gs2 := def.HasOwnProp("GShift2") ? def.GShift2 : def.Normal
+            this.SaveMapping(profile, btnId, def.Normal, def.GShift, gs2)
         }
+    }
+
+    static ResetProfileDefaults(profile) {
+        defProfile := this.DefaultMappings.Has(profile) ? profile : "Desktop"
+        if (!this.DefaultMappings.Has(defProfile))
+            defProfile := "Desktop"
+
+        defaults := this.DefaultMappings[defProfile]
+        for btnId, def in defaults {
+            gs2 := def.HasOwnProp("GShift2") ? def.GShift2 : def.Normal
+            this.SaveMapping(profile, btnId, def.Normal, def.GShift, gs2)
+        }
+    }
+
+    static SaveButtonMapping(profile, btnId, normalObj, gshiftObj, gshift2Obj := "") {
+        this.SaveMapping(profile, btnId, normalObj, gshiftObj, gshift2Obj)
     }
 
     static GetButtonMapping(profile, btnId) {
@@ -446,13 +487,108 @@ class ProfileEngine {
         }
         this.ActiveSequences.Clear()
 
-        for btnId, holdKey in this.ActiveHeldButtons {
-            Send("{Blind}{" . holdKey . " up}")
+        for btnId, releaseCmd in this.ActiveHeldButtons {
+            if (!InStr(releaseCmd, "{"))
+                releaseCmd := "{" . releaseCmd . " up}"
+            try Send("{Blind}" . releaseCmd)
         }
         this.ActiveHeldButtons.Clear()
+        if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+            try Send("{Blind}{LButton up}")
+        if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+            try Send("{Blind}{RButton up}")
         this.PhysicalButtonStates.Clear()
         this.ShiftHolders.Clear()
         this.ButtonDispatchedLayer.Clear()
+    }
+
+    static ReleaseAllHeldButtons() {
+        for btnId, releaseCmd in this.ActiveHeldButtons {
+            if (!InStr(releaseCmd, "{"))
+                releaseCmd := "{" . releaseCmd . " up}"
+            try Send("{Blind}" . releaseCmd)
+        }
+        this.ActiveHeldButtons.Clear()
+        if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+            try Send("{Blind}{LButton up}")
+        if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+            try Send("{Blind}{RButton up}")
+    }
+
+    static SyncShiftState() {
+        if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active && this.ShiftHolders.Count = 0)
+            return
+
+        ; Verify all buttons in ShiftHolders are actually physically held
+        stuckButtons := []
+        for btnId, shiftLayerNum in this.ShiftHolders {
+            hwKey := this.ButtonToFKeyMap.Has(btnId) ? this.ButtonToFKeyMap[btnId] : ""
+            if (hwKey != "") {
+                if (!GetKeyState(hwKey, "P"))
+                    stuckButtons.Push(btnId)
+            } else {
+                ahkKey := (btnId = "Back") ? "XButton1" : ((btnId = "Forward") ? "XButton2" : ((btnId = "Middle") ? "MButton" : ((btnId = "DpiShift") ? "F15" : "")))
+                if (ahkKey != "" && !GetKeyState(ahkKey, "P"))
+                    stuckButtons.Push(btnId)
+            }
+        }
+
+        for _, btnId in stuckButtons {
+            this.ShiftHolders.Delete(btnId)
+        }
+
+        if (this.ShiftHolders.Count = 0) {
+            if (this.IsGShiftActive || this.IsGShift1Active || this.IsGShift2Active) {
+                this.ReleaseAllShiftModifiers()
+            }
+        }
+    }
+
+    static SyncActiveHeldButtons() {
+        if (this.ActiveHeldButtons.Count = 0) {
+            ; Check if logical LButton/RButton is stuck down when physically up
+            if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+                try Send("{Blind}{LButton up}")
+            if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+                try Send("{Blind}{RButton up}")
+            return
+        }
+
+        ; If Studio is focused, release all active held buttons immediately
+        if (WebViewGuiManager.IsStudioFocused()) {
+            this.ReleaseAllHeldButtons()
+            return
+        }
+
+        ; Check if held buttons are still physically held
+        stuck := []
+        for btnId, releaseCmd in this.ActiveHeldButtons {
+            if (btnId = "LeftClick" && !GetKeyState("LButton", "P"))
+                stuck.Push(btnId)
+            else if (btnId = "RightClick" && !GetKeyState("RButton", "P"))
+                stuck.Push(btnId)
+            else if (this.ButtonToFKeyMap.Has(btnId)) {
+                hwKey := this.ButtonToFKeyMap[btnId]
+                if (!GetKeyState(hwKey, "P"))
+                    stuck.Push(btnId)
+            }
+        }
+
+        for _, btnId in stuck {
+            if (this.ActiveHeldButtons.Has(btnId)) {
+                releaseCmd := this.ActiveHeldButtons[btnId]
+                this.ActiveHeldButtons.Delete(btnId)
+                if (!InStr(releaseCmd, "{"))
+                    releaseCmd := "{" . releaseCmd . " up}"
+                try Send("{Blind}" . releaseCmd)
+            }
+        }
+    }
+
+    static PeriodicMaintenance() {
+        this.SyncShiftState()
+        this.SyncActiveHeldButtons()
+        this.CheckActiveWindow()
     }
 
     static GetProfileDescription(p) {
@@ -472,7 +608,7 @@ class ProfileEngine {
     ; =========================================================================
     static StartAutoSwitchTimer() {
         if (!this.AutoSwitchTimerFn) {
-            this.AutoSwitchTimerFn := () => ProfileEngine.CheckActiveWindow()
+            this.AutoSwitchTimerFn := () => ProfileEngine.PeriodicMaintenance()
         }
         SetTimer(this.AutoSwitchTimerFn, 100)
     }
@@ -687,6 +823,10 @@ class ProfileEngine {
         if (this.CurrentProfile = name)
             this.SetProfile("Desktop")
             
+        if (this.ConfigPath != "") {
+            try IniDelete(this.ConfigPath, "Profile_" . name)
+        }
+
         this.SaveProfileConfig()
         if (this.OnProfilesListChanged) {
             try this.OnProfilesListChanged()
@@ -694,8 +834,95 @@ class ProfileEngine {
         return true
     }
 
-    static UpdateProfile(name, targetExe, icon := "", switchOnHover := -1, osdIconOnly := -1) {
+    static RenameProfile(oldName, newName) {
+        oldName := Trim(oldName)
+        newName := Trim(newName)
+        if (oldName == "" || newName == "")
+            return false
+        if (oldName == newName)
+            return true
+        if (oldName == "Desktop" || (this.ProfileMetadata.Has(oldName) && this.ProfileMetadata[oldName].IsDefault))
+            return false
+        if (!this.HasProfile(oldName))
+            return false
+        if (this.HasProfile(newName))
+            return false
+
+        ; 1. Update this.Profiles array in place to preserve user ordering
+        for idx, p in this.Profiles {
+            if (p = oldName) {
+                this.Profiles[idx] := newName
+                break
+            }
+        }
+
+        ; 2. Update ProfileMetadata
+        if (this.ProfileMetadata.Has(oldName)) {
+            meta := this.ProfileMetadata[oldName]
+            this.ProfileMetadata.Delete(oldName)
+            meta.Desc := newName . " Profile"
+            if (meta.HasOwnProp("Icon") && meta.Icon = oldName)
+                meta.Icon := newName
+            this.ProfileMetadata[newName] := meta
+        } else {
+            this.ProfileMetadata[newName] := { TargetExe: "", Icon: "auto", IsDefault: false, SwitchOnHover: false, OsdIconOnly: false, Desc: newName . " Profile" }
+        }
+
+        ; 3. Migrate ActiveMappings
+        if (this.ActiveMappings.Has(oldName)) {
+            mappings := this.ActiveMappings[oldName]
+            this.ActiveMappings.Delete(oldName)
+            this.ActiveMappings[newName] := mappings
+        }
+
+        ; 4. Update CurrentProfile and LockedProfile if active
+        if (this.CurrentProfile = oldName)
+            this.CurrentProfile := newName
+        if (this.LockedProfile = oldName)
+            this.LockedProfile := newName
+
+        ; 5. Migrate INI sections
+        if (this.ConfigPath != "") {
+            try IniDelete(this.ConfigPath, "Profile_" . oldName)
+            if (this.ActiveMappings.Has(newName)) {
+                for btnId, mapping in this.ActiveMappings[newName] {
+                    this.SaveButtonLayer(newName, btnId, "Normal", mapping.Normal)
+                    this.SaveButtonLayer(newName, btnId, "GShift", mapping.GShift)
+                    if (mapping.HasOwnProp("GShift2") && IsObject(mapping.GShift2))
+                        this.SaveButtonLayer(newName, btnId, "GShift2", mapping.GShift2)
+                    try IniDelete(this.ConfigPath, "Mapping_" . oldName . "_" . btnId)
+                }
+            }
+        }
+
+        ; 6. Rename profile icon file if one was named after the old profile
+        outDir := A_ScriptDir . "\web\icons"
+        oldIconPng := outDir . "\" . oldName . ".png"
+        newIconPng := outDir . "\" . newName . ".png"
+        if (FileExist(oldIconPng) && !FileExist(newIconPng)) {
+            try FileMove(oldIconPng, newIconPng, 1)
+        }
+
+        this.SaveProfileConfig()
+        if (this.OnProfilesListChanged) {
+            try this.OnProfilesListChanged()
+        }
+        if (this.OnProfileChanged && this.CurrentProfile = newName) {
+            try this.OnProfileChanged(newName)
+        }
+        return true
+    }
+
+    static UpdateProfile(name, targetExe, icon := "", switchOnHover := -1, osdIconOnly := -1, oldName := "") {
         name := Trim(name)
+        oldName := Trim(oldName)
+        
+        ; If renaming is requested
+        if (oldName != "" && oldName != name && this.HasProfile(oldName)) {
+            if (!this.RenameProfile(oldName, name))
+                return false
+        }
+        
         if (!this.HasProfile(name))
             return false
             
@@ -871,21 +1098,41 @@ class ProfileEngine {
         return true
     }
 
-    static CopySingleButtonMapping(profile, fromBtnId, toBtnId) {
-        if (!this.ActiveMappings.Has(profile))
-            return false
-        pMap := this.ActiveMappings[profile]
-        if (!pMap.Has(fromBtnId))
+    static CopySingleButtonMapping(fromProfile, toProfile, fromBtnId := "", toBtnId := "", mappingPayload := "") {
+        ; Legacy 3-arg support: CopySingleButtonMapping(profile, fromBtnId, toBtnId)
+        if (toBtnId == "" && mappingPayload == "") {
+            toBtnId := fromBtnId
+            fromBtnId := toProfile
+            toProfile := fromProfile
+        }
+
+        if (!this.HasProfile(toProfile))
             return false
 
-        fromMapping := pMap[fromBtnId]
+        ; 1. If mapping payload was directly provided as a Map/object
+        if (IsObject(mappingPayload)) {
+            norm := (mappingPayload.Has("Normal") && IsObject(mappingPayload["Normal"])) ? mappingPayload["Normal"] : Map("Type", "Default", "Cmd", "", "Label", "Default")
+            gs := (mappingPayload.Has("GShift") && IsObject(mappingPayload["GShift"])) ? mappingPayload["GShift"] : norm
+            gs2 := (mappingPayload.Has("GShift2") && IsObject(mappingPayload["GShift2"])) ? mappingPayload["GShift2"] : norm
+
+            this.SaveButtonLayer(toProfile, toBtnId, "Normal", norm)
+            this.SaveButtonLayer(toProfile, toBtnId, "GShift", gs)
+            this.SaveButtonLayer(toProfile, toBtnId, "GShift2", gs2)
+            return true
+        }
+
+        ; 2. Or copy across ActiveMappings
+        if (!this.ActiveMappings.Has(fromProfile) || !this.ActiveMappings[fromProfile].Has(fromBtnId))
+            return false
+
+        fromMapping := this.ActiveMappings[fromProfile][fromBtnId]
         norm := fromMapping.Normal.Clone()
         gs := fromMapping.GShift.Clone()
         gs2 := (fromMapping.HasOwnProp("GShift2") && IsObject(fromMapping.GShift2)) ? fromMapping.GShift2.Clone() : norm.Clone()
 
-        this.SaveButtonLayer(profile, toBtnId, "Normal", norm)
-        this.SaveButtonLayer(profile, toBtnId, "GShift", gs)
-        this.SaveButtonLayer(profile, toBtnId, "GShift2", gs2)
+        this.SaveButtonLayer(toProfile, toBtnId, "Normal", norm)
+        this.SaveButtonLayer(toProfile, toBtnId, "GShift", gs)
+        this.SaveButtonLayer(toProfile, toBtnId, "GShift2", gs2)
         return true
     }
 
@@ -1118,34 +1365,57 @@ class ProfileEngine {
             return ""
         }
 
-        if (FileExist(exePathOrName))
-            return exePathOrName
+        exeClean := Trim(exePathOrName, ' "`t')
+        if (FileExist(exeClean))
+            return exeClean
 
         cleanName := RegExReplace(exePathOrName, "i)\.exe$", "") . ".exe"
+        cleanBase := RegExReplace(cleanName, "i)\.exe$", "")
+
+        ; 1. Active running process path
         try {
             pid := ProcessExist(cleanName)
             if (pid) {
                 p := ProcessGetPath(pid)
+                p := Trim(p, ' "`t')
                 if (FileExist(p))
                     return p
             }
         }
-        try {
-            p := RegRead("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" . cleanName, "")
-            if (p != "" && FileExist(p))
-                return p
+
+        ; 2. Windows App Paths registry keys (HKLM, HKCU, and WOW6432Node)
+        regKeys := [
+            "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" . cleanName,
+            "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" . cleanName,
+            "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\" . cleanName,
+            "HKEY_CURRENT_USER\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\" . cleanName
+        ]
+        for rk in regKeys {
+            try {
+                p := RegRead(rk, "")
+                p := Trim(p, ' "`t')
+                if (p != "" && FileExist(p))
+                    return p
+            }
         }
-        try {
-            p := RegRead("HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" . cleanName, "")
-            if (p != "" && FileExist(p))
-                return p
-        }
+
+        ; 3. Common installation directories
+        progFilesX86 := EnvGet("ProgramFiles(x86)")
+        if (progFilesX86 == "")
+            progFilesX86 := "C:\Program Files (x86)"
+
         candidates := [
-            A_AppData . "\..\Local\" . RegExReplace(cleanName, "i)\.exe$", "") . "\Application\" . cleanName,
-            "C:\Program Files\" . RegExReplace(cleanName, "i)\.exe$", "") . "\" . cleanName,
-            "C:\Program Files (x86)\" . RegExReplace(cleanName, "i)\.exe$", "") . "\" . cleanName
+            "C:\Program Files\" . cleanBase . "\" . cleanName,
+            progFilesX86 . "\" . cleanBase . "\" . cleanName,
+            A_AppData . "\..\Local\Programs\" . cleanBase . "\" . cleanName,
+            A_AppData . "\..\Local\Programs\" . cleanName,
+            A_AppData . "\..\Local\" . cleanBase . "\Application\" . cleanName,
+            A_AppData . "\..\Local\" . cleanBase . "\" . cleanName,
+            A_WinDir . "\System32\" . cleanName,
+            A_WinDir . "\" . cleanName
         ]
         for c in candidates {
+            c := Trim(c, ' "`t')
             if (FileExist(c))
                 return c
         }
@@ -1157,16 +1427,29 @@ class ProfileEngine {
             if (!GdipHelper.Init())
                 return false
 
-            pathBuf := Buffer(520, 0)
-            StrPut(fullPath, pathBuf, "UTF-16")
-            index := 0
-            hIcon := DllCall("shell32\ExtractAssociatedIcon", "Ptr", 0, "Ptr", pathBuf.Ptr, "Short*", &index, "Ptr")
+            hIcon := 0
+            ; 1. Try high-quality PrivateExtractIconsW (preserves 32-bit ARGB 48x48 icon)
+            hIcons := Buffer(A_PtrSize, 0)
+            hIconIds := Buffer(4, 0)
+            if (DllCall("user32\PrivateExtractIconsW", "Str", fullPath, "Int", 0, "Int", 48, "Int", 48, "Ptr", hIcons.Ptr, "Ptr", hIconIds.Ptr, "UInt", 1, "UInt", 0) > 0) {
+                hIcon := NumGet(hIcons, 0, "Ptr")
+            }
+
+            ; 2. Fallback to ExtractAssociatedIcon
+            if (!hIcon) {
+                pathBuf := Buffer(520, 0)
+                StrPut(fullPath, pathBuf, "UTF-16")
+                index := 0
+                hIcon := DllCall("shell32\ExtractAssociatedIcon", "Ptr", 0, "Ptr", pathBuf.Ptr, "Short*", &index, "Ptr")
+            }
+
             if (hIcon) {
                 pBitmap := 0
                 DllCall("gdiplus\GdipCreateBitmapFromHICON", "Ptr", hIcon, "Ptr*", &pBitmap)
                 DllCall("user32\DestroyIcon", "Ptr", hIcon)
                 
                 if (pBitmap) {
+                    this.CleanWhiteCorners(pBitmap)
                     clsidPng := Buffer(16)
                     DllCall("ole32\CLSIDFromString", "Str", "{557CF406-1A04-11D3-9A73-0000F81EF32E}", "Ptr", clsidPng.Ptr)
                     DllCall("gdiplus\GdipSaveImageToFile", "Ptr", pBitmap, "Str", outPng, "Ptr", clsidPng.Ptr, "Ptr", 0)
@@ -1176,6 +1459,50 @@ class ProfileEngine {
             return FileExist(outPng) ? true : false
         } catch {
             return false
+        }
+    }
+
+    static CleanWhiteCorners(pBitmap) {
+        try {
+            width := 0, height := 0
+            DllCall("gdiplus\GdipGetImageWidth", "Ptr", pBitmap, "UInt*", &width)
+            DllCall("gdiplus\GdipGetImageHeight", "Ptr", pBitmap, "UInt*", &height)
+            if (width < 4 || height < 4)
+                return
+
+            ; Check if top-left corner is solid white (common GDI+ artifact from masked icons)
+            argb0 := 0
+            DllCall("gdiplus\GdipBitmapGetPixel", "Ptr", pBitmap, "Int", 0, "Int", 0, "UInt*", &argb0)
+            if ((argb0 & 0xFFFFFFFF) != 0xFFFFFFFF)
+                return
+
+            ; Flood-fill from 4 outer corners to convert connected white background to alpha 0
+            queue := [[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]]
+            visited := Map()
+            while (queue.Length > 0) {
+                pt := queue.Pop()
+                x := pt[1], y := pt[2]
+                if (x < 0 || x >= width || y < 0 || y >= height)
+                    continue
+                key := x . "," . y
+                if (visited.Has(key))
+                    continue
+                visited[key] := true
+
+                curArgb := 0
+                DllCall("gdiplus\GdipBitmapGetPixel", "Ptr", pBitmap, "Int", x, "Int", y, "UInt*", &curArgb)
+                a := (curArgb >> 24) & 0xFF
+                r := (curArgb >> 16) & 0xFF
+                g := (curArgb >> 8) & 0xFF
+                b := curArgb & 0xFF
+                if (a == 255 && r > 240 && g > 240 && b > 240) {
+                    DllCall("gdiplus\GdipBitmapSetPixel", "Ptr", pBitmap, "Int", x, "Int", y, "UInt", 0x00000000)
+                    queue.Push([x + 1, y])
+                    queue.Push([x - 1, y])
+                    queue.Push([x, y + 1])
+                    queue.Push([x, y - 1])
+                }
+            }
         }
     }
 
@@ -1193,6 +1520,7 @@ class ProfileEngine {
                     pBitmap := 0
                     DllCall("gdiplus\GdipCreateBitmapFromHICON", "Ptr", hIcon, "Ptr*", &pBitmap)
                     if (pBitmap) {
+                        this.CleanWhiteCorners(pBitmap)
                         clsidPng := Buffer(16)
                         DllCall("ole32\CLSIDFromString", "Str", "{557CF406-1A04-11D3-9A73-0000F81EF32E}", "Ptr", clsidPng.Ptr)
                         DllCall("gdiplus\GdipSaveImageToFile", "Ptr", pBitmap, "Str", outPng, "Ptr", clsidPng.Ptr, "Ptr", 0)
@@ -1503,6 +1831,10 @@ class ProfileEngine {
     }
 
     static ExecuteActionDown(act, btnId) {
+        if (act.Type = "Text" && act.Cmd != "") {
+            SendText(act.Cmd)
+            return
+        }
         if ((act.Type = "Send" || act.Type = "Default") && act.Cmd != "") {
             ; One-shot clicks and wheel actions must execute once immediately without holding state
             if (act.Cmd = "{DoubleClick}" || act.Cmd = "{LButton 2}" || act.Cmd = "{TripleClick}" || act.Cmd = "{LButton 3}"
@@ -1589,6 +1921,10 @@ class ProfileEngine {
     }
 
     static ExecuteActionOnce(act) {
+        if (act.Type = "Text" && act.Cmd != "") {
+            SendText(act.Cmd)
+            return
+        }
         if ((act.Type = "Send" || act.Type = "Default") && act.Cmd != "") {
             if (act.Cmd = "{DoubleClick}" || act.Cmd = "{LButton 2}") {
                 Click(2)
@@ -1785,6 +2121,12 @@ class ProfileEngine {
 
     ; --- Left & Right Click Handlers (B-Shift Layer Only) ---
     static NeedsLeftClickIntercept() {
+        ; NEVER intercept Left Click while Studio app is focused!
+        if (WebViewGuiManager.IsStudioFocused())
+            return false
+
+        this.SyncShiftState()
+
         if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active)
             return false
 
@@ -1794,6 +2136,12 @@ class ProfileEngine {
     }
 
     static NeedsRightClickIntercept() {
+        ; NEVER intercept Right Click while Studio app is focused!
+        if (WebViewGuiManager.IsStudioFocused())
+            return false
+
+        this.SyncShiftState()
+
         if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active)
             return false
 
@@ -1805,7 +2153,7 @@ class ProfileEngine {
     static IsCustomClickAction(act, defaultKey) {
         if (!IsObject(act))
             return false
-        if (act.Type = "Macro" || act.Type = "Special")
+        if (act.Type = "Macro" || act.Type = "Special" || act.Type = "Text")
             return true
         if (act.Type = "Send") {
             if (act.Cmd != "" && act.Cmd != "{" . defaultKey . "}")
@@ -1817,6 +2165,11 @@ class ProfileEngine {
     static HandleLeftClick(isDown) {
         this.NotifyButton("LeftClick", isDown)
         if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
+            ; When Studio is focused, ALWAYS pass physical click through cleanly so left click is never lost!
+            if (isDown)
+                SendEvent("{Blind}{LButton down}")
+            else
+                SendEvent("{Blind}{LButton up}")
             return
         }
         this.DispatchButton("LeftClick", isDown)
@@ -1825,6 +2178,11 @@ class ProfileEngine {
     static HandleRightClick(isDown) {
         this.NotifyButton("RightClick", isDown)
         if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
+            ; When Studio is focused, ALWAYS pass physical click through cleanly so right click is never lost!
+            if (isDown)
+                SendEvent("{Blind}{RButton down}")
+            else
+                SendEvent("{Blind}{RButton up}")
             return
         }
         this.DispatchButton("RightClick", isDown)
@@ -1849,7 +2207,7 @@ class ProfileEngine {
     static IsCustomWheelAction(act, defaultBtnId) {
         if (!IsObject(act))
             return false
-        if (act.Type = "Macro" || act.Type = "Special")
+        if (act.Type = "Macro" || act.Type = "Special" || act.Type = "Text")
             return true
         if (act.Cmd != "" && act.Cmd != "{" . defaultBtnId . "}")
             return true

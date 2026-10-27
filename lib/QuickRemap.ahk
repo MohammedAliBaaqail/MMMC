@@ -188,13 +188,14 @@ class QuickRemap {
         ; -------------------------------------------------------------
         ; REGULAR (COMBINED) BUTTON SELECTION
         ; -------------------------------------------------------------
-        isShiftHeld := (this.TargetLayer = "GShift" || this.TargetLayer = "GShift2" || ProfileEngine.IsGShiftActive || ProfileEngine.IsGShift1Active || ProfileEngine.IsGShift2Active)
+        isShiftHeld := (GetKeyState("Shift", "P") || this.TargetLayer = "GShift" || this.TargetLayer = "GShift2" || ProfileEngine.IsGShiftActive || ProfileEngine.IsGShift1Active || ProfileEngine.IsGShift2Active)
         targetLayer := isShiftHeld ? ((ProfileEngine.IsGShift2Active || this.TargetLayer = "GShift2") ? "GShift2" : "GShift") : "Normal"
 
         ; Guard: Left/Right click on Normal layer cannot be remapped without B-Shift
         if ((btnId = "LeftClick" || btnId = "RightClick") && targetLayer = "Normal") {
             try SoundBeep(650, 100)
-            OSD.Show("B-Shift Required", "Hold B-Shift + Click to remap Left/Right click.", 3000)
+            OSD.Show("B-Shift Required", "Left/Right click cannot be remapped on Normal layer.`nHold Shift or B-Shift + Click to remap.", 3500)
+            this.Cancel()
             return
         }
 

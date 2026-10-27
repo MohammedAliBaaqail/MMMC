@@ -80,13 +80,16 @@ class WebViewGuiManager {
         ; Clean any orphaned WebView2 renderer processes from prior runs asynchronously
         SetTimer(() => this.CleanOrphanedProcesses(), -1500)
 
-        ; Create GUI
-        opt := "+Resize -MaximizeBox " . (this.IsAlwaysOnTop ? "+AlwaysOnTop" : "-AlwaysOnTop")
+        ; Create GUI with minimum dimensions (1060px width, 680px height) and enable MaximizeBox
+        opt := "+Resize +MaximizeBox +MinSize1060x680 " . (this.IsAlwaysOnTop ? "+AlwaysOnTop" : "-AlwaysOnTop")
         g := Gui(opt, "My Mouse My Choice")
         g.BackColor := "0b0d14"
         g.MarginX := 0
         g.MarginY := 0
         this.MainGui := g
+
+        ; Register OS-level minimum window tracking limit (WM_GETMINMAXINFO)
+        OnMessage(0x0024, (wParam, lParam, msg, hwnd) => WebViewGuiManager.OnGetMinMaxInfo(lParam, hwnd))
 
         ; Set custom app icon (16x16 caption, 32x32 taskbar)
         this.SetWindowIcon(g.Hwnd)
@@ -94,13 +97,60 @@ class WebViewGuiManager {
         ; Apply immersive dark mode and theme matching colors to the title bar
         this.ApplyThemeToTitleBar(g.Hwnd)
 
-        ; Sizing event
+        ; Sizing & window events
         g.OnEvent("Size", (guiObj, minMax, w, h) => WebViewGuiManager.OnSize(minMax, w, h))
-        g.OnEvent("Close", (*) => (WebViewGuiManager.StopRecording(), g.Hide()))
-        g.OnEvent("Escape", (*) => (WebViewGuiManager.StopRecording(), g.Hide()))
+        g.OnEvent("Close", (*) => (WebViewGuiManager.SaveWindowGeometry(), WebViewGuiManager.StopRecording(), g.Hide()))
+        g.OnEvent("Escape", (*) => (WebViewGuiManager.IsRecordingActive ? "" : (WebViewGuiManager.SaveWindowGeometry(), WebViewGuiManager.StopRecording(), g.Hide())))
+
+        ; Load saved window geometry from settings.ini
+        savedW := 1360
+        savedH := 840
+        savedX := ""
+        savedY := ""
+        savedMax := 0
+        try {
+            savedW := Integer(IniRead(iniPath, "General", "WindowWidth", "1360"))
+            savedH := Integer(IniRead(iniPath, "General", "WindowHeight", "840"))
+            savedX := IniRead(iniPath, "General", "WindowX", "")
+            savedY := IniRead(iniPath, "General", "WindowY", "")
+            savedMax := Integer(IniRead(iniPath, "General", "WindowMaximized", "0"))
+        } catch {
+        }
+        if (savedW < 1060)
+            savedW := 1060
+        if (savedH < 680)
+            savedH := 680
+
+        showOpt := "w" . savedW . " h" . savedH
+        isValidPos := false
+        if (savedX != "" && savedY != "" && IsNumber(savedX) && IsNumber(savedY)) {
+            xVal := Integer(savedX)
+            yVal := Integer(savedY)
+            try {
+                monCount := MonitorGetCount()
+                Loop monCount {
+                    MonitorGet(A_Index, &mLeft, &mTop, &mRight, &mBottom)
+                    if (xVal + 100 >= mLeft && xVal <= mRight - 100 && yVal + 100 >= mTop && yVal <= mBottom - 100) {
+                        isValidPos := true
+                        break
+                    }
+                }
+            } catch {
+            }
+            if (isValidPos)
+                showOpt .= " x" . xVal . " y" . yVal
+            else
+                showOpt .= " Center"
+        } else {
+            showOpt .= " Center"
+        }
+
+        if (savedMax = 1) {
+            showOpt .= " Maximize"
+        }
 
         ; Display window
-        g.Show("w1360 h840 Center")
+        g.Show(showOpt)
         this.ApplyThemeToTitleBar(g.Hwnd)
 
         ; Initialize WebView2 Controller
@@ -190,7 +240,7 @@ class WebViewGuiManager {
         ; Edge settings
         try {
             settings := this.wv.Settings
-            settings.AreDefaultContextMenusEnabled := true
+            settings.AreDefaultContextMenusEnabled := false
             settings.IsStatusBarEnabled := false
             settings.AreDevToolsEnabled := true
         }
@@ -254,11 +304,69 @@ class WebViewGuiManager {
         }
     }
 
+    static _saveGeometryTimer := () => WebViewGuiManager.SaveWindowGeometry()
+
     static OnSize(minMax, w, h) {
         if (minMax = -1) ; Minimized
             return
         if (this.wvc != "") {
             this.wvc.Fill()
+        }
+        if (minMax = 1) {
+            ; Maximized
+            try IniWrite(1, A_ScriptDir . "\settings.ini", "General", "WindowMaximized")
+        } else if (minMax = 0) {
+            ; Normal / Restored
+            SetTimer(this._saveGeometryTimer, -500)
+        }
+    }
+
+    static SaveWindowGeometry() {
+        if (!this.MainGui || !WinExist(this.MainGui.Hwnd))
+            return
+
+        iniPath := A_ScriptDir . "\settings.ini"
+        try {
+            minMax := WinGetMinMax(this.MainGui.Hwnd)
+            if (minMax = 1) {
+                IniWrite(1, iniPath, "General", "WindowMaximized")
+                return
+            }
+            if (minMax = -1) {
+                return
+            }
+
+            this.MainGui.GetPos(&x, &y, &w, &h)
+            if (w >= 1060 && h >= 680) {
+                IniWrite(0, iniPath, "General", "WindowMaximized")
+                IniWrite(w, iniPath, "General", "WindowWidth")
+                IniWrite(h, iniPath, "General", "WindowHeight")
+                IniWrite(x, iniPath, "General", "WindowX")
+                IniWrite(y, iniPath, "General", "WindowY")
+            }
+        } catch {
+        }
+    }
+
+    static LoadSidebarWidth() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try {
+            val := Integer(IniRead(iniPath, "General", "SidebarWidth", "0"))
+            if (val >= 260 && val <= 700)
+                return val
+        }
+        return 0
+    }
+
+    static OnGetMinMaxInfo(lParam, hwnd) {
+        if (this.MainGui && hwnd == this.MainGui.Hwnd) {
+            ; Enforce physical window min track size (with DPI scaling)
+            dpiScale := A_ScreenDPI / 96
+            minW := Integer(1060 * dpiScale)
+            minH := Integer(680 * dpiScale)
+            NumPut("int", minW, lParam, 24) ; ptMinTrackSize.x
+            NumPut("int", minH, lParam, 28) ; ptMinTrackSize.y
+            return 0
         }
     }
 
@@ -286,6 +394,14 @@ class WebViewGuiManager {
         action := req["action"]
 
         switch action {
+            case "saveSidebarWidth":
+                if (req.Has("width")) {
+                    w := Integer(req["width"])
+                    if (w >= 260 && w <= 700) {
+                        try IniWrite(w, A_ScriptDir . "\settings.ini", "General", "SidebarWidth")
+                    }
+                }
+
             case "getInitialState":
                 this.SendInitialState()
 
@@ -321,11 +437,12 @@ class WebViewGuiManager {
             case "updateProfile":
                 if (req.Has("name")) {
                     pName := req["name"]
+                    oldName := req.Has("oldName") ? req["oldName"] : pName
                     pExe := req.Has("targetExe") ? req["targetExe"] : ""
                     pIcon := req.Has("icon") ? req["icon"] : ""
                     pHover := req.Has("switchOnHover") ? (req["switchOnHover"] ? true : false) : -1
                     pOsdIconOnly := req.Has("osdIconOnly") ? (req["osdIconOnly"] ? true : false) : -1
-                    if (ProfileEngine.UpdateProfile(pName, pExe, pIcon, pHover, pOsdIconOnly)) {
+                    if (ProfileEngine.UpdateProfile(pName, pExe, pIcon, pHover, pOsdIconOnly, oldName)) {
                         this.SendProfilesUpdated()
                         if (ProfileEngine.CurrentProfile == pName && pOsdIconOnly == 1) {
                             OSD.ShowIcon(ProfileEngine.GetProfileIconPath(pName))
@@ -437,16 +554,21 @@ class WebViewGuiManager {
                 }
 
             case "copySingleButtonMapping":
-                p := req.Has("profile") ? req["profile"] : ProfileEngine.CurrentProfile
+                fromProf := req.Has("fromProfile") ? req["fromProfile"] : (req.Has("profile") ? req["profile"] : ProfileEngine.CurrentProfile)
+                toProf := req.Has("toProfile") ? req["toProfile"] : (req.Has("profile") ? req["profile"] : ProfileEngine.CurrentProfile)
                 fId := req.Has("fromBtnId") ? req["fromBtnId"] : ""
                 tId := req.Has("toBtnId") ? req["toBtnId"] : ""
-                if (p != "" && fId != "" && tId != "" && ProfileEngine.CopySingleButtonMapping(p, fId, tId)) {
-                    this.PostMessage(Map("type", "buttonMappingPasted", "profile", p, "toBtnId", tId, "mappings", this.ExportAllMappings()))
+                mappingObj := req.Has("mapping") ? req["mapping"] : ""
+                if (fromProf != "" && toProf != "" && fId != "" && tId != "" && ProfileEngine.CopySingleButtonMapping(fromProf, toProf, fId, tId, mappingObj)) {
+                    this.PostMessage(Map("type", "buttonMappingPasted", "profile", toProf, "toBtnId", tId, "mappings", this.ExportAllMappings()))
                     OSD.Show("Mapping Pasted", fId . " ➔ " . tId)
                 }
 
             case "resetButtonDefault":
                 this.HandleResetButtonDefault(req)
+
+            case "resetProfileDefaults":
+                this.HandleResetProfileDefaults(req)
 
             case "setButtonName":
                 btnId := req.Has("btnId") ? req["btnId"] : ""
@@ -497,19 +619,24 @@ class WebViewGuiManager {
                 if (req.Has("cardOffsets")) {
                     this.SaveCardOffsets(req["cardOffsets"])
                 }
+                if (req.Has("mouseOffset")) {
+                    this.SaveMouseOffset(req["mouseOffset"])
+                }
                 this.PostMessage(Map(
                     "type", "diagramPointsSaved",
                     "success", true
                 ))
-                OSD.Show("Pointer & Card Calibration", "Saved coordinates & card positions to settings.ini")
+                OSD.Show("Pointer & Card Calibration", "Saved coordinates & layout to settings.ini")
 
             case "resetDiagramPoints":
                 this.ResetDiagramPoints()
                 this.ResetCardOffsets()
+                this.ResetMouseOffset()
                 this.PostMessage(Map(
                     "type", "diagramPointsReset",
                     "diagramPoints", this.LoadDiagramPoints(),
-                    "cardOffsets", Map()
+                    "cardOffsets", Map(),
+                    "mouseOffset", Map("x", 0, "y", 0)
                 ))
                 OSD.Show("Pointer & Card Calibration", "Restored default layout & coordinates")
 
@@ -605,6 +732,26 @@ class WebViewGuiManager {
                     OSD.Show("Preset Deleted", "Removed from Custom Presets")
                 }
 
+            case "saveTextBlockPreset":
+                if (req.Has("preset")) {
+                    presets := this.SaveTextBlockPreset(req["preset"])
+                    this.PostMessage(Map(
+                        "type", "textBlockPresetsUpdated",
+                        "presets", presets
+                    ))
+                    OSD.Show("Text Block Saved", "Added to Text Blocks in catalog")
+                }
+
+            case "deleteTextBlockPreset":
+                if (req.Has("id")) {
+                    presets := this.DeleteTextBlockPreset(req["id"])
+                    this.PostMessage(Map(
+                        "type", "textBlockPresetsUpdated",
+                        "presets", presets
+                    ))
+                    OSD.Show("Text Block Deleted", "Removed from Text Blocks")
+                }
+
             case "startQuickRemap":
                 QuickRemap.Start()
 
@@ -657,9 +804,16 @@ class WebViewGuiManager {
             profilesList := []
             for p in ProfileEngine.Profiles {
                 meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), SwitchOnHover: false, OsdIconOnly: false, Desc: p . " Profile" }
+                resolvedPath := ""
+                if (meta.TargetExe != "") {
+                    resolvedPath := ProfileEngine.ResolveExePath(meta.TargetExe)
+                } else if (p = "Desktop" || meta.IsDefault) {
+                    resolvedPath := A_WinDir . "\explorer.exe"
+                }
                 profilesList.Push(Map(
                     "name", p,
                     "targetExe", meta.TargetExe,
+                    "exePath", resolvedPath,
                     "icon", meta.Icon,
                     "isDefault", meta.IsDefault ? true : false,
                     "switchOnHover", (meta.HasOwnProp("SwitchOnHover") && meta.SwitchOnHover) ? true : false,
@@ -683,11 +837,14 @@ class WebViewGuiManager {
                 "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport(),
                 "diagramPoints", diagPoints,
                 "cardOffsets", this.LoadCardOffsets(),
+                "mouseOffset", this.LoadMouseOffset(),
+                "sidebarWidth", this.LoadSidebarWidth(),
                 "buttonNames", this.LoadButtonNames(),
                 "mouseImage", this.LoadMouseImage(),
                 "customButtons", ProfileEngine.LoadCustomButtons(),
                 "customMousePresets", this.LoadCustomMousePresets(),
                 "customActionPresets", this.LoadCustomActionPresets(),
+                "textBlockPresets", this.LoadTextBlockPresets(),
                 "rawIni", FileExist(A_ScriptDir . "\settings.ini") ? FileRead(A_ScriptDir . "\settings.ini", "UTF-8") : ""
             )
             this.Log("SendInitialState: calling PostMessage...")
@@ -702,9 +859,16 @@ class WebViewGuiManager {
         profilesList := []
         for p in ProfileEngine.Profiles {
             meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), SwitchOnHover: false, OsdIconOnly: false, Desc: p . " Profile" }
+            resolvedPath := ""
+            if (meta.TargetExe != "") {
+                resolvedPath := ProfileEngine.ResolveExePath(meta.TargetExe)
+            } else if (p = "Desktop" || meta.IsDefault) {
+                resolvedPath := A_WinDir . "\explorer.exe"
+            }
             profilesList.Push(Map(
                 "name", p,
                 "targetExe", meta.TargetExe,
+                "exePath", resolvedPath,
                 "icon", meta.Icon,
                 "isDefault", meta.IsDefault ? true : false,
                 "switchOnHover", (meta.HasOwnProp("SwitchOnHover") && meta.SwitchOnHover) ? true : false,
@@ -763,27 +927,47 @@ class WebViewGuiManager {
         layer := req.Has("layer") ? req["layer"] : "Normal"
 
         defProfile := ProfileEngine.DefaultMappings.Has(profile) ? profile : "Desktop"
+        if (!ProfileEngine.DefaultMappings.Has(defProfile))
+            defProfile := "Desktop"
+
         if (ProfileEngine.DefaultMappings.Has(defProfile) && ProfileEngine.DefaultMappings[defProfile].Has(btnId)) {
             def := ProfileEngine.DefaultMappings[defProfile][btnId]
+            gs2 := def.HasOwnProp("GShift2") ? def.GShift2.Clone() : def.Normal.Clone()
 
             if (layer = "GShift" || layer = "GShift1") {
                 ProfileEngine.SaveButtonLayer(profile, btnId, "GShift", def.GShift.Clone())
             } else if (layer = "GShift2") {
-                ProfileEngine.SaveButtonLayer(profile, btnId, "GShift2", def.Normal.Clone())
+                ProfileEngine.SaveButtonLayer(profile, btnId, "GShift2", gs2)
             } else {
                 ; Default / Normal layer or full reset: restore baseline defaults across layers
-                ProfileEngine.SaveButtonMapping(profile, btnId, def.Normal.Clone(), def.GShift.Clone(), def.Normal.Clone())
+                ProfileEngine.SaveMapping(profile, btnId, def.Normal.Clone(), def.GShift.Clone(), gs2)
             }
 
             currMap := ProfileEngine.GetButtonMapping(profile, btnId)
             this.PostMessage(Map(
-                "type", "mappingSaved",
+                "type", "buttonReset",
                 "profile", profile,
                 "btnId", btnId,
                 "mapping", this.ExportButtonMapping(currMap)
             ))
             OSD.Show("Reset to Default", btnId . " on " . profile)
         }
+    }
+
+    static HandleResetProfileDefaults(req) {
+        if (!req.Has("profile"))
+            return
+
+        profile := req["profile"]
+        ProfileEngine.ResetProfileDefaults(profile)
+
+        allMappings := this.ExportAllMappings()
+        this.PostMessage(Map(
+            "type", "profileReset",
+            "profile", profile,
+            "mappings", allMappings
+        ))
+        OSD.Show("Profile Reset", "All buttons reset on " . profile)
     }
 
     static HandleTestMacro(macroObj) {
@@ -1019,13 +1203,6 @@ class WebViewGuiManager {
         fnFinalize := this.FinalizeComboFn
         SetTimer(fnFinalize, 0)
 
-        ; If Escape pressed alone with no other keys down and no captured result, cancel recording
-        if (kName = "Escape" && this.RecKeysDown.Count = 0 && this.RecModifiers.Count = 0 && this.RecComboKeys.Length = 0) {
-            this.StopRecording()
-            this.PostMessage(Map("type", "cancelRecording", "reason", "escape"))
-            return
-        }
-
         this.RecKeysDown[kName] := true
 
         ; Check modifier keys vs regular keys
@@ -1219,13 +1396,6 @@ class WebViewGuiManager {
         if (kName = "")
             return
 
-        ; In macro mode, Escape alone stops recording
-        if (kName = "Escape" && this.RecMacroActiveKeys.Count = 0) {
-            this.StopRecording()
-            this.PostMessage(Map("type", "macroRecordingStopped"))
-            return
-        }
-
         if (this.RecMacroActiveKeys.Has(kName))
             return ; Ignore auto-repeat keydown
 
@@ -1374,6 +1544,37 @@ class WebViewGuiManager {
         iniPath := A_ScriptDir . "\settings.ini"
         try {
             IniDelete(iniPath, "CardOffsets")
+        }
+    }
+
+    static LoadMouseOffset() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try {
+            xStr := IniRead(iniPath, "General", "MouseOffsetX", "0")
+            yStr := IniRead(iniPath, "General", "MouseOffsetY", "0")
+            return Map("x", (xStr != "" ? Integer(xStr) : 0), "y", (yStr != "" ? Integer(yStr) : 0))
+        } catch {
+            return Map("x", 0, "y", 0)
+        }
+    }
+
+    static SaveMouseOffset(offsetMap) {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try {
+            if (IsObject(offsetMap) && offsetMap.Has("x") && offsetMap.Has("y")) {
+                IniWrite(String(offsetMap["x"]), iniPath, "General", "MouseOffsetX")
+                IniWrite(String(offsetMap["y"]), iniPath, "General", "MouseOffsetY")
+            }
+        } catch as err {
+            this.Log("Error saving mouse offset: " . err.Message)
+        }
+    }
+
+    static ResetMouseOffset() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try {
+            IniDelete(iniPath, "General", "MouseOffsetX")
+            IniDelete(iniPath, "General", "MouseOffsetY")
         }
     }
 
@@ -1732,6 +1933,98 @@ class WebViewGuiManager {
         return this.LoadCustomActionPresets()
     }
 
+    static LoadTextBlockPresets() {
+        iniPath := A_ScriptDir . "\settings.ini"
+        out := []
+        try {
+            listStr := IniRead(iniPath, "TextBlockPresets", "List", "")
+            if (listStr = "") {
+                return out
+            }
+            pIds := StrSplit(listStr, ",")
+            for _, pId in pIds {
+                pId := Trim(pId)
+                if (pId = "") {
+                    continue
+                }
+                secName := "TextBlockPreset_" . pId
+                name := IniRead(iniPath, secName, "Name", pId)
+                label := IniRead(iniPath, secName, "Label", name)
+                text := IniRead(iniPath, secName, "Text", "")
+                text := StrReplace(text, "\n", "`n")
+                text := StrReplace(text, "\\", "\")
+
+                presetMap := Map(
+                    "id", pId,
+                    "name", name,
+                    "label", label,
+                    "text", text,
+                    "cmd", text,
+                    "type", "Text"
+                )
+                out.Push(presetMap)
+            }
+        } catch as err {
+            this.Log("Error loading text block presets: " . err.Message)
+        }
+        return out
+    }
+
+    static SaveTextBlockPreset(presetObj) {
+        iniPath := A_ScriptDir . "\settings.ini"
+        pId := presetObj.Has("id") && presetObj["id"] != "" ? presetObj["id"] : ("txt_" . A_TickCount)
+        name := presetObj.Has("name") && presetObj["name"] != "" ? presetObj["name"] : (presetObj.Has("label") ? presetObj["label"] : "Text Block")
+        label := presetObj.Has("label") && presetObj["label"] != "" ? presetObj["label"] : name
+        text := presetObj.Has("text") ? presetObj["text"] : (presetObj.Has("cmd") ? presetObj["cmd"] : (presetObj.Has("Cmd") ? presetObj["Cmd"] : ""))
+
+        savedText := StrReplace(text, "\", "\\")
+        savedText := StrReplace(savedText, "`r`n", "\n")
+        savedText := StrReplace(savedText, "`n", "\n")
+        savedText := StrReplace(savedText, "`r", "\n")
+
+        secName := "TextBlockPreset_" . pId
+        try IniWrite(name, iniPath, secName, "Name")
+        try IniWrite(label, iniPath, secName, "Label")
+        try IniWrite(savedText, iniPath, secName, "Text")
+        try IniWrite("Text", iniPath, secName, "Type")
+
+        listStr := ""
+        try listStr := IniRead(iniPath, "TextBlockPresets", "List", "")
+        pIds := StrSplit(listStr, ",")
+        found := false
+        for _, id in pIds {
+            if (Trim(id) = pId) {
+                found := true
+                break
+            }
+        }
+        if (!found) {
+            newList := (listStr != "" ? (listStr . ",") : "") . pId
+            try IniWrite(newList, iniPath, "TextBlockPresets", "List")
+        }
+
+        return this.LoadTextBlockPresets()
+    }
+
+    static DeleteTextBlockPreset(presetId) {
+        iniPath := A_ScriptDir . "\settings.ini"
+        try IniDelete(iniPath, "TextBlockPreset_" . presetId)
+
+        listStr := ""
+        try listStr := IniRead(iniPath, "TextBlockPresets", "List", "")
+        pIds := StrSplit(listStr, ",")
+        newList := ""
+        for _, id in pIds {
+            id := Trim(id)
+            if (id != "" && id != presetId) {
+                newList := (newList != "" ? (newList . ",") : "") . id
+            }
+        }
+        try IniWrite(newList, iniPath, "TextBlockPresets", "List")
+
+        return this.LoadTextBlockPresets()
+    }
+
     ; =========================================================================
     ; DATA NORMALIZATION & SERIALIZATION
     ; =========================================================================
@@ -2062,6 +2355,10 @@ class WebViewGuiManager {
                     this.SaveCardOffsets(mLayout["cardOffsets"])
                 }
 
+                if (mLayout.Has("mouseOffset") && IsObject(mLayout["mouseOffset"])) {
+                    this.SaveMouseOffset(mLayout["mouseOffset"])
+                }
+
                 if (mLayout.Has("customButtonNames") && IsObject(mLayout["customButtonNames"])) {
                     for bId, cName in mLayout["customButtonNames"] {
                         this.SaveButtonName(bId, cName)
@@ -2098,7 +2395,16 @@ class WebViewGuiManager {
                 }
             }
 
-            ; 7. Reload engine
+            ; 7. Text Block Presets
+            if (backupObj.Has("textBlockPresets") && IsObject(backupObj["textBlockPresets"])) {
+                for _, preset in backupObj["textBlockPresets"] {
+                    if (IsObject(preset)) {
+                        this.SaveTextBlockPreset(preset)
+                    }
+                }
+            }
+
+            ; 8. Reload engine
             ProfileEngine.Init(iniPath)
             return true
         } catch as err {

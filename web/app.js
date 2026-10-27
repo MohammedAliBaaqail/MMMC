@@ -24,6 +24,7 @@ const state = {
     contextTargetProfile: null,
     currentLayer: 'Normal', // 'Normal', 'GShift1', 'GShift2'
     selectedButton: 'G8',
+    hoveredButton: null,
     isRapidFire: false,
     isAlwaysOnTop: false,
     isShiftPhysicallyActive: false,
@@ -54,6 +55,14 @@ const state = {
             return [];
         }
     })(),
+    textBlockPresets: (function() {
+        try {
+            const raw = localStorage.getItem('obm_text_block_presets');
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            return [];
+        }
+    })(),
     rawIni: '',
     muteWhenFocused: true,
 
@@ -61,9 +70,13 @@ const state = {
     isCalibrating: false,
     calibSelectedButton: 'G8',
     calibTargetMode: 'dot', // 'dot' or 'card'
+    calibMoveAll: false, // true when in 'Move Everything (With Image)' mode
+    calibMoveCards: true, // when true in move-all mode, shifts cards with mouse
+    mouseOffset: { x: 0, y: 0 }, // whole mouse visual offset
     calibStep: 1, // 1px, 5px, 10px
     isDraggingPoint: false,
     isDraggingCard: false,
+    isDraggingMouseStage: false,
     cardOffsets: {}, // { ButtonId: { x: number, y: number } }
     originalCardMinWidth: 150,
     
@@ -337,6 +350,7 @@ const CATALOG_DATA = [
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
     initCatalog();
+    initSidebarResizer();
     initHeaderControls();
     initLgsProfilesBar();
     initProfileModalControls();
@@ -351,6 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initCalibration();
     initBackupModal();
     initStudioSettingsModal();
+    initCustomConfirmModal();
     
     // Draw initial SVG lines after layout stabilizes
     setTimeout(() => {
@@ -371,6 +386,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('drop', clearAllDropHovers);
     document.addEventListener('dragleave', (e) => {
         if (!e.relatedTarget) clearAllDropHovers();
+    });
+
+    // Suppress default browser context menu on empty spaces
+    window.addEventListener('contextmenu', (e) => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+            return;
+        }
+        e.preventDefault();
     });
 
     const mouseImg = document.getElementById('mouseImg');
@@ -453,6 +476,15 @@ function handleEngineMessage(msg) {
                 state.rawIni = msg.rawIni || '';
             }
             
+            // Saved sidebar width loading from settings.ini
+            if (msg.sidebarWidth && Number(msg.sidebarWidth) >= 260) {
+                state.sidebarWidth = Number(msg.sidebarWidth);
+                setSidebarWidth(Number(msg.sidebarWidth));
+                try {
+                    localStorage.setItem('obm_sidebar_width', Number(msg.sidebarWidth));
+                } catch (e) {}
+            }
+
             // Custom mouse image loading
             if (msg.mouseImage) {
                 const mouseImg = document.getElementById('mouseImg');
@@ -471,6 +503,17 @@ function handleEngineMessage(msg) {
                 state.customActionPresets = msg.customActionPresets;
                 try {
                     localStorage.setItem('obm_custom_action_presets', JSON.stringify(state.customActionPresets));
+                } catch (e) {}
+                if (typeof initCatalog === 'function') {
+                    initCatalog();
+                }
+            }
+
+            // Text block presets loading
+            if (msg.textBlockPresets && Array.isArray(msg.textBlockPresets)) {
+                state.textBlockPresets = msg.textBlockPresets;
+                try {
+                    localStorage.setItem('obm_text_block_presets', JSON.stringify(state.textBlockPresets));
                 } catch (e) {}
                 if (typeof initCatalog === 'function') {
                     initCatalog();
@@ -503,6 +546,15 @@ function handleEngineMessage(msg) {
                     };
                 }
                 applyAllCardOffsets();
+            }
+            // Load mouse stage offset if received from AHK
+            if (msg.mouseOffset) {
+                state.mouseOffset = {
+                    x: parseFloat(msg.mouseOffset.x) || 0,
+                    y: parseFloat(msg.mouseOffset.y) || 0
+                };
+                applyMouseOffset();
+                updateCalibOffsetBadge();
             }
             if (msg.buttonNames) {
                 state.customButtonNames = msg.buttonNames;
@@ -575,6 +627,18 @@ function handleEngineMessage(msg) {
             }
             break;
 
+        case 'textBlockPresetsUpdated':
+            if (msg.presets && Array.isArray(msg.presets)) {
+                state.textBlockPresets = msg.presets;
+                try {
+                    localStorage.setItem('obm_text_block_presets', JSON.stringify(state.textBlockPresets));
+                } catch (e) {}
+                if (typeof initCatalog === 'function') {
+                    initCatalog();
+                }
+            }
+            break;
+
         case 'customButtonsSaved':
             if (msg.buttons && Array.isArray(msg.buttons)) {
                 applyButtonsConfig(msg.buttons);
@@ -606,9 +670,12 @@ function handleEngineMessage(msg) {
             }
             state.cardOffsets = {};
             applyAllCardOffsets();
+            state.mouseOffset = { x: 0, y: 0 };
+            applyMouseOffset();
+            updateCalibOffsetBadge();
             syncCalibInputs();
             updateSvgLines();
-            showToast('Calibration Reset', 'Restored default pointer coordinates and card positions');
+            showToast('Calibration Reset', 'Restored default pointer coordinates, card positions, and mouse alignment');
             break;
 
         case 'profileChanged':
@@ -806,8 +873,28 @@ function handleEngineMessage(msg) {
                 if (!state.mappings[msg.profile]) state.mappings[msg.profile] = {};
                 state.mappings[msg.profile][msg.btnId] = msg.mapping;
                 refreshCardsAndStage();
+                updateSvgLines();
                 showToast('Saved', `Updated ${msg.btnId} on ${msg.profile}`);
             }
+            break;
+
+        case 'buttonReset':
+            if (msg.profile && msg.btnId && msg.mapping) {
+                if (!state.mappings[msg.profile]) state.mappings[msg.profile] = {};
+                state.mappings[msg.profile][msg.btnId] = msg.mapping;
+                refreshCardsAndStage();
+                updateSvgLines();
+                showToast('Reset to Default', `${msg.btnId} restored to factory default`);
+            }
+            break;
+
+        case 'profileReset':
+            if (msg.mappings) {
+                state.mappings = msg.mappings;
+            }
+            refreshCardsAndStage();
+            updateSvgLines();
+            showToast('All Buttons Reset', `All buttons on [${msg.profile || state.currentProfile}] restored to default`);
             break;
 
         case 'quickRemapCompleted':
@@ -1050,6 +1137,21 @@ function updateHeaderTogglesUI() {
         btnMute.classList.toggle('active', !!state.muteWhenFocused);
         btnMute.setAttribute('title', state.muteWhenFocused ? 'Focus Test Mode: Active (Clicks highlight diagram without executing macros)' : 'Focus Test Mode: Inactive (Normal actions execute in focus)');
     }
+
+    // Keep settings modal pill toggles in lockstep if rendered
+    const chkSettingsTop = document.getElementById('chkSettingsTop');
+    if (chkSettingsTop && chkSettingsTop.checked !== !!state.isAlwaysOnTop) {
+        chkSettingsTop.checked = !!state.isAlwaysOnTop;
+    }
+    const chkSettingsOSD = document.getElementById('chkSettingsOSD');
+    const isOsdCurrent = (document.getElementById('chkShowOSD')?.checked ?? true);
+    if (chkSettingsOSD && chkSettingsOSD.checked !== !!isOsdCurrent) {
+        chkSettingsOSD.checked = !!isOsdCurrent;
+    }
+    const chkSettingsMute = document.getElementById('chkSettingsMute');
+    if (chkSettingsMute && chkSettingsMute.checked !== !!state.muteWhenFocused) {
+        chkSettingsMute.checked = !!state.muteWhenFocused;
+    }
 }
 
 function updateBShiftVisibility() {
@@ -1163,6 +1265,7 @@ function switchLayerVisually(layer) {
         document.body.classList.add('layer-normal');
     }
 
+    clearAllButtonHovers();
     refreshCardsAndStage();
     updateSvgLines();
 }
@@ -1249,7 +1352,7 @@ function initCatalog() {
     const customHeader = document.createElement('div');
     customHeader.className = 'cat-header';
     customHeader.innerHTML = `
-        <span class="cat-title">${getSvgIcon('star')} Custom Presets <span class="cat-count-badge">${customPresets.length}</span></span>
+        <span class="cat-title">${getSvgIcon('star')}<span class="cat-title-text">Custom Presets</span><span class="cat-count-badge">${customPresets.length}</span></span>
         <span class="cat-arrow">${getSvgIcon('chevron-down', 'svg-icon-xs')}</span>
     `;
     customHeader.addEventListener('click', () => {
@@ -1377,7 +1480,116 @@ function initCatalog() {
     container.appendChild(customGroup);
 
     // =========================================================================
-    // 2. BUILT-IN COMMAND CATALOG CATEGORIES
+    // 2. TEXT BLOCKS CATEGORY (Dedicated Section in Command Catalog)
+    // =========================================================================
+    const textPresets = state.textBlockPresets || [];
+    const textGroup = document.createElement('div');
+    textGroup.className = 'cat-group text-blocks-cat-group';
+    textGroup.id = 'catGroup_text_blocks';
+
+    const textHeader = document.createElement('div');
+    textHeader.className = 'cat-header';
+    textHeader.innerHTML = `
+        <span class="cat-title">${getSvgIcon('file-text')}<span class="cat-title-text">Text Blocks</span><span class="cat-count-badge text-block-count-badge">${textPresets.length}</span></span>
+        <span class="cat-arrow">${getSvgIcon('chevron-down', 'svg-icon-xs')}</span>
+    `;
+    textHeader.addEventListener('click', () => {
+        textGroup.classList.toggle('collapsed');
+    });
+
+    const textItemsWrap = document.createElement('div');
+    textItemsWrap.className = 'cat-items';
+
+    if (textPresets.length === 0) {
+        const emptyHint = document.createElement('div');
+        emptyHint.className = 'cat-empty-hint';
+        emptyHint.textContent = 'No text blocks yet. Turn on "Save to Text Blocks" when inserting a text block in Button Studio.';
+        textItemsWrap.appendChild(emptyHint);
+    } else {
+        textPresets.forEach((preset) => {
+            const item = document.createElement('div');
+            item.className = 'cmd-item text-block-cmd-item';
+            item.draggable = true;
+            const pName = preset.name || preset.label || 'Text Snippet';
+            const rawText = preset.text || preset.cmd || preset.Cmd || '';
+
+            item.setAttribute('data-name', pName.toLowerCase());
+            item.setAttribute('data-cmd', rawText.toLowerCase());
+            item.setAttribute('data-key', 'text');
+
+            const safeTooltip = rawText.replace(/"/g, '&quot;');
+            item.innerHTML = `
+                <span class="cmd-item-name" title="${safeTooltip}">${getSvgIcon('file-text', 'svg-icon-xs')} ${pName}</span>
+                <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                    <span class="cmd-item-key text-block-badge">TEXT</span>
+                    <button type="button" class="cmd-item-edit-btn" title="Edit Text Block">${getSvgIcon('edit-2', 'svg-icon-xs')}</button>
+                    <button type="button" class="cmd-item-del-btn" title="Delete Text Block">${getSvgIcon('trash-2', 'svg-icon-xs')}</button>
+                </div>
+            `;
+
+            const getPayload = () => ({
+                Type: 'Text',
+                Cmd: rawText,
+                Label: pName,
+                PlayType: 'NoRepeat',
+                RepeatInterval: 50
+            });
+
+            // Drag Start
+            item.addEventListener('dragstart', (e) => {
+                const payload = getPayload();
+                e.dataTransfer.setData('application/json', JSON.stringify(payload));
+                e.dataTransfer.effectAllowed = 'copy';
+                item.style.opacity = '0.5';
+            });
+
+            item.addEventListener('dragend', () => {
+                item.style.opacity = '1';
+                clearAllDropHovers();
+            });
+
+            // Single click assigns to currently selected button
+            item.addEventListener('click', () => {
+                if (state.selectedButton) {
+                    const payload = getPayload();
+                    applyActionToButton(state.selectedButton, payload);
+                }
+            });
+
+            // Double click opens Text Block editor in Button Studio
+            item.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                openTextBlockPresetEditor(preset);
+            });
+
+            // Edit button click
+            const editBtn = item.querySelector('.cmd-item-edit-btn');
+            if (editBtn) {
+                editBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openTextBlockPresetEditor(preset);
+                });
+            }
+
+            // Delete button click
+            const delBtn = item.querySelector('.cmd-item-del-btn');
+            if (delBtn) {
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteTextBlockPreset(preset.id || preset.name);
+                });
+            }
+
+            textItemsWrap.appendChild(item);
+        });
+    }
+
+    textGroup.appendChild(textHeader);
+    textGroup.appendChild(textItemsWrap);
+    container.appendChild(textGroup);
+
+    // =========================================================================
+    // 3. BUILT-IN COMMAND CATALOG CATEGORIES
     // =========================================================================
     CATALOG_DATA.forEach((cat, idx) => {
         const group = document.createElement('div');
@@ -1387,7 +1599,7 @@ function initCatalog() {
         const header = document.createElement('div');
         header.className = 'cat-header';
         header.innerHTML = `
-            <span class="cat-title">${cat.icon} ${cat.name}</span>
+            <span class="cat-title">${cat.icon}<span class="cat-title-text">${cat.name}</span></span>
             <span class="cat-arrow">${getSvgIcon('chevron-down', 'svg-icon-xs')}</span>
         `;
         header.addEventListener('click', () => {
@@ -1485,6 +1697,144 @@ function initCatalog() {
 }
 
 // ============================================================================
+// SIDEBAR RESIZER & AUTO-FIT CONTROLLER
+// ============================================================================
+function initSidebarResizer() {
+    const resizer = document.getElementById('sidebarResizer');
+    const sidebar = document.getElementById('sidebarCatalog');
+    if (!resizer || !sidebar) return;
+
+    // Load saved width from state (if already received from settings.ini) or localStorage or auto-fit
+    const saved = (state && state.sidebarWidth) ? state.sidebarWidth : localStorage.getItem('obm_sidebar_width');
+    if (saved && !isNaN(Number(saved)) && Number(saved) >= 260) {
+        setSidebarWidth(Number(saved));
+    } else {
+        // Wait for fonts and catalog items to be rendered, then auto-fit
+        setTimeout(() => {
+            autoFitSidebarWidth(true);
+        }, 120);
+    }
+
+    let isDragging = false;
+    let startX = 0;
+    let startW = 0;
+
+    resizer.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        isDragging = true;
+        startX = e.clientX;
+        startW = sidebar.getBoundingClientRect().width;
+        resizer.classList.add('is-resizing');
+        document.body.classList.add('is-resizing-sidebar');
+        try {
+            resizer.setPointerCapture(e.pointerId);
+        } catch (_) {}
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    const onPointerMove = (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const minW = 260;
+        const maxW = Math.min(650, window.innerWidth - 450);
+        const newW = Math.round(Math.max(minW, Math.min(maxW, startW + dx)));
+        setSidebarWidth(newW);
+        if (typeof updateSvgLines === 'function') {
+            updateSvgLines();
+        }
+    };
+
+    const onPointerUp = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        resizer.classList.remove('is-resizing');
+        document.body.classList.remove('is-resizing-sidebar');
+        try {
+            resizer.releasePointerCapture(e.pointerId);
+        } catch (_) {}
+        const curW = Math.round(sidebar.getBoundingClientRect().width);
+        try {
+            localStorage.setItem('obm_sidebar_width', curW);
+        } catch (_) {}
+        sendToAhk({ action: 'saveSidebarWidth', width: curW });
+        if (typeof updateSvgLines === 'function') {
+            updateSvgLines();
+        }
+    };
+
+    resizer.addEventListener('pointermove', onPointerMove);
+    resizer.addEventListener('pointerup', onPointerUp);
+    resizer.addEventListener('pointercancel', onPointerUp);
+
+    // Double-click splitter to auto-fit sidebar width to longest text
+    resizer.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        const fittedW = autoFitSidebarWidth(false);
+        try {
+            localStorage.setItem('obm_sidebar_width', fittedW);
+        } catch (_) {}
+        sendToAhk({ action: 'saveSidebarWidth', width: fittedW });
+        if (typeof showToast === 'function') {
+            showToast('Sidebar Auto-Fitted', `Sidebar width set to ${fittedW}px to fit all command text.`);
+        }
+    });
+}
+
+function setSidebarWidth(w) {
+    const sidebar = document.getElementById('sidebarCatalog');
+    if (!sidebar) return;
+    const clamped = Math.round(Math.max(260, Math.min(700, w)));
+    document.documentElement.style.setProperty('--sidebar-width', `${clamped}px`);
+    sidebar.style.width = `${clamped}px`;
+}
+
+function autoFitSidebarWidth(isInitial = false) {
+    const sidebar = document.getElementById('sidebarCatalog');
+    const sections = document.getElementById('catalogSections');
+    if (!sidebar || !sections) return 380;
+
+    let maxRequiredWidth = 0;
+
+    // Measure all command items
+    const items = sections.querySelectorAll('.cmd-item');
+    items.forEach(item => {
+        const nameEl = item.querySelector('.cmd-item-name, .cmd-name');
+        const keyEl = item.querySelector('.cmd-item-key, .cmd-key');
+        if (nameEl && keyEl) {
+            const prevOverflow = nameEl.style.overflow;
+            const prevTextOverflow = nameEl.style.textOverflow;
+            nameEl.style.overflow = 'visible';
+            nameEl.style.textOverflow = 'clip';
+            const reqW = nameEl.scrollWidth + keyEl.offsetWidth + 64;
+            nameEl.style.overflow = prevOverflow;
+            nameEl.style.textOverflow = prevTextOverflow;
+            if (reqW > maxRequiredWidth) maxRequiredWidth = reqW;
+        }
+    });
+
+    // Also measure category headers
+    const headers = sections.querySelectorAll('.cat-header');
+    headers.forEach(h => {
+        const titleEl = h.querySelector('.cat-title');
+        const arrowEl = h.querySelector('.cat-arrow');
+        if (titleEl) {
+            const reqW = titleEl.scrollWidth + (arrowEl ? arrowEl.offsetWidth : 20) + 64;
+            if (reqW > maxRequiredWidth) maxRequiredWidth = reqW;
+        }
+    });
+
+    // Default width generously set to fit all text without truncation
+    const finalWidth = Math.round(Math.max(380, Math.min(560, maxRequiredWidth)));
+    setSidebarWidth(finalWidth);
+
+    if (typeof updateSvgLines === 'function') {
+        updateSvgLines();
+    }
+    return finalWidth;
+}
+
+// ============================================================================
 // STAGE, CALLOUT CARDS & SVG LEADER LINES
 // ============================================================================
 function setButtonDropHover(btnId, isHovered) {
@@ -1509,10 +1859,11 @@ function setButtonDropHover(btnId, isHovered) {
     document.querySelectorAll(`.svg-hotspot-circle[data-btn="${btnId}"]`).forEach(circle => {
         circle.classList.toggle('drop-hover', isHovered);
         if (isHovered) {
-            circle.setAttribute('r', '11');
+            circle.setAttribute('r', '16.5');
         } else {
             const isSelected = (state.selectedButton === btnId);
-            circle.setAttribute('r', isSelected ? '8' : '5.5');
+            const isHover = (state.hoveredButton === btnId);
+            circle.setAttribute('r', isSelected ? '12' : (isHover ? '15' : '8.25'));
         }
     });
 }
@@ -1526,8 +1877,70 @@ function clearAllDropHovers() {
         circle.classList.remove('drop-hover');
         const btnId = circle.getAttribute('data-btn');
         const isSelected = (state.selectedButton === btnId);
-        circle.setAttribute('r', isSelected ? '8' : '5.5');
+        const isHover = (state.hoveredButton === btnId);
+        circle.setAttribute('r', isSelected ? '12' : (isHover ? '15' : '8.25'));
     });
+}
+
+let _buttonHoverTimeout = null;
+
+function setButtonHover(btnId, isHovered) {
+    if (state.isCalibrating || !btnId) return;
+    if (_buttonHoverTimeout) {
+        clearTimeout(_buttonHoverTimeout);
+        _buttonHoverTimeout = null;
+    }
+    if (isHovered) {
+        if (state.hoveredButton && state.hoveredButton !== btnId) {
+            applyHoverClasses(state.hoveredButton, false);
+        }
+        state.hoveredButton = btnId;
+        applyHoverClasses(btnId, true);
+    } else {
+        _buttonHoverTimeout = setTimeout(() => {
+            if (state.hoveredButton === btnId) {
+                applyHoverClasses(btnId, false);
+                state.hoveredButton = null;
+            }
+        }, 50);
+    }
+}
+
+function applyHoverClasses(btnId, active) {
+    const card = document.getElementById(`card_${btnId}`);
+    if (card) card.classList.toggle('btn-hover', active);
+    document.querySelectorAll(`.svg-leader-line[data-btn="${btnId}"]`).forEach(l => l.classList.toggle('btn-hover', active));
+    document.querySelectorAll(`.svg-anchor-dot[data-btn="${btnId}"]`).forEach(d => d.classList.toggle('btn-hover', active));
+    document.querySelectorAll(`.hotspot-group[data-btn="${btnId}"]`).forEach(g => g.classList.toggle('btn-hover', active));
+    document.querySelectorAll(`.svg-hotspot-circle[data-btn="${btnId}"]`).forEach(c => {
+        c.classList.toggle('btn-hover', active);
+        if (active) {
+            c.setAttribute('r', '15');
+        } else {
+            const isSelected = (state.selectedButton === btnId);
+            c.setAttribute('r', isSelected ? '12' : '8.25');
+        }
+    });
+    document.querySelectorAll(`.svg-hotspot-text[data-btn="${btnId}"]`).forEach(t => t.classList.toggle('btn-hover', active));
+}
+
+function clearAllButtonHovers() {
+    if (_buttonHoverTimeout) {
+        clearTimeout(_buttonHoverTimeout);
+        _buttonHoverTimeout = null;
+    }
+    state.hoveredButton = null;
+    document.querySelectorAll('.btn-card.btn-hover').forEach(el => el.classList.remove('btn-hover'));
+    document.querySelectorAll('.svg-leader-line.btn-hover').forEach(el => el.classList.remove('btn-hover'));
+    document.querySelectorAll('.svg-anchor-dot.btn-hover').forEach(el => el.classList.remove('btn-hover'));
+    document.querySelectorAll('.hotspot-group.btn-hover').forEach(el => el.classList.remove('btn-hover'));
+    document.querySelectorAll('.svg-hotspot-circle.btn-hover').forEach(circle => {
+        circle.classList.remove('btn-hover');
+        const btnId = circle.getAttribute('data-btn');
+        const isSelected = (state.selectedButton === btnId);
+        circle.setAttribute('r', isSelected ? '12' : '8.25');
+    });
+    document.querySelectorAll('.svg-hotspot-text.btn-hover').forEach(el => el.classList.remove('btn-hover'));
 }
 
 function renderAllCards() {
@@ -1609,6 +2022,9 @@ function renderAllCards() {
 }
 
 function attachCardEventListeners(card, btnId) {
+    card.addEventListener('mouseenter', () => setButtonHover(btnId, true));
+    card.addEventListener('mouseleave', () => setButtonHover(btnId, false));
+
     card.addEventListener('pointerdown', (e) => {
         if (state.isCalibrating) {
             onCardCalibPointerDown(e, btnId);
@@ -1702,7 +2118,7 @@ function initStageAndCards() {
     });
 
     document.getElementById('btnResetSelected').addEventListener('click', () => {
-        resetButtonToDefault(state.selectedButton);
+        confirmResetAllButtons();
     });
 
     renderAllCards();
@@ -1723,10 +2139,14 @@ function selectButton(btnId) {
 
     // Update SVG active hotspot, lines & text labels
     document.querySelectorAll('.svg-hotspot-circle').forEach(circle => {
-        if (circle.getAttribute('data-btn') === btnId) {
+        const cBtn = circle.getAttribute('data-btn');
+        if (cBtn === btnId) {
             circle.classList.add('active');
+            circle.setAttribute('r', '12');
         } else {
             circle.classList.remove('active');
+            const isHover = (state.hoveredButton === cBtn);
+            circle.setAttribute('r', isHover ? '15' : '8.25');
         }
     });
 
@@ -1886,7 +2306,7 @@ function refreshCardsAndStage() {
     }
 
     if (state.selectedButton) {
-        if ((state.selectedButton === 'LeftClick' || state.selectedButton === 'RightClick') && !isShiftActive) {
+        if (!state.isCalibrating && (state.selectedButton === 'LeftClick' || state.selectedButton === 'RightClick') && !isShiftActive) {
             selectButton('G8');
         } else {
             selectButton(state.selectedButton);
@@ -1918,6 +2338,7 @@ function syncCardMinWidthWithRightClick() {
 
 // Flash hardware feedback when a physical mouse button is clicked
 function flashButtonHardware(btnId, isDown) {
+    if (state.isCalibrating) return;
     const card = document.getElementById(`card_${btnId}`);
     const hotspot = document.querySelector(`.svg-hotspot-circle[data-btn="${btnId}"]`);
     const line = document.querySelector(`.svg-leader-line[data-btn="${btnId}"]`);
@@ -1993,6 +2414,7 @@ function updateSvgLines() {
         const isCalibSelected = state.isCalibrating && (state.calibSelectedButton === btnId);
         const isSelected = isCalibSelected || (state.selectedButton === btnId);
         const isCardHovered = document.getElementById(`card_${btnId}`)?.classList.contains('drop-hover');
+        const isHovered = (state.hoveredButton === btnId);
 
         // Draw a smooth tech elbow leader line
         const midX = (anchorX + targetX) / 2;
@@ -2003,47 +2425,53 @@ function updateSvgLines() {
         // Create Path
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', d);
-        path.setAttribute('class', `svg-leader-line ${isSelected ? 'active' : ''} ${isCalibSelected ? 'calib-active' : ''} ${isCardHovered ? 'drop-hover' : ''}`);
+        path.setAttribute('class', `svg-leader-line ${isSelected ? 'active' : ''} ${isCalibSelected ? 'calib-active' : ''} ${isCardHovered ? 'drop-hover' : ''} ${isHovered ? 'btn-hover' : ''}`);
         path.setAttribute('data-btn', btnId);
+        path.addEventListener('mouseenter', () => setButtonHover(btnId, true));
+        path.addEventListener('mouseleave', () => setButtonHover(btnId, false));
         linesGroup.appendChild(path);
 
         // Small stylish anchor dot on card edge
         const anchorDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         anchorDot.setAttribute('cx', anchorX.toFixed(1));
         anchorDot.setAttribute('cy', anchorY.toFixed(1));
-        anchorDot.setAttribute('r', isSelected ? '3.5' : '2.5');
-        anchorDot.setAttribute('class', `svg-anchor-dot ${isSelected ? 'active' : ''} ${isCalibSelected ? 'calib-active' : ''} ${isCardHovered ? 'drop-hover' : ''}`);
+        anchorDot.setAttribute('r', isSelected ? '4.5' : '3.75');
+        anchorDot.setAttribute('class', `svg-anchor-dot ${isSelected ? 'active' : ''} ${isCalibSelected ? 'calib-active' : ''} ${isCardHovered ? 'drop-hover' : ''} ${isHovered ? 'btn-hover' : ''}`);
         anchorDot.setAttribute('data-btn', btnId);
         linesGroup.appendChild(anchorDot);
 
         // Create Hotspot Circle & Tag
         const spotGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        spotGroup.setAttribute('class', `hotspot-group ${isSelected ? 'active' : ''} ${state.isCalibrating ? 'calibrating' : ''} ${isCardHovered ? 'drop-hover' : ''}`);
+        spotGroup.setAttribute('class', `hotspot-group ${isSelected ? 'active' : ''} ${state.isCalibrating ? 'calibrating' : ''} ${isCardHovered ? 'drop-hover' : ''} ${isHovered ? 'btn-hover' : ''}`);
         spotGroup.setAttribute('data-btn', btnId);
+        spotGroup.addEventListener('mouseenter', () => setButtonHover(btnId, true));
+        spotGroup.addEventListener('mouseleave', () => setButtonHover(btnId, false));
 
         // Outer glow circle
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', targetX);
         circle.setAttribute('cy', targetY);
 
-        let radius = '5.5';
+        let radius = '8.25';
         if (state.isCalibrating) {
-            radius = isCalibSelected ? (state.isDraggingPoint ? '14' : '12') : '8.5';
+            radius = isCalibSelected ? (state.isDraggingPoint ? '21' : '19') : '13';
         } else if (isCardHovered) {
-            radius = '11';
+            radius = '16.5';
+        } else if (isHovered) {
+            radius = '15';
         } else if (isSelected) {
-            radius = '8';
+            radius = '12';
         }
         circle.setAttribute('r', radius);
-        circle.setAttribute('class', `svg-hotspot-circle ${isSelected ? 'active' : ''} ${isCalibSelected ? 'calib-active' : ''} ${state.isDraggingPoint && isCalibSelected ? 'dragging' : ''} ${isCardHovered ? 'drop-hover' : ''}`);
+        circle.setAttribute('class', `svg-hotspot-circle ${isSelected ? 'active' : ''} ${isCalibSelected ? 'calib-active' : ''} ${state.isDraggingPoint && isCalibSelected ? 'dragging' : ''} ${isCardHovered ? 'drop-hover' : ''} ${isHovered ? 'btn-hover' : ''}`);
         circle.setAttribute('data-btn', btnId);
 
         // Tag label (Button Name on the button itself)
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', targetX);
-        text.setAttribute('y', targetY - (state.isCalibrating ? 12 : 10));
+        text.setAttribute('y', targetY - (state.isCalibrating ? 18 : 15));
         text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('class', `svg-hotspot-text ${isSelected ? 'active' : ''} ${state.isCalibrating ? 'svg-hotspot-tag' : ''} ${isCardHovered ? 'drop-hover' : ''}`);
+        text.setAttribute('class', `svg-hotspot-text ${isSelected ? 'active' : ''} ${state.isCalibrating ? 'svg-hotspot-tag' : ''} ${isCardHovered ? 'drop-hover' : ''} ${isHovered ? 'btn-hover' : ''}`);
         text.setAttribute('data-btn', btnId);
         text.setAttribute('pointer-events', 'none');
         text.textContent = getButtonHotspotTag(btnId);
@@ -2055,7 +2483,7 @@ function updateSvgLines() {
         if (state.isCalibrating) {
             const coordText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             coordText.setAttribute('x', targetX);
-            coordText.setAttribute('y', targetY + 16);
+            coordText.setAttribute('y', targetY + 20);
             coordText.setAttribute('text-anchor', 'middle');
             coordText.setAttribute('class', 'svg-hotspot-coords');
             coordText.textContent = `${Math.round(targetX)}, ${Math.round(targetY)}`;
@@ -2165,10 +2593,14 @@ function initModalControls() {
     const btnClose = document.getElementById('btnModalClose');
     const btnCancel = document.getElementById('btnModalCancel');
     const btnSave = document.getElementById('btnModalSave');
+    const btnHdrCancel = document.getElementById('btnHeaderCancel');
+    const btnHdrSave = document.getElementById('btnHeaderSave');
 
-    btnClose.addEventListener('click', closeButtonStudio);
-    btnCancel.addEventListener('click', closeButtonStudio);
-    btnSave.addEventListener('click', saveModalAction);
+    if (btnClose) btnClose.addEventListener('click', closeButtonStudio);
+    if (btnCancel) btnCancel.addEventListener('click', closeButtonStudio);
+    if (btnSave) btnSave.addEventListener('click', saveModalAction);
+    if (btnHdrCancel) btnHdrCancel.addEventListener('click', closeButtonStudio);
+    if (btnHdrSave) btnHdrSave.addEventListener('click', saveModalAction);
 
     if (modal) {
         modal.addEventListener('click', (e) => {
@@ -2179,39 +2611,57 @@ function initModalControls() {
     // Modal Tabs
     const tabSingle = document.getElementById('tabBtnSingle');
     const tabMacro = document.getElementById('tabBtnMacro');
+    const tabText = document.getElementById('tabBtnText');
     const contentSingle = document.getElementById('tabContentSingle');
     const contentMacro = document.getElementById('tabContentMacro');
+    const contentText = document.getElementById('tabContentText');
+
+    const wrapSingle = document.getElementById('singlePresetToggleWrap');
+    const wrapMacro = document.getElementById('macroPresetToggleWrap');
+    const wrapText = document.getElementById('textPresetToggleWrap');
 
     tabSingle.addEventListener('click', () => {
         stopRecordMacro();
         tabSingle.classList.add('active');
         tabMacro.classList.remove('active');
+        if (tabText) tabText.classList.remove('active');
         contentSingle.classList.add('active');
         contentMacro.classList.remove('active');
+        if (contentText) {
+            contentText.classList.remove('active');
+            contentText.style.display = 'none';
+        }
+        contentSingle.style.display = 'block';
+        contentMacro.style.display = 'none';
         state.modal.activeTab = 'single';
         const studioModalEl = document.getElementById('studioModal');
         if (studioModalEl) studioModalEl.classList.remove('macro-active');
 
-        const wrapSingle = document.getElementById('singlePresetToggleWrap');
-        const wrapMacro = document.getElementById('macroPresetToggleWrap');
         if (wrapSingle) wrapSingle.style.display = 'inline-flex';
         if (wrapMacro) wrapMacro.style.display = 'none';
+        if (wrapText) wrapText.style.display = 'none';
     });
 
     tabMacro.addEventListener('click', () => {
         stopRecordSingleKey();
         tabMacro.classList.add('active');
         tabSingle.classList.remove('active');
+        if (tabText) tabText.classList.remove('active');
         contentMacro.classList.add('active');
         contentSingle.classList.remove('active');
+        if (contentText) {
+            contentText.classList.remove('active');
+            contentText.style.display = 'none';
+        }
+        contentSingle.style.display = 'none';
+        contentMacro.style.display = 'block';
         state.modal.activeTab = 'macro';
         const studioModalEl = document.getElementById('studioModal');
         if (studioModalEl) studioModalEl.classList.add('macro-active');
 
-        const wrapSingle = document.getElementById('singlePresetToggleWrap');
-        const wrapMacro = document.getElementById('macroPresetToggleWrap');
         if (wrapSingle) wrapSingle.style.display = 'none';
         if (wrapMacro) wrapMacro.style.display = 'inline-flex';
+        if (wrapText) wrapText.style.display = 'none';
 
         // When switching to macro tab, ensure preset toggle is ON by default
         const swMacro = document.getElementById('macroSavePresetSwitch');
@@ -2221,6 +2671,77 @@ function initModalControls() {
 
         renderMacroSteps();
     });
+
+    if (tabText) {
+        tabText.addEventListener('click', () => {
+            stopRecordSingleKey();
+            stopRecordMacro();
+            tabText.classList.add('active');
+            tabSingle.classList.remove('active');
+            tabMacro.classList.remove('active');
+            if (contentText) {
+                contentText.classList.add('active');
+                contentText.style.display = 'block';
+            }
+            contentSingle.classList.remove('active');
+            contentSingle.style.display = 'none';
+            contentMacro.classList.remove('active');
+            contentMacro.style.display = 'none';
+            state.modal.activeTab = 'text';
+            const studioModalEl = document.getElementById('studioModal');
+            if (studioModalEl) studioModalEl.classList.remove('macro-active');
+
+            if (wrapSingle) wrapSingle.style.display = 'none';
+            if (wrapMacro) wrapMacro.style.display = 'none';
+            if (wrapText) wrapText.style.display = 'inline-flex';
+
+            updateTextBlockStats();
+            const textContentEl = document.getElementById('textBlockContent');
+            if (textContentEl) {
+                setTimeout(() => textContentEl.focus(), 60);
+            }
+        });
+    }
+
+    // Tab 3 Text Block controls
+    const textContentInput = document.getElementById('textBlockContent');
+    if (textContentInput) {
+        textContentInput.addEventListener('input', updateTextBlockStats);
+    }
+    const btnClearText = document.getElementById('btnClearTextBlock');
+    if (btnClearText) {
+        btnClearText.addEventListener('click', () => {
+            const input = document.getElementById('textBlockContent');
+            if (input) {
+                input.value = '';
+                input.focus();
+            }
+            updateTextBlockStats();
+        });
+    }
+    const btnPasteClip = document.getElementById('btnPasteClipboardText');
+    if (btnPasteClip) {
+        btnPasteClip.addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    const input = document.getElementById('textBlockContent');
+                    if (input) {
+                        const start = input.selectionStart || 0;
+                        const end = input.selectionEnd || 0;
+                        const val = input.value;
+                        input.value = val.substring(0, start) + text + val.substring(end);
+                        input.selectionStart = input.selectionEnd = start + text.length;
+                        input.focus();
+                    }
+                    updateTextBlockStats();
+                    showToast('Clipboard Pasted', `Inserted ${text.length} characters`);
+                }
+            } catch (err) {
+                showToast('Clipboard Access', 'Press Ctrl+V to paste directly into text area.');
+            }
+        });
+    }
 
     // Tab 1: Single / Combination recording toggle
     const btnRecKey = document.getElementById('btnRecordKeyToggle');
@@ -2270,7 +2791,8 @@ function initModalControls() {
     document.getElementById('btnInjectLClick')?.addEventListener('click', () => injectMouseButton('LButton'));
     document.getElementById('btnInjectMClick')?.addEventListener('click', () => injectMouseButton('MButton'));
     document.getElementById('btnInjectRClick')?.addEventListener('click', () => injectMouseButton('RButton'));
-    document.getElementById('btnInjectDClick')?.addEventListener('click', () => injectMouseButton('DoubleClick'));
+    document.getElementById('btnInjectWheelUp')?.addEventListener('click', () => injectMouseButton('WheelUp'));
+    document.getElementById('btnInjectWheelDown')?.addEventListener('click', () => injectMouseButton('WheelDown'));
 
     // Tab 1: Playback Mode Segmented Switcher (Matches Macro Section)
     const singleTypeButtons = [
@@ -2291,11 +2813,21 @@ function initModalControls() {
     // Tab 1: Repeat Delay Pill (Matches Macro Section)
     const singleRepeatPill = document.getElementById('singleRepeatDelayPill');
     if (singleRepeatPill) {
-        singleRepeatPill.addEventListener('click', () => {
+        singleRepeatPill.addEventListener('click', async () => {
             const current = state.modal.singleAction.RepeatInterval || 50;
-            const inputVal = prompt('Enter delay between each activation (ms):', current);
-            if (inputVal !== null) {
-                const parsed = parseInt(inputVal);
+            const inputVal = await showPromptDialog({
+                title: 'Delay Between Activations',
+                message: 'Enter the delay between each repeating action:',
+                defaultValue: current,
+                inputType: 'number',
+                min: 5,
+                max: 10000,
+                inputLabel: 'Delay in milliseconds (ms):',
+                confirmText: 'Set Delay',
+                icon: 'timer'
+            });
+            if (inputVal !== null && inputVal.trim() !== '') {
+                const parsed = parseInt(inputVal.trim(), 10);
                 if (!isNaN(parsed) && parsed >= 5 && parsed <= 10000) {
                     setSingleRepeatDelay(parsed);
                 }
@@ -2390,7 +2922,18 @@ function openButtonStudio(btnId) {
     renderMacroSteps();
 
     const isExistingMacro = (currentAction.Type === 'Macro');
+    const isExistingText = (currentAction.Type === 'Text');
     state.modal.isExistingMacro = isExistingMacro;
+    state.modal.isExistingText = isExistingText;
+    state.modal.editingPresetId = null;
+    state.modal.editingPresetOriginalName = null;
+
+    // Populate Tab 3 Text Block inputs
+    const textContentEl = document.getElementById('textBlockContent');
+    const textLabelEl = document.getElementById('textBlockLabel');
+    if (textContentEl) textContentEl.value = isExistingText ? (currentAction.Cmd || '') : '';
+    if (textLabelEl) textLabelEl.value = isExistingText ? (currentAction.Label || '') : '';
+    updateTextBlockStats();
 
     // Preset toggles (bottom switch):
     // Single combination toggle is OFF by default
@@ -2401,9 +2944,15 @@ function openButtonStudio(btnId) {
     const swMacro = document.getElementById('macroSavePresetSwitch');
     if (swMacro) swMacro.checked = true;
 
-    // If existing action was a macro, activate Tab 2, otherwise Tab 1
+    // Text block toggle is OFF by default
+    const swText = document.getElementById('textSavePresetSwitch');
+    if (swText) swText.checked = false;
+
+    // If existing action was a macro, activate Tab 2; if text, activate Tab 3; otherwise Tab 1
     if (isExistingMacro) {
         document.getElementById('tabBtnMacro').click();
+    } else if (isExistingText) {
+        document.getElementById('tabBtnText')?.click();
     } else {
         document.getElementById('tabBtnSingle').click();
     }
@@ -2606,6 +3155,11 @@ function startRecordSingleKey() {
     const txt = document.getElementById('singlePreviewText');
     if (txt) txt.textContent = '[ Press Any Key or Combination ]';
 
+    const statusBadge = document.getElementById('singleRecordStatusBadge');
+    const statusText = document.getElementById('singleStatusText');
+    if (statusBadge) statusBadge.classList.add('recording');
+    if (statusText) statusText.textContent = 'RECORDING';
+
     sendToAhk({ action: 'startRecording', mode: 'single' });
 }
 
@@ -2618,6 +3172,11 @@ function stopRecordSingleKey(notifyAhk = true) {
     }
     const box = document.getElementById('singlePreviewBox');
     if (box) box.classList.remove('recording');
+
+    const statusBadge = document.getElementById('singleRecordStatusBadge');
+    const statusText = document.getElementById('singleStatusText');
+    if (statusBadge) statusBadge.classList.remove('recording');
+    if (statusText) statusText.textContent = 'READY';
 
     if (notifyAhk) {
         sendToAhk({ action: 'stopRecording' });
@@ -2731,7 +3290,7 @@ function injectMouseButton(mouseBtn) {
     if (window.heldKeys && window.heldKeys.size > 0) {
         for (const k of window.heldKeys) {
             const lower = k.toLowerCase();
-            if (lower !== 'control' && lower !== 'alt' && lower !== 'shift' && lower !== 'meta' && lower !== 'escape') {
+            if (lower !== 'control' && lower !== 'alt' && lower !== 'shift' && lower !== 'meta') {
                 regularKeys.push(k);
             }
         }
@@ -2766,6 +3325,8 @@ function injectMouseButton(mouseBtn) {
         LButton: 'Left Click',
         MButton: 'Middle Click',
         RButton: 'Right Click',
+        WheelUp: 'Scroll Up',
+        WheelDown: 'Scroll Down',
         DoubleClick: 'Double Click',
         TripleClick: 'Triple Click',
         XButton1: 'Mouse Back (Mouse 4)',
@@ -2950,11 +3511,21 @@ function initGhubMacroUi() {
     // Standard Delay Pill (Click to adjust)
     const delayPill = document.getElementById('ghubDelayPill');
     if (delayPill) {
-        delayPill.addEventListener('click', () => {
+        delayPill.addEventListener('click', async () => {
             const current = state.modal.macroDefDelay || 50;
-            const inputVal = prompt('Enter Standard Delay between actions (ms):', current);
-            if (inputVal !== null) {
-                const parsed = parseInt(inputVal);
+            const inputVal = await showPromptDialog({
+                title: 'Standard Delay Between Actions',
+                message: 'Enter standard millisecond delay between recorded actions:',
+                defaultValue: current,
+                inputType: 'number',
+                min: 5,
+                max: 5000,
+                inputLabel: 'Delay in milliseconds (ms):',
+                confirmText: 'Set Delay',
+                icon: 'timer'
+            });
+            if (inputVal !== null && inputVal.trim() !== '') {
+                const parsed = parseInt(inputVal.trim(), 10);
                 if (!isNaN(parsed) && parsed >= 5 && parsed <= 5000) {
                     state.modal.macroDefDelay = parsed;
                     delayPill.textContent = `${parsed} ms`;
@@ -2975,11 +3546,21 @@ function initGhubMacroUi() {
     // Repeat / Toggle Activation Delay Pill (Click to adjust)
     const repeatDelayPill = document.getElementById('ghubRepeatDelayPill');
     if (repeatDelayPill) {
-        repeatDelayPill.addEventListener('click', () => {
+        repeatDelayPill.addEventListener('click', async () => {
             const current = state.modal.macroRepeatDelay || 50;
-            const inputVal = prompt('Enter delay between each macro activation (ms):', current);
-            if (inputVal !== null) {
-                const parsed = parseInt(inputVal);
+            const inputVal = await showPromptDialog({
+                title: 'Delay Between Macro Activations',
+                message: 'Enter delay between repeat/toggle macro loops:',
+                defaultValue: current,
+                inputType: 'number',
+                min: 5,
+                max: 10000,
+                inputLabel: 'Delay in milliseconds (ms):',
+                confirmText: 'Set Delay',
+                icon: 'timer'
+            });
+            if (inputVal !== null && inputVal.trim() !== '') {
+                const parsed = parseInt(inputVal.trim(), 10);
                 if (!isNaN(parsed) && parsed >= 5 && parsed <= 10000) {
                     setGhubRepeatDelay(parsed);
                 }
@@ -3029,14 +3610,25 @@ function initGhubMacroUi() {
                 const idx = parseInt(delayChip.getAttribute('data-index'));
                 if (state.modal.macroSteps[sec] && state.modal.macroSteps[sec][idx]) {
                     const cur = state.modal.macroSteps[sec][idx].Delay || 50;
-                    const val = prompt('Edit Delay (ms):', cur);
-                    if (val !== null) {
-                        const parsed = parseInt(val);
-                        if (!isNaN(parsed) && parsed >= 1 && parsed <= 10000) {
-                            state.modal.macroSteps[sec][idx].Delay = parsed;
-                            renderMacroSteps();
+                    showPromptDialog({
+                        title: 'Edit Step Delay',
+                        message: 'Enter delay between steps in milliseconds:',
+                        defaultValue: cur,
+                        inputType: 'number',
+                        min: 1,
+                        max: 10000,
+                        inputLabel: 'Delay (ms):',
+                        confirmText: 'Update Delay',
+                        icon: 'timer'
+                    }).then(val => {
+                        if (val !== null && val.trim() !== '') {
+                            const parsed = parseInt(val.trim(), 10);
+                            if (!isNaN(parsed) && parsed >= 1 && parsed <= 10000) {
+                                state.modal.macroSteps[sec][idx].Delay = parsed;
+                                renderMacroSteps();
+                            }
                         }
-                    }
+                    });
                 }
                 return;
             }
@@ -3049,14 +3641,25 @@ function initGhubMacroUi() {
                 const idx = parseInt(delayStepBlock.getAttribute('data-index'));
                 if (state.modal.macroSteps[sec] && state.modal.macroSteps[sec][idx]) {
                     const cur = state.modal.macroSteps[sec][idx].Delay || 50;
-                    const val = prompt('Edit Delay duration (ms):', cur);
-                    if (val !== null) {
-                        const parsed = parseInt(val);
-                        if (!isNaN(parsed) && parsed >= 1 && parsed <= 10000) {
-                            state.modal.macroSteps[sec][idx].Delay = parsed;
-                            renderMacroSteps();
+                    showPromptDialog({
+                        title: 'Edit Step Delay',
+                        message: 'Enter step duration in milliseconds:',
+                        defaultValue: cur,
+                        inputType: 'number',
+                        min: 1,
+                        max: 10000,
+                        inputLabel: 'Duration (ms):',
+                        confirmText: 'Update Delay',
+                        icon: 'timer'
+                    }).then(val => {
+                        if (val !== null && val.trim() !== '') {
+                            const parsed = parseInt(val.trim(), 10);
+                            if (!isNaN(parsed) && parsed >= 1 && parsed <= 10000) {
+                                state.modal.macroSteps[sec][idx].Delay = parsed;
+                                renderMacroSteps();
+                            }
                         }
-                    }
+                    });
                 }
                 return;
             }
@@ -3145,26 +3748,47 @@ function initGhubMacroUi() {
                 startRecordMacroIntoSection(sec);
             } else if (act === 'text') {
                 actionPopover.style.display = 'none';
-                const text = prompt('Enter text to type:');
-                if (text) {
-                    if (!state.modal.macroSteps[sec]) state.modal.macroSteps[sec] = [];
-                    for (const char of text) {
-                        state.modal.macroSteps[sec].push({ Action: 'Down', Key: char, Delay: defDelay });
-                        state.modal.macroSteps[sec].push({ Action: 'Up', Key: char, Delay: defDelay });
-                    }
-                    renderMacroSteps();
-                }
-            } else if (act === 'delay') {
-                actionPopover.style.display = 'none';
-                const dVal = prompt('Enter Delay duration in ms:', 50);
-                if (dVal !== null) {
-                    const parsed = parseInt(dVal);
-                    if (!isNaN(parsed) && parsed > 0) {
+                showPromptDialog({
+                    title: 'Insert Text Block',
+                    message: 'Enter text string to type out automatically in sequence:',
+                    defaultValue: '',
+                    inputType: 'text',
+                    placeholder: 'e.g. Hello World!',
+                    inputLabel: 'Text to Type:',
+                    confirmText: 'Insert Text',
+                    icon: 'type'
+                }).then(text => {
+                    if (text && text.trim().length > 0) {
                         if (!state.modal.macroSteps[sec]) state.modal.macroSteps[sec] = [];
-                        state.modal.macroSteps[sec].push({ Action: 'Delay', Key: 'Delay', Delay: parsed });
+                        for (const char of text) {
+                            state.modal.macroSteps[sec].push({ Action: 'Down', Key: char, Delay: defDelay });
+                            state.modal.macroSteps[sec].push({ Action: 'Up', Key: char, Delay: defDelay });
+                        }
                         renderMacroSteps();
                     }
-                }
+                });
+            } else if (act === 'delay') {
+                actionPopover.style.display = 'none';
+                showPromptDialog({
+                    title: 'Insert Delay Block',
+                    message: 'Enter pause duration to insert into sequence:',
+                    defaultValue: 50,
+                    inputType: 'number',
+                    min: 1,
+                    max: 10000,
+                    inputLabel: 'Duration (ms):',
+                    confirmText: 'Insert Delay',
+                    icon: 'timer'
+                }).then(dVal => {
+                    if (dVal !== null && dVal.trim() !== '') {
+                        const parsed = parseInt(dVal.trim(), 10);
+                        if (!isNaN(parsed) && parsed > 0) {
+                            if (!state.modal.macroSteps[sec]) state.modal.macroSteps[sec] = [];
+                            state.modal.macroSteps[sec].push({ Action: 'Delay', Key: 'Delay', Delay: parsed });
+                            renderMacroSteps();
+                        }
+                    }
+                });
             } else if (act === 'clear-section') {
                 actionPopover.style.display = 'none';
                 state.modal.macroSteps[sec] = [];
@@ -3326,6 +3950,17 @@ function setGhubMacroType(type) {
     const repeatRow = document.getElementById('ghubRepeatDelayRow');
     if (repeatRow) {
         repeatRow.style.display = isRepeatOrToggle ? 'flex' : 'none';
+    }
+
+    const explainEl = document.getElementById('macroExplainText');
+    if (explainEl) {
+        const explanations = {
+            NoRepeat: '• No Repeat: Plays through the recorded macro actions once per button press.',
+            RepeatWhileHolding: '• Repeat While Holding: Repeats the macro sequence continuously while the button is held down.',
+            Toggle: '• Toggle (Loop): Press once to start looping the macro continuously; press again to stop.',
+            Sequence: '• Sequence: Executes separate actions On Press, while Holding, and on Release.'
+        };
+        explainEl.textContent = explanations[state.modal.macroType] || '';
     }
 
     renderMacroSteps();
@@ -3779,23 +4414,20 @@ function initKeyboardGlobal() {
         else if (e.key === 'Alt') window.isAltPressed = true;
         else if (e.key === 'Shift') window.isShiftPressed = true;
         else if (e.key === 'Meta') window.isWinPressed = true;
-        else if (e.key !== 'Escape') {
+        else {
             window.heldKeys.add(e.key);
         }
 
-        // Escape closes modal (or cancels active recording)
+        // When recording in Studio, prevent all default browser actions and allow Escape to be recorded
+        // (AutoHotkey low-level keyboard hook suppresses OS shell actions and sends IPC to record)
+        if (state.modal.isRecordingKey || state.modal.isRecordingMacro) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
+        // Escape closes modal (when NOT actively recording)
         if (e.key === 'Escape') {
-            if (state.modal.isRecordingKey) {
-                e.preventDefault();
-                stopRecordSingleKey(true);
-                updateSinglePreview();
-                return;
-            }
-            if (state.modal.isRecordingMacro) {
-                e.preventDefault();
-                stopRecordMacro(true);
-                return;
-            }
             const picker = document.getElementById('runningAppsPicker');
             if (picker && picker.style.display !== 'none') {
                 picker.style.display = 'none';
@@ -3811,14 +4443,6 @@ function initKeyboardGlobal() {
                 closeButtonStudio();
                 return;
             }
-        }
-
-        // When recording in Studio, prevent all default browser actions
-        // (AutoHotkey low-level keyboard hook suppresses OS shell actions and sends IPC to record)
-        if (state.modal.isRecordingKey || state.modal.isRecordingMacro) {
-            e.preventDefault();
-            e.stopPropagation();
-            return;
         }
     });
 
@@ -3919,6 +4543,20 @@ function formatKeyNice(key) {
     return key;
 }
 
+function updateTextBlockStats() {
+    const textarea = document.getElementById('textBlockContent');
+    const statsEl = document.getElementById('textBlockStats');
+    if (!textarea || !statsEl) return;
+
+    const val = textarea.value || '';
+    const charCount = val.length;
+    const trimmed = val.trim();
+    const wordCount = trimmed ? trimmed.split(/\s+/).length : 0;
+    const lineCount = val ? val.split('\n').length : 1;
+
+    statsEl.textContent = `${charCount} ${charCount === 1 ? 'character' : 'characters'} • ${wordCount} ${wordCount === 1 ? 'word' : 'words'} • ${lineCount} ${lineCount === 1 ? 'line' : 'lines'}`;
+}
+
 // ============================================================================
 // APPLY & SAVE LOGIC
 // ============================================================================
@@ -3941,9 +4579,24 @@ function saveModalAction() {
             RepeatInterval: repeatInterval
         };
         shouldSaveToPreset = !!document.getElementById('singleSavePresetSwitch')?.checked;
-    } else {
+    } else if (state.modal.activeTab === 'macro') {
         actionObj = compileMacroAction();
         shouldSaveToPreset = !!document.getElementById('macroSavePresetSwitch')?.checked;
+    } else if (state.modal.activeTab === 'text') {
+        const textContent = document.getElementById('textBlockContent')?.value || '';
+        let textLabel = document.getElementById('textBlockLabel')?.value?.trim();
+        if (!textLabel) {
+            const firstLine = textContent.split('\n')[0].trim();
+            textLabel = firstLine ? (firstLine.length > 25 ? firstLine.slice(0, 22) + '...' : firstLine) : 'Text Block';
+        }
+        actionObj = {
+            Type: 'Text',
+            Cmd: textContent,
+            Label: textLabel,
+            PlayType: 'NoRepeat',
+            RepeatInterval: 50
+        };
+        shouldSaveToPreset = !!document.getElementById('textSavePresetSwitch')?.checked;
     }
 
     if (state.modal.buttonId) {
@@ -3951,7 +4604,11 @@ function saveModalAction() {
     }
 
     if (shouldSaveToPreset && actionObj && actionObj.Label && actionObj.Label !== 'Unassigned' && actionObj.Type !== 'Default') {
-        saveActionAsCustomPreset(actionObj);
+        if (state.modal.activeTab === 'text') {
+            saveActionAsTextBlockPreset(actionObj);
+        } else {
+            saveActionAsCustomPreset(actionObj);
+        }
     }
 
     closeButtonStudio();
@@ -4038,6 +4695,118 @@ function deleteCustomActionPreset(presetId) {
     showToast('Preset Removed', 'Custom preset removed from catalog');
 }
 
+function saveActionAsTextBlockPreset(actionObj) {
+    if (!actionObj) return;
+
+    const textVal = actionObj.Cmd || actionObj.cmd || actionObj.text || '';
+    if (!textVal && (!actionObj.Label || actionObj.Label === 'Unassigned')) return;
+
+    let pName = actionObj.Label || actionObj.name || '';
+    if (!pName) {
+        const firstLine = textVal.split('\n')[0].trim();
+        pName = firstLine ? (firstLine.length > 25 ? firstLine.slice(0, 22) + '...' : firstLine) : 'Text Block';
+    }
+    const pId = state.modal.editingPresetId || ('txt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
+
+    const presetCopy = {
+        id: pId,
+        name: pName,
+        label: pName,
+        type: 'Text',
+        text: textVal,
+        cmd: textVal,
+        Cmd: textVal
+    };
+
+    if (!Array.isArray(state.textBlockPresets)) {
+        state.textBlockPresets = [];
+    }
+
+    let existingIdx = -1;
+    if (state.modal.editingPresetId) {
+        existingIdx = state.textBlockPresets.findIndex(p => p.id === state.modal.editingPresetId || p.name === state.modal.editingPresetOriginalName);
+    }
+    if (existingIdx < 0) {
+        existingIdx = state.textBlockPresets.findIndex(p => p.name === pName);
+    }
+
+    if (existingIdx >= 0) {
+        presetCopy.id = state.modal.editingPresetId || state.textBlockPresets[existingIdx].id || pId;
+        state.textBlockPresets[existingIdx] = presetCopy;
+    } else {
+        state.textBlockPresets.unshift(presetCopy);
+    }
+
+    try {
+        localStorage.setItem('obm_text_block_presets', JSON.stringify(state.textBlockPresets));
+    } catch (e) {}
+
+    sendToAhk({
+        action: 'saveTextBlockPreset',
+        preset: presetCopy
+    });
+
+    initCatalog();
+    showToast('Text Block Saved', `"${pName}" saved in Text Blocks`);
+}
+
+function deleteTextBlockPreset(presetId) {
+    state.textBlockPresets = (state.textBlockPresets || []).filter(p => p.id !== presetId && p.name !== presetId);
+
+    try {
+        localStorage.setItem('obm_text_block_presets', JSON.stringify(state.textBlockPresets));
+    } catch (e) {}
+
+    sendToAhk({
+        action: 'deleteTextBlockPreset',
+        id: presetId
+    });
+
+    initCatalog();
+    showToast('Text Block Removed', 'Text snippet removed from catalog');
+}
+
+function openTextBlockPresetEditor(preset) {
+    if (!preset) return;
+
+    state.modal.buttonId = null; // Decoupled from selected button: edits library preset
+    state.modal.editingPresetId = preset.id || preset.name;
+    state.modal.editingPresetOriginalName = preset.name || preset.label || 'Text Block';
+
+    const modal = document.getElementById('studioModal');
+    if (modal) {
+        modal.classList.add('open');
+        modal.classList.remove('macro-active');
+    }
+
+    const titleEl = document.getElementById('modalTargetTitle');
+    if (titleEl) titleEl.textContent = `TEXT BLOCK — EDIT: ${(preset.name || preset.label || 'TEXT').toUpperCase()}`;
+    const metaEl = document.getElementById('modalTargetMeta');
+    if (metaEl) metaEl.textContent = `Text Blocks Library • Literal Text Insertion`;
+
+    const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
+    if (btnAssignShift) btnAssignShift.style.display = 'none';
+
+    const textContentEl = document.getElementById('textBlockContent');
+    const textLabelEl = document.getElementById('textBlockLabel');
+    const swText = document.getElementById('textSavePresetSwitch');
+
+    if (textContentEl) textContentEl.value = preset.text || preset.cmd || preset.Cmd || '';
+    if (textLabelEl) textLabelEl.value = preset.name || preset.label || '';
+    if (swText) swText.checked = true;
+
+    updateTextBlockStats();
+
+    state.modal.isExistingMacro = false;
+    state.modal.isExistingText = true;
+    state.modal.activeTab = 'text';
+
+    const tabBtnText = document.getElementById('tabBtnText');
+    if (tabBtnText) tabBtnText.click();
+
+    showToast('Editing Text Block', `Loaded "${preset.name || preset.label}" in Button Studio`);
+}
+
 function applyActionToButton(btnId, actionObj) {
     if ((btnId === 'LeftClick' || btnId === 'RightClick') && state.currentLayer === 'Normal') {
         showToast('B-Shift Required', 'Turn ON B-Shift toggle to customize Left and Right click!');
@@ -4071,11 +4840,37 @@ function applyActionToButton(btnId, actionObj) {
 }
 
 function resetButtonToDefault(btnId) {
+    if (!btnId) return;
     sendToAhk({
         action: 'resetButtonDefault',
         profile: state.currentProfile,
         btnId: btnId,
-        layer: state.currentLayer
+        layer: (state.currentLayer && state.currentLayer !== 'Normal') ? state.currentLayer : 'Normal'
+    });
+}
+
+async function confirmResetAllButtons() {
+    const prof = state.currentProfile || 'Desktop';
+    const ok = await showConfirmDialog({
+        title: 'Reset Profile Defaults',
+        message: `Are you sure you want to reset all button mappings for profile "${prof}" to their default settings?`,
+        details: 'This will restore all mouse buttons in this profile to baseline factory defaults.',
+        confirmText: 'Reset to Defaults',
+        cancelText: 'Cancel',
+        type: 'warning',
+        icon: 'refresh-cw'
+    });
+    if (!ok) {
+        return;
+    }
+    resetProfileToDefaults(prof);
+}
+
+function resetProfileToDefaults(profileName) {
+    const prof = profileName || state.currentProfile || 'Desktop';
+    sendToAhk({
+        action: 'resetProfileDefaults',
+        profile: prof
     });
 }
 
@@ -4101,6 +4896,235 @@ function showToast(title, message, duration = 3000) {
 }
 
 // ============================================================================
+// CUSTOM STUDIO THEMED CONFIRMATION, ALERT & PROMPT DIALOGS
+// ============================================================================
+let currentDialogResolve = null;
+
+function showConfirmDialog(options = {}) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customConfirmModal');
+        const card = document.getElementById('customConfirmCard');
+        const titleEl = document.getElementById('customConfirmTitle');
+        const msgEl = document.getElementById('customConfirmMsg');
+        const detailsEl = document.getElementById('customConfirmDetails');
+        const badgeEl = document.getElementById('customConfirmBadge');
+        const iconWrap = document.getElementById('customConfirmIconWrap');
+        const iconSvg = document.getElementById('customConfirmIcon');
+        const inputGroup = document.getElementById('customConfirmInputGroup');
+        const okBtn = document.getElementById('btnCustomConfirmOk');
+        const cancelBtn = document.getElementById('btnCustomConfirmCancel');
+
+        if (!modal) {
+            resolve(false);
+            return;
+        }
+
+        currentDialogResolve = (res) => resolve(!!res);
+
+        const type = options.type || 'warning'; // 'warning' | 'danger' | 'info'
+        const title = options.title || (type === 'danger' ? 'Confirm Deletion' : (type === 'warning' ? 'Confirm Action' : 'Notice'));
+        const msg = options.message || '';
+        const details = options.details || '';
+        const confirmText = options.confirmText || (type === 'danger' ? 'Delete' : 'Confirm');
+        const cancelText = options.cancelText || 'Cancel';
+        const icon = options.icon || (type === 'danger' ? 'trash-2' : (type === 'warning' ? 'alert-triangle' : 'help-circle'));
+
+        if (titleEl) titleEl.textContent = title;
+        if (msgEl) {
+            msgEl.textContent = msg;
+            msgEl.style.display = msg ? 'block' : 'none';
+        }
+        if (detailsEl) {
+            detailsEl.textContent = details;
+            detailsEl.style.display = details ? 'block' : 'none';
+        }
+        if (badgeEl) {
+            badgeEl.textContent = (type === 'danger' ? 'DANGER' : (type === 'warning' ? 'WARNING' : 'NOTICE'));
+            badgeEl.className = `custom-dialog-badge badge-${type}`;
+        }
+
+        if (iconWrap) iconWrap.className = `custom-dialog-icon-wrap icon-${type}`;
+        if (iconSvg) iconSvg.innerHTML = `<use href="#icon-${icon}"></use>`;
+
+        if (inputGroup) inputGroup.style.display = 'none';
+
+        if (okBtn) {
+            okBtn.textContent = confirmText;
+            okBtn.className = `custom-dialog-btn ok-btn btn-${type}`;
+            okBtn.style.display = 'inline-flex';
+        }
+
+        if (cancelBtn) {
+            cancelBtn.textContent = cancelText;
+            cancelBtn.style.display = options.hideCancel ? 'none' : 'inline-flex';
+        }
+
+        if (card) {
+            card.className = `custom-dialog-card dialog-${type}`;
+        }
+
+        modal.style.display = 'flex';
+        modal.classList.add('open');
+
+        setTimeout(() => {
+            if (okBtn) okBtn.focus();
+        }, 50);
+    });
+}
+
+function showPromptDialog(options = {}) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customConfirmModal');
+        const card = document.getElementById('customConfirmCard');
+        const titleEl = document.getElementById('customConfirmTitle');
+        const msgEl = document.getElementById('customConfirmMsg');
+        const detailsEl = document.getElementById('customConfirmDetails');
+        const badgeEl = document.getElementById('customConfirmBadge');
+        const iconWrap = document.getElementById('customConfirmIconWrap');
+        const iconSvg = document.getElementById('customConfirmIcon');
+        const inputGroup = document.getElementById('customConfirmInputGroup');
+        const inputLbl = document.getElementById('customConfirmInputLbl');
+        const inputEl = document.getElementById('customConfirmInput');
+        const okBtn = document.getElementById('btnCustomConfirmOk');
+        const cancelBtn = document.getElementById('btnCustomConfirmCancel');
+
+        if (!modal) {
+            resolve(null);
+            return;
+        }
+
+        currentDialogResolve = (ok) => {
+            if (ok) {
+                resolve(inputEl ? inputEl.value : '');
+            } else {
+                resolve(null);
+            }
+        };
+
+        const title = options.title || 'Enter Value';
+        const msg = options.message || '';
+        const details = options.details || '';
+        const defaultValue = (options.defaultValue !== undefined && options.defaultValue !== null) ? String(options.defaultValue) : '';
+        const inputType = options.inputType || 'text';
+        const confirmText = options.confirmText || 'Set';
+        const cancelText = options.cancelText || 'Cancel';
+        const icon = options.icon || 'edit-2';
+
+        if (titleEl) titleEl.textContent = title;
+        if (msgEl) {
+            msgEl.textContent = msg;
+            msgEl.style.display = msg ? 'block' : 'none';
+        }
+        if (detailsEl) {
+            detailsEl.textContent = details;
+            detailsEl.style.display = details ? 'block' : 'none';
+        }
+        if (badgeEl) {
+            badgeEl.textContent = 'INPUT';
+            badgeEl.className = 'custom-dialog-badge badge-info';
+        }
+
+        if (iconWrap) iconWrap.className = 'custom-dialog-icon-wrap icon-info';
+        if (iconSvg) iconSvg.innerHTML = `<use href="#icon-${icon}"></use>`;
+
+        if (inputGroup) inputGroup.style.display = 'block';
+        if (inputLbl) inputLbl.textContent = options.inputLabel || 'Value:';
+        if (inputEl) {
+            inputEl.type = inputType;
+            inputEl.value = defaultValue;
+            inputEl.placeholder = options.placeholder || '';
+            if (inputType === 'number') {
+                inputEl.min = options.min !== undefined ? options.min : 0;
+                inputEl.max = options.max !== undefined ? options.max : 100000;
+            }
+        }
+
+        if (okBtn) {
+            okBtn.textContent = confirmText;
+            okBtn.className = 'custom-dialog-btn ok-btn btn-info';
+            okBtn.style.display = 'inline-flex';
+        }
+
+        if (cancelBtn) {
+            cancelBtn.textContent = cancelText;
+            cancelBtn.style.display = 'inline-flex';
+        }
+
+        if (card) {
+            card.className = 'custom-dialog-card dialog-info';
+        }
+
+        modal.style.display = 'flex';
+        modal.classList.add('open');
+
+        setTimeout(() => {
+            if (inputEl) {
+                inputEl.focus();
+                inputEl.select();
+            }
+        }, 50);
+    });
+}
+
+function showAlertDialog(options = {}) {
+    return showConfirmDialog({
+        ...options,
+        hideCancel: true,
+        confirmText: options.confirmText || 'OK'
+    });
+}
+
+function closeCustomConfirmDialog(result) {
+    const modal = document.getElementById('customConfirmModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('open');
+    }
+    if (currentDialogResolve) {
+        const cb = currentDialogResolve;
+        currentDialogResolve = null;
+        cb(result);
+    }
+}
+
+function initCustomConfirmModal() {
+    const modal = document.getElementById('customConfirmModal');
+    const closeBtn = document.getElementById('btnCustomConfirmClose');
+    const cancelBtn = document.getElementById('btnCustomConfirmCancel');
+    const okBtn = document.getElementById('btnCustomConfirmOk');
+    const inputEl = document.getElementById('customConfirmInput');
+
+    if (closeBtn) closeBtn.addEventListener('click', () => closeCustomConfirmDialog(false));
+    if (cancelBtn) cancelBtn.addEventListener('click', () => closeCustomConfirmDialog(false));
+    if (okBtn) okBtn.addEventListener('click', () => closeCustomConfirmDialog(true));
+
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeCustomConfirmDialog(false);
+        });
+    }
+
+    if (inputEl) {
+        inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                closeCustomConfirmDialog(true);
+            }
+        });
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (!modal || modal.style.display === 'none') return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            closeCustomConfirmDialog(false);
+        }
+    }, true);
+}
+
+// ============================================================================
 // ============================================================================
 // POINTER & CARD CALIBRATION MODE
 // ============================================================================
@@ -4110,6 +5134,11 @@ function initCalibration() {
     const btnReset = document.getElementById('btnResetCalib');
     const btnClose = document.getElementById('btnCloseCalib');
     const btnResetCard = document.getElementById('btnResetSelectedCard');
+
+    const btnModeSingle = document.getElementById('btnCalibModeSingle');
+    const btnModeMoveAll = document.getElementById('btnCalibModeMoveAll');
+    const chkMoveCards = document.getElementById('chkCalibMoveCards');
+    const btnResetOffset = document.getElementById('btnResetMouseOffset');
 
     if (btnToggle) {
         btnToggle.addEventListener('click', () => {
@@ -4145,6 +5174,37 @@ function initCalibration() {
         });
     }
 
+    if (btnModeSingle) {
+        btnModeSingle.addEventListener('click', () => {
+            setCalibMoveMode('single');
+        });
+    }
+
+    if (btnModeMoveAll) {
+        btnModeMoveAll.addEventListener('click', () => {
+            setCalibMoveMode('moveAll');
+        });
+    }
+
+    if (chkMoveCards) {
+        chkMoveCards.checked = !!state.calibMoveCards;
+        chkMoveCards.addEventListener('change', (e) => {
+            state.calibMoveCards = e.target.checked;
+        });
+    }
+
+    if (btnResetOffset) {
+        btnResetOffset.addEventListener('click', () => {
+            state.mouseOffset = { x: 0, y: 0 };
+            applyMouseOffset();
+            updateCalibOffsetBadge();
+            updateSvgLines();
+            showToast('Mouse Position Reset', 'Mouse image offset restored to default center (0, 0)');
+        });
+    }
+
+    initStageDrag();
+
     // Keyboard Arrow Nudging
     window.addEventListener('keydown', (e) => {
         if (!state.isCalibrating) return;
@@ -4156,16 +5216,32 @@ function initCalibration() {
 
         if (e.key === 'ArrowUp') {
             e.preventDefault();
-            nudgePoint(0, -step);
+            if (state.calibMoveAll) {
+                nudgeEverything(0, -step);
+            } else {
+                nudgePoint(0, -step);
+            }
         } else if (e.key === 'ArrowDown') {
             e.preventDefault();
-            nudgePoint(0, step);
+            if (state.calibMoveAll) {
+                nudgeEverything(0, step);
+            } else {
+                nudgePoint(0, step);
+            }
         } else if (e.key === 'ArrowLeft') {
             e.preventDefault();
-            nudgePoint(-step, 0);
+            if (state.calibMoveAll) {
+                nudgeEverything(-step, 0);
+            } else {
+                nudgePoint(-step, 0);
+            }
         } else if (e.key === 'ArrowRight') {
             e.preventDefault();
-            nudgePoint(step, 0);
+            if (state.calibMoveAll) {
+                nudgeEverything(step, 0);
+            } else {
+                nudgePoint(step, 0);
+            }
         } else if (e.key === 'Escape') {
             toggleCalibrationMode(false);
         }
@@ -4187,7 +5263,10 @@ function toggleCalibrationMode(forceState) {
         }
         if (svg) svg.classList.add('calibrating');
         renderCalibPills();
+        setCalibMoveMode(state.calibMoveAll ? 'moveAll' : 'single');
         selectCalibButton(state.calibSelectedButton || state.selectedButton || 'G8', state.calibTargetMode || 'dot');
+        applyMouseOffset();
+        updateCalibOffsetBadge();
     } else {
         document.body.classList.remove('calibrating-mode');
         if (panel) panel.style.display = 'none';
@@ -4196,11 +5275,88 @@ function toggleCalibrationMode(forceState) {
             btnToggle.innerHTML = `${getSvgIcon('crosshair')} Calibrate Pointers`;
         }
         if (svg) svg.classList.remove('calibrating');
+        setCalibMoveMode('single');
         document.querySelectorAll('.btn-card').forEach(c => c.classList.remove('calib-selected', 'calib-dragging'));
+        applyMouseOffset();
         updateSvgLines();
     }
     setTimeout(() => updateSvgLines(), 50);
     setTimeout(() => updateSvgLines(), 220);
+}
+
+function setCalibMoveMode(mode) {
+    state.calibMoveAll = (mode === 'moveAll');
+    const btnSingle = document.getElementById('btnCalibModeSingle');
+    const btnMoveAll = document.getElementById('btnCalibModeMoveAll');
+    const moveAllBar = document.getElementById('calibMoveAllBar');
+    const bodySingle = document.getElementById('calibBodySingle');
+    const hintText = document.getElementById('calibHintText');
+    const mouseWrap = document.getElementById('mouseRenderWrap');
+
+    if (btnSingle) btnSingle.classList.toggle('active', !state.calibMoveAll);
+    if (btnMoveAll) btnMoveAll.classList.toggle('active', state.calibMoveAll);
+
+    if (moveAllBar) moveAllBar.style.display = state.calibMoveAll ? 'flex' : 'none';
+    if (bodySingle) bodySingle.style.display = state.calibMoveAll ? 'none' : 'flex';
+
+    if (mouseWrap) {
+        mouseWrap.classList.toggle('calib-move-all-active', state.calibMoveAll);
+    }
+
+    if (hintText) {
+        if (state.calibMoveAll) {
+            hintText.textContent = 'Move Everything: Drag mouse visual or stage canvas to move everything together • Or use Arrow keys (Shift for 5x)';
+        } else {
+            hintText.textContent = 'Drag any target dot directly on the mouse • Or click to reposition • Fine-tune with Arrow keys';
+        }
+    }
+
+    updateCalibOffsetBadge();
+    updateSvgLines();
+}
+
+function applyMouseOffset() {
+    const wrap = document.getElementById('mouseRenderWrap');
+    if (!wrap) return;
+    const offX = state.mouseOffset?.x || 0;
+    const offY = state.mouseOffset?.y || 0;
+    if (offX !== 0 || offY !== 0) {
+        wrap.style.transform = `translate(${offX}px, ${offY}px)`;
+    } else {
+        wrap.style.transform = '';
+    }
+}
+
+function updateCalibOffsetBadge() {
+    const el = document.getElementById('calibOffsetVal');
+    if (!el) return;
+    const x = state.mouseOffset?.x || 0;
+    const y = state.mouseOffset?.y || 0;
+    const signX = x > 0 ? '+' : '';
+    const signY = y > 0 ? '+' : '';
+    el.textContent = `X: ${signX}${x}px, Y: ${signY}${y}px`;
+}
+
+function nudgeEverything(dx, dy) {
+    if (!state.mouseOffset) state.mouseOffset = { x: 0, y: 0 };
+    state.mouseOffset.x += dx;
+    state.mouseOffset.y += dy;
+    applyMouseOffset();
+
+    if (state.calibMoveCards) {
+        for (const btnId in DIAGRAM_POINTS) {
+            if (!state.cardOffsets) state.cardOffsets = {};
+            const cur = state.cardOffsets[btnId] || { x: 0, y: 0 };
+            state.cardOffsets[btnId] = {
+                x: cur.x + dx,
+                y: cur.y + dy
+            };
+            applyCardOffset(btnId);
+        }
+    }
+
+    updateCalibOffsetBadge();
+    updateSvgLines();
 }
 
 function setCalibTargetMode(mode) {
@@ -4290,6 +5446,10 @@ function syncCalibInputs() {}
 function updateCalibInputs(x, y) {}
 
 function nudgePoint(dx, dy) {
+    if (state.calibMoveAll) {
+        nudgeEverything(dx, dy);
+        return;
+    }
     const btnId = state.calibSelectedButton;
     if (!btnId) return;
 
@@ -4323,12 +5483,17 @@ function saveCalibration() {
             };
         }
     }
+    const cleanMouseOffset = {
+        x: Math.round(state.mouseOffset?.x || 0),
+        y: Math.round(state.mouseOffset?.y || 0)
+    };
     sendToAhk({
         action: 'saveDiagramPoints',
         points: pointsMap,
-        cardOffsets: cleanCardOffsets
+        cardOffsets: cleanCardOffsets,
+        mouseOffset: cleanMouseOffset
     });
-    showToast('Calibration Saved', 'Diagram points and card positions saved to settings.ini');
+    showToast('Calibration Saved', 'Diagram points, card positions, and mouse alignment saved to settings.ini');
 }
 
 function resetCalibration() {
@@ -4337,8 +5502,74 @@ function resetCalibration() {
     });
 }
 
+function initStageDrag() {
+    const wrap = document.getElementById('mouseRenderWrap');
+    if (!wrap) return;
+
+    wrap.addEventListener('pointerdown', (e) => {
+        if (!state.isCalibrating || !state.calibMoveAll) return;
+        if (e.button !== 0) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        state.isDraggingMouseStage = true;
+        wrap.classList.add('calib-dragging-all');
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startOffX = state.mouseOffset?.x || 0;
+        const startOffY = state.mouseOffset?.y || 0;
+
+        const startCardOffsets = {};
+        for (const btnId in DIAGRAM_POINTS) {
+            const cur = state.cardOffsets[btnId] || { x: 0, y: 0 };
+            startCardOffsets[btnId] = { x: cur.x, y: cur.y };
+        }
+
+        const onPointerMove = (moveEvt) => {
+            if (!state.isDraggingMouseStage) return;
+            const dx = moveEvt.clientX - startX;
+            const dy = moveEvt.clientY - startY;
+
+            state.mouseOffset.x = Math.round(startOffX + dx);
+            state.mouseOffset.y = Math.round(startOffY + dy);
+            applyMouseOffset();
+
+            if (state.calibMoveCards) {
+                for (const btnId in DIAGRAM_POINTS) {
+                    if (!state.cardOffsets) state.cardOffsets = {};
+                    const startCard = startCardOffsets[btnId] || { x: 0, y: 0 };
+                    state.cardOffsets[btnId] = {
+                        x: Math.round(startCard.x + dx),
+                        y: Math.round(startCard.y + dy)
+                    };
+                    applyCardOffset(btnId);
+                }
+            }
+
+            updateCalibOffsetBadge();
+            updateSvgLines();
+        };
+
+        const onPointerUp = () => {
+            state.isDraggingMouseStage = false;
+            wrap.classList.remove('calib-dragging-all');
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
+            updateSvgLines();
+        };
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+    });
+}
+
 function onHotspotPointerDown(e, btnId) {
     if (!state.isCalibrating) return;
+    if (state.calibMoveAll) return; // In move all mode, stage drag takes over
     e.preventDefault();
     e.stopPropagation();
     selectCalibButton(btnId, 'dot');
@@ -4353,7 +5584,7 @@ function onHotspotPointerDown(e, btnId) {
         p.y = moveEvt.clientY;
         const ctm = svg.getScreenCTM().inverse();
         const svgP = p.matrixTransform(ctm);
-        const pt = DIAGRAM_POINTS[state.calibSelectedButton];
+        const pt = DIAGRAM_POINTS[btnId];
         if (pt) {
             pt.x = Math.round(Math.max(-200, Math.min(1100, svgP.x)));
             pt.y = Math.round(Math.max(-200, Math.min(700, svgP.y)));
@@ -4366,16 +5597,77 @@ function onHotspotPointerDown(e, btnId) {
         state.isDraggingPoint = false;
         window.removeEventListener('pointermove', onPointerMove);
         window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
         updateSvgLines();
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
 }
 
 function onCardCalibPointerDown(e, btnId) {
     if (!state.isCalibrating) return;
     if (e.button !== 0) return;
+
+    if (state.calibMoveAll) {
+        // In move all mode, dragging a card also moves everything together if calibMoveCards is on
+        e.preventDefault();
+        e.stopPropagation();
+        state.isDraggingMouseStage = true;
+        const wrap = document.getElementById('mouseRenderWrap');
+        if (wrap) wrap.classList.add('calib-dragging-all');
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startOffX = state.mouseOffset?.x || 0;
+        const startOffY = state.mouseOffset?.y || 0;
+
+        const startCardOffsets = {};
+        for (const bId in DIAGRAM_POINTS) {
+            const cur = state.cardOffsets[bId] || { x: 0, y: 0 };
+            startCardOffsets[bId] = { x: cur.x, y: cur.y };
+        }
+
+        const onCardMoveAll = (moveEvt) => {
+            if (!state.isDraggingMouseStage) return;
+            const dx = moveEvt.clientX - startX;
+            const dy = moveEvt.clientY - startY;
+
+            state.mouseOffset.x = Math.round(startOffX + dx);
+            state.mouseOffset.y = Math.round(startOffY + dy);
+            applyMouseOffset();
+
+            if (state.calibMoveCards) {
+                for (const bId in DIAGRAM_POINTS) {
+                    if (!state.cardOffsets) state.cardOffsets = {};
+                    const startCard = startCardOffsets[bId] || { x: 0, y: 0 };
+                    state.cardOffsets[bId] = {
+                        x: Math.round(startCard.x + dx),
+                        y: Math.round(startCard.y + dy)
+                    };
+                    applyCardOffset(bId);
+                }
+            }
+
+            updateCalibOffsetBadge();
+            updateSvgLines();
+        };
+
+        const onCardUpAll = () => {
+            state.isDraggingMouseStage = false;
+            if (wrap) wrap.classList.remove('calib-dragging-all');
+            window.removeEventListener('pointermove', onCardMoveAll);
+            window.removeEventListener('pointerup', onCardUpAll);
+            window.removeEventListener('pointercancel', onCardUpAll);
+            updateSvgLines();
+        };
+
+        window.addEventListener('pointermove', onCardMoveAll);
+        window.addEventListener('pointerup', onCardUpAll);
+        window.addEventListener('pointercancel', onCardUpAll);
+        return;
+    }
 
     e.preventDefault();
     e.stopPropagation();
@@ -4411,7 +5703,8 @@ function onCardCalibPointerDown(e, btnId) {
         if (card) {
             card.classList.remove('calib-dragging');
             try {
-                card.releasePointerCapture(upEvt.pointerId);
+                const pId = upEvt?.pointerId !== undefined ? upEvt.pointerId : e.pointerId;
+                card.releasePointerCapture(pId);
             } catch (_) {}
         }
         window.removeEventListener('pointermove', onPointerMove);
@@ -4474,12 +5767,21 @@ function initLgsProfilesBar() {
     }
 
     if (btnDelete) {
-        btnDelete.addEventListener('click', () => {
+        btnDelete.addEventListener('click', async () => {
             if (state.currentProfile === 'Desktop') {
                 showToast('Cannot Delete', 'The Default Desktop profile cannot be deleted.');
                 return;
             }
-            if (confirm(`Are you sure you want to delete profile "${state.currentProfile}"?`)) {
+            const ok = await showConfirmDialog({
+                title: 'Delete Profile',
+                message: `Are you sure you want to delete profile "${state.currentProfile}"?`,
+                details: 'All button mappings, hotkeys, and macro configurations for this profile will be permanently deleted.',
+                confirmText: 'Delete Profile',
+                cancelText: 'Cancel',
+                type: 'danger',
+                icon: 'trash-2'
+            });
+            if (ok) {
                 sendToAhk({ action: 'deleteProfile', name: state.currentProfile });
             }
         });
@@ -4548,13 +5850,24 @@ function initLgsProfilesBar() {
     }
 
     if (ctxDelete) {
-        ctxDelete.addEventListener('click', () => {
+        ctxDelete.addEventListener('click', async () => {
             if (state.contextTargetProfile) {
                 const prof = state.contextTargetProfile;
                 if (prof.name === 'Desktop' || prof.isDefault) {
                     showToast('Cannot Delete', 'Default profile cannot be deleted.');
-                } else if (confirm(`Are you sure you want to delete profile "${prof.name}"?`)) {
-                    sendToAhk({ action: 'deleteProfile', name: prof.name });
+                } else {
+                    const ok = await showConfirmDialog({
+                        title: 'Delete Profile',
+                        message: `Are you sure you want to delete profile "${prof.name}"?`,
+                        details: 'All button mappings, hotkeys, and macro configurations for this profile will be permanently deleted.',
+                        confirmText: 'Delete Profile',
+                        cancelText: 'Cancel',
+                        type: 'danger',
+                        icon: 'trash-2'
+                    });
+                    if (ok) {
+                        sendToAhk({ action: 'deleteProfile', name: prof.name });
+                    }
                 }
             }
             closeProfileContextMenu();
@@ -4614,6 +5927,8 @@ function updateAutoSwitchUI() {
 
 function renderLgsProfiles() {
     const track = document.getElementById('lgsProfilesTrack');
+    const defaultSlot = document.getElementById('lgsDefaultProfileSlot');
+    const separator = document.getElementById('lgsProfileSeparator');
     const select = document.getElementById('profileSelect');
     if (!track) return;
 
@@ -4630,27 +5945,31 @@ function renderLgsProfiles() {
     }
 
     track.innerHTML = '';
+    if (defaultSlot) defaultSlot.innerHTML = '';
+
     const query = (state.profileSearchQuery || '').trim().toLowerCase();
 
     // Default profiles fallback if none received yet
-    const profs = (state.profiles && state.profiles.length > 0) ? state.profiles : [
+    const rawProfs = (state.profiles && state.profiles.length > 0) ? [...state.profiles] : [
         { name: 'Desktop', targetExe: '', icon: 'desktop', isDefault: true, desc: 'Default System & Desktop Profile' }
     ];
 
-    profs.forEach(prof => {
-        if (query && !prof.name.toLowerCase().includes(query) && !(prof.targetExe || '').toLowerCase().includes(query)) {
-            return;
-        }
+    // Find default profile vs other app profiles
+    const defaultProf = rawProfs.find(p => p.isDefault || p.name === 'Desktop') || rawProfs[0];
+    const appProfs = rawProfs.filter(p => p !== defaultProf && !p.isDefault && p.name !== 'Desktop');
 
+    function createProfileCard(prof, isDef) {
         const isActive = (prof.name === state.currentProfile);
         const card = document.createElement('div');
-        card.className = `lgs-profile-card ${isActive ? 'active' : ''}`;
+        card.className = `lgs-profile-card ${isDef ? 'is-default' : ''} ${isActive ? 'active' : ''}`;
         card.setAttribute('data-profile', prof.name);
-        card.title = `${prof.name}\n${prof.targetExe ? 'Target App: ' + prof.targetExe : 'Default System Profile'}\nLeft-click to switch • Right-click for options • Double-click to configure`;
 
         const iconBox = document.createElement('div');
         iconBox.className = 'lgs-icon-box';
         iconBox.innerHTML = getProfileIconHtml(prof);
+
+        const infoCol = document.createElement('div');
+        infoCol.className = 'lgs-profile-info';
 
         const nameEl = document.createElement('div');
         nameEl.className = 'lgs-profile-name';
@@ -4658,13 +5977,24 @@ function renderLgsProfiles() {
 
         const exeEl = document.createElement('div');
         exeEl.className = 'lgs-profile-exe';
-        exeEl.textContent = prof.isDefault ? 'Default' : (prof.targetExe ? prof.targetExe.split(',')[0].trim() : 'Manual');
+        exeEl.textContent = isDef ? 'Default (Explorer)' : (prof.targetExe ? prof.targetExe.split(',')[0].trim() : 'Manual Switch');
+
+        infoCol.appendChild(nameEl);
+        infoCol.appendChild(exeEl);
 
         card.appendChild(iconBox);
-        card.appendChild(nameEl);
-        card.appendChild(exeEl);
+        card.appendChild(infoCol);
+
+        card.addEventListener('mouseenter', () => {
+            showProfileHoverPopover(card, prof);
+        });
+
+        card.addEventListener('mouseleave', () => {
+            hideProfileHoverPopover();
+        });
 
         card.addEventListener('click', () => {
+            hideProfileHoverPopover();
             if (state.currentProfile !== prof.name) {
                 state.currentProfile = prof.name;
                 sendToAhk({ action: 'selectProfile', profile: prof.name });
@@ -4675,19 +6005,49 @@ function renderLgsProfiles() {
         });
 
         card.addEventListener('contextmenu', (e) => {
+            hideProfileHoverPopover();
             e.preventDefault();
             e.stopPropagation();
             openProfileContextMenu(e, prof);
         });
 
         card.addEventListener('dblclick', () => {
+            hideProfileHoverPopover();
             openProfileModal('edit', prof);
         });
 
-        track.appendChild(card);
+        return card;
+    }
+
+    // 1. Render Fixed Default Desktop Profile (Outside other profiles container)
+    let defaultVisible = false;
+    if (defaultProf && defaultSlot) {
+        const matchesQuery = !query || defaultProf.name.toLowerCase().includes(query) || (defaultProf.targetExe || '').toLowerCase().includes(query);
+        if (matchesQuery) {
+            defaultSlot.style.display = 'flex';
+            defaultSlot.appendChild(createProfileCard(defaultProf, true));
+            defaultVisible = true;
+        } else {
+            defaultSlot.style.display = 'none';
+        }
+    }
+
+    // 2. Render other app profiles inside the carousel track
+    let appCount = 0;
+    appProfs.forEach(prof => {
+        if (query && !prof.name.toLowerCase().includes(query) && !(prof.targetExe || '').toLowerCase().includes(query)) {
+            return;
+        }
+        track.appendChild(createProfileCard(prof, false));
+        appCount++;
     });
 
-    // Scroll active profile into view smoothly
+    // 3. Separator visibility between fixed Desktop profile and carousel
+    if (separator) {
+        separator.style.display = (defaultVisible && appCount > 0) ? 'block' : 'none';
+    }
+
+    // Scroll active app profile into view smoothly inside track
     setTimeout(() => {
         const activeCard = track.querySelector('.lgs-profile-card.active');
         if (activeCard) {
@@ -4695,6 +6055,131 @@ function renderLgsProfiles() {
         }
     }, 50);
 }
+
+let profileHoverTimeout = null;
+
+function showProfileHoverPopover(cardEl, prof) {
+    if (profileHoverTimeout) {
+        clearTimeout(profileHoverTimeout);
+        profileHoverTimeout = null;
+    }
+    // Show after slight 80ms delay for ultra snappy responsiveness without jitter
+    profileHoverTimeout = setTimeout(() => {
+        const popover = document.getElementById('profileHoverPopover');
+        if (!popover || !cardEl || !document.body.contains(cardEl)) return;
+
+        const isDefault = !!(prof.isDefault || prof.name === 'Desktop');
+        const iconBox = document.getElementById('popoverIconBox');
+        const titleEl = document.getElementById('popoverTitle');
+        const badgeEl = document.getElementById('popoverBadge');
+        const subtitleEl = document.getElementById('popoverSubtitle');
+        const exePathEl = document.getElementById('popoverExePath');
+        const targetExeEl = document.getElementById('popoverTargetExe');
+        const switchModeEl = document.getElementById('popoverSwitchMode');
+
+        if (iconBox) iconBox.innerHTML = getProfileIconHtml(prof);
+        if (titleEl) titleEl.textContent = prof.name;
+
+        // Badge styling & text
+        if (badgeEl) {
+            badgeEl.className = 'popover-badge';
+            if (isDefault) {
+                badgeEl.textContent = 'DEFAULT';
+                badgeEl.classList.add('badge-emerald');
+            } else if (prof.targetExe) {
+                badgeEl.textContent = 'AUTO-SWITCH';
+                badgeEl.classList.add('badge-cyan');
+            } else {
+                badgeEl.textContent = 'MANUAL';
+                badgeEl.classList.add('badge-amber');
+            }
+        }
+
+        // Subtitle
+        if (subtitleEl) {
+            if (isDefault) {
+                subtitleEl.textContent = 'System & Windows Shell';
+            } else if (prof.targetExe) {
+                const first = prof.targetExe.split(',')[0].trim();
+                subtitleEl.textContent = first;
+            } else {
+                subtitleEl.textContent = 'Manual Switch Profile';
+            }
+        }
+
+        // Windows Location (full original Windows file system path)
+        if (exePathEl) {
+            if (prof.exePath) {
+                exePathEl.textContent = prof.exePath;
+                exePathEl.title = prof.exePath;
+            } else if (isDefault) {
+                exePathEl.textContent = 'C:\\Windows\\explorer.exe';
+                exePathEl.title = 'Windows Shell / Explorer';
+            } else if (prof.targetExe) {
+                const first = prof.targetExe.split(',')[0].trim();
+                exePathEl.textContent = `${first} (target app not located on disk)`;
+                exePathEl.title = 'Target executable not found in common Windows directories';
+            } else {
+                exePathEl.textContent = 'No executable bound (Manual switch profile)';
+                exePathEl.title = 'Profile is selected manually by user';
+            }
+        }
+
+        // Switch behavior
+        if (switchModeEl) {
+            if (prof.switchOnHover) {
+                switchModeEl.textContent = 'Active on Mouse Hover';
+            } else if (prof.targetExe) {
+                switchModeEl.textContent = 'Active on Window Focus';
+            } else if (isDefault) {
+                switchModeEl.textContent = 'Active on Window Focus';
+            } else {
+                switchModeEl.textContent = 'Manual Activation Only';
+            }
+        }
+
+        if (isDefault) popover.classList.add('is-default');
+        else popover.classList.remove('is-default');
+
+        // Position popover directly below the profile button
+        popover.style.display = 'block';
+        popover.classList.remove('visible');
+
+        const cardRect = cardEl.getBoundingClientRect();
+        const popRect = popover.getBoundingClientRect();
+
+        let left = cardRect.left + (cardRect.width / 2) - (popRect.width / 2);
+        left = Math.max(12, Math.min(left, window.innerWidth - popRect.width - 12));
+
+        let top = cardRect.bottom + 8;
+        if (top + popRect.height > window.innerHeight - 12) {
+            top = Math.max(12, cardRect.top - popRect.height - 8);
+        }
+
+        popover.style.left = `${Math.round(left)}px`;
+        popover.style.top = `${Math.round(top)}px`;
+
+        requestAnimationFrame(() => {
+            popover.classList.add('visible');
+        });
+    }, 80);
+}
+
+function hideProfileHoverPopover() {
+    if (profileHoverTimeout) {
+        clearTimeout(profileHoverTimeout);
+        profileHoverTimeout = null;
+    }
+    const popover = document.getElementById('profileHoverPopover');
+    if (popover) {
+        popover.classList.remove('visible');
+        popover.style.display = 'none';
+    }
+}
+
+// Ensure popover closes on scroll or window blur
+window.addEventListener('scroll', hideProfileHoverPopover, { passive: true });
+window.addEventListener('blur', hideProfileHoverPopover);
 
 function openProfileContextMenu(e, prof) {
     state.contextTargetProfile = prof;
@@ -4790,17 +6275,9 @@ function getProfileIconHtml(prof) {
     const iconType = (prof.icon || '').toLowerCase();
     const nameLower = (prof.name || '').toLowerCase();
     const targetLower = (prof.targetExe || '').toLowerCase();
+    const isDefaultProf = !!(prof.isDefault || nameLower === 'desktop');
 
-    // 1. Desktop / System default
-    if (prof.isDefault || nameLower === 'desktop' || iconType === 'desktop') {
-        return `<svg class="lgs-icon-svg" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="4" width="18" height="12" rx="2" stroke="#00d2ff" stroke-width="2" fill="rgba(0, 210, 255, 0.15)"/>
-            <line x1="8" y1="20" x2="16" y2="20" stroke="#00d2ff" stroke-width="2" stroke-linecap="round"/>
-            <line x1="12" y1="16" x2="12" y2="20" stroke="#00d2ff" stroke-width="2"/>
-        </svg>`;
-    }
-
-    // 2. Custom Uploaded/Browsed Icon (e.g. 'custom_...')
+    // 1. Custom Uploaded/Browsed Icon (e.g. 'custom_...')
     if (iconType.startsWith('custom_')) {
         return `<img class="lgs-icon-img" src="icons/${encodeURIComponent(prof.icon)}.png" alt="${escapeHtml(prof.name)}" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
         <div class="lgs-fallback-wrap" style="display:none; width:100%; height:100%; align-items:center; justify-content:center;">
@@ -4808,12 +6285,17 @@ function getProfileIconHtml(prof) {
         </div>`;
     }
 
-    // 3. User Selected a Custom Preset Icon (e.g. 'game', 'code', 'chrome', 'media', 'photoshop', 'blender', 'bluestack', 'generic')
+    // 2. User Selected a Custom Preset Icon (e.g. 'game', 'code', 'chrome', 'media', 'photoshop', 'blender', 'bluestack', 'generic', 'desktop')
     if (iconType && iconType !== 'auto' && iconType !== 'app') {
         const presetSvg = getCustomPresetSvg(iconType, prof.name);
         if (presetSvg) {
             return presetSvg;
         }
+    }
+
+    // 3. Desktop / System Default Profile (when icon is 'auto', 'app', 'desktop', or empty)
+    if (isDefaultProf || iconType === 'desktop') {
+        return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-monitor"></use></svg>`;
     }
 
     // 4. Default: ACTUAL APP ICON (iconType is 'auto', 'app', or empty)
@@ -4835,83 +6317,47 @@ function getCustomPresetSvg(type, name = '') {
     switch (t) {
         case 'game':
         case 'gaming':
-            return `<div class="lgs-icon-custom-box" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); width:100%; height:100%; border-radius:6px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(124, 58, 237, 0.4);">
-                <svg viewBox="0 0 24 24" fill="none" style="width:20px; height:20px;">
-                    <path d="M7 11h2m-1-1v2m7-1h.01m2-1h.01M6.5 7h11a3.5 3.5 0 0 1 3.4 4.3l-1.2 5.2a2 2 0 0 1-2 1.5h-1.4a2 2 0 0 1-1.6-.8L13.5 15h-3l-1.2 2.2a2 2 0 0 1-1.6.8H6.3a2 2 0 0 1-2-1.5L3.1 11.3A3.5 3.5 0 0 1 6.5 7z" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>`;
+            return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-gamepad-2"></use></svg>`;
 
         case 'code':
         case 'programming':
         case 'dev':
-            return `<div class="lgs-icon-custom-box" style="background: linear-gradient(135deg, #0284c7, #0369a1); width:100%; height:100%; border-radius:6px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(2, 132, 199, 0.4);">
-                <svg viewBox="0 0 24 24" fill="none" style="width:20px; height:20px;">
-                    <path d="M16 18l6-6-6-6M8 6l-6 6 6 6" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <line x1="14" y1="4" x2="10" y2="20" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            </div>`;
+            return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-code"></use></svg>`;
 
         case 'chrome':
         case 'browser':
         case 'web':
-            return `<div class="lgs-icon-custom-box" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); width:100%; height:100%; border-radius:6px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(37, 99, 235, 0.4);">
-                <svg viewBox="0 0 24 24" style="width:20px; height:20px;">
-                    <circle cx="12" cy="12" r="9" stroke="#93c5fd" stroke-width="1.8" fill="none"/>
-                    <ellipse cx="12" cy="12" rx="4" ry="9" stroke="#ffffff" stroke-width="1.6" fill="none"/>
-                    <line x1="3" y1="12" x2="21" y2="12" stroke="#ffffff" stroke-width="1.6"/>
-                </svg>
-            </div>`;
+            return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-globe"></use></svg>`;
 
         case 'media':
         case 'music':
-            return `<div class="lgs-icon-custom-box" style="background: linear-gradient(135deg, #10b981, #047857); width:100%; height:100%; border-radius:6px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(16, 185, 129, 0.4);">
-                <svg viewBox="0 0 24 24" fill="none" style="width:20px; height:20px;">
-                    <circle cx="8" cy="17" r="2.5" fill="#ffffff"/>
-                    <circle cx="18" cy="14" r="2.5" fill="#ffffff"/>
-                    <path d="M10.5 17V6.5l10-2.5v10" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </div>`;
+            return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-music"></use></svg>`;
 
         case 'photoshop':
         case 'creative':
-            return `<div class="lgs-icon-custom-box" style="background: #001e36; border: 1.5px solid #31a8ff; width:100%; height:100%; border-radius:6px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(49, 168, 255, 0.4);">
-                <span style="font-family:system-ui, sans-serif; font-size:14px; font-weight:900; color:#31a8ff;">Ps</span>
-            </div>`;
+        case 'design':
+        case 'ps':
+            return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-palette"></use></svg>`;
 
         case 'blender':
-            return `<div class="lgs-icon-custom-box" style="background: linear-gradient(135deg, #ea7600, #c25e00); width:100%; height:100%; border-radius:6px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(234, 118, 0, 0.4);">
-                <svg viewBox="0 0 24 24" style="width:20px; height:20px;">
-                    <circle cx="13" cy="13" r="5" fill="#236192"/>
-                    <circle cx="13" cy="13" r="2" fill="#ffffff"/>
-                    <path d="M6 8l4 3M4 12h6M6 16l4-3" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            </div>`;
+            return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-box"></use></svg>`;
 
         case 'bluestack':
         case 'emulator':
-            return `<div class="lgs-icon-custom-box" style="background: linear-gradient(135deg, #0284c7, #0ea5e9); width:100%; height:100%; border-radius:6px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(2, 132, 199, 0.4);">
-                <svg viewBox="0 0 24 24" fill="none" style="width:20px; height:20px;">
-                    <rect x="6" y="3" width="12" height="18" rx="2.5" stroke="#ffffff" stroke-width="2"/>
-                    <circle cx="12" cy="17.5" r="1" fill="#ffffff"/>
-                </svg>
-            </div>`;
+            return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-smartphone"></use></svg>`;
 
         case 'generic':
         case 'utility':
         case 'gear':
-            return `<div class="lgs-icon-custom-box" style="background: linear-gradient(135deg, #475569, #334155); width:100%; height:100%; border-radius:6px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(71, 85, 105, 0.4);">
-                <svg viewBox="0 0 24 24" fill="none" style="width:20px; height:20px;">
-                    <circle cx="12" cy="12" r="3" stroke="#38bdf8" stroke-width="2"/>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#38bdf8" stroke-width="1.8"/>
-                </svg>
-            </div>`;
+        case 'tools':
+            return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-wrench"></use></svg>`;
 
         case 'desktop':
-            return `<svg class="lgs-icon-svg" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="4" width="18" height="12" rx="2" stroke="#00d2ff" stroke-width="2" fill="rgba(0, 210, 255, 0.15)"/>
-                <line x1="8" y1="20" x2="16" y2="20" stroke="#00d2ff" stroke-width="2" stroke-linecap="round"/>
-                <line x1="12" y1="16" x2="12" y2="20" stroke="#00d2ff" stroke-width="2"/>
-            </svg>`;
+            return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-monitor"></use></svg>`;
+
+        case 'auto':
+        case 'app':
+            return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-zap"></use></svg>`;
 
         default:
             return null;
@@ -4919,111 +6365,12 @@ function getCustomPresetSvg(type, name = '') {
 }
 
 function getBuiltinAppSvg(iconType, nameLower, targetLower, prof) {
-    // Vivaldi Browser
-    if (nameLower.includes('vivaldi') || targetLower.includes('vivaldi')) {
-        return `<svg class="lgs-icon-svg" viewBox="0 0 32 32">
-            <rect width="32" height="32" rx="7" fill="#EF3939"/>
-            <path d="M16 23.5c-3.8 0-6.8-2.9-6.8-6.6 0-4.3 3.6-8 8.4-8 3.3 0 5.6 1.8 5.6 4.5 0 2-1.2 3.6-3.1 3.6-1.3 0-2.1-.9-2.1-2.2 0-.5.1-1.2.5-1.7-1-.4-2.1-.5-3.1-.5-2.9 0-5.1 2.1-5.1 4.8 0 2.4 1.7 4.1 4.3 4.1 1.6 0 2.9-.7 4-1.9l1.7 1.6c-1.6 1.6-3.6 2.3-6.3 2.3z" fill="#ffffff"/>
-        </svg>`;
+    if (iconType && iconType !== 'auto' && iconType !== 'app') {
+        const preset = getCustomPresetSvg(iconType, prof.name);
+        if (preset) return preset;
     }
-
-    // Adobe Acrobat / Reader / PDF
-    if (nameLower.includes('acrobat') || targetLower.includes('acrobat') || nameLower.includes('pdf')) {
-        return `<svg class="lgs-icon-svg" viewBox="0 0 32 32">
-            <rect width="32" height="32" rx="7" fill="#EA1D24"/>
-            <path d="M24.5 21.2c-1.6-1.5-4.8-2.1-7.8-1.6-1.8-.9-3.4-2.4-4.5-4.6.5-2 .8-4 .4-5.3-.5-1.6-1.9-2.1-2.9-1.4-1.1.9-1.1 2.8-.1 5.3.1.3.3.6.4.9-1.9 4.1-4.6 6.6-5.9 7.6-1.1.9-1.6 1.9-.9 2.6.6.7 2 .5 3.5-.5 1.5-1 3.3-2.8 5-5 2.5.5 5.4.9 8 1 1.9 0 3.4-.5 4-1.3.9-.9 1.1-1.9.7-2.8zm-17.1 2.5c.8-.9 2.3-2.4 3.8-4.5-1.4 2-2.7 3.5-3.4 4.1-.4.3-.6.4-.4.4zm2.5-10.7c-.3-.9-.4-1.6-.3-2.1.1-.5.5-.6.8-.5.4.1.6.8.4 1.6-.3.4-.6.7-.9 1zm5.5 5.6c1.8-.3 3.6.1 4.9.8-.4.4-1 .6-1.9.6-1.3 0-2.3-.5-3-1.4z" fill="#ffffff"/>
-        </svg>`;
-    }
-
-    // Google Chrome
-    if (iconType === 'chrome' || nameLower.includes('chrome') || targetLower.includes('chrome')) {
-        return `<svg class="lgs-icon-svg" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" fill="#4285F4"/>
-            <path d="M12 2a10 10 0 0 1 8.66 5H12z" fill="#EA4335"/>
-            <path d="M20.66 7a10 10 0 0 1-5 13.66L12 12z" fill="#FBBC05"/>
-            <path d="M15.66 20.66A10 10 0 0 1 3.34 12H12z" fill="#34A853"/>
-            <circle cx="12" cy="12" r="4.5" fill="#ffffff"/>
-            <circle cx="12" cy="12" r="3.5" fill="#4285F4"/>
-        </svg>`;
-    }
-
-    // Microsoft Edge
-    if (nameLower.includes('edge') || targetLower.includes('msedge')) {
-        return `<svg class="lgs-icon-svg" viewBox="0 0 24 24">
-            <path d="M12 2C6.48 2 2 6.48 2 12c0 4.1 2.5 7.6 6.1 9.1-.2-.7-.3-1.5-.3-2.3 0-3.3 2.7-6 6-6h3.2c.6 0 1-.4 1-1 0-5.4-4.4-9.8-10-9.8z" fill="#0078D7"/>
-            <path d="M18.8 12.8c-1.2 0-2.3.4-3.2 1-1.3.9-2.1 2.4-2.1 4.1 0 2.8 2.2 5.1 5 5.1 2.5 0 4.6-1.8 5-4.2H18.8z" fill="#00C7F2"/>
-        </svg>`;
-    }
-
-    // Mozilla Firefox
-    if (nameLower.includes('firefox') || targetLower.includes('firefox')) {
-        return `<svg class="lgs-icon-svg" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" fill="#FF7139"/>
-            <path d="M12 4a8 8 0 1 0 8 8c0-3-1.5-5.5-4-7 1 2 .5 4-1 5-1.5 1-3.5 0-3.5-2 0-1.5.5-2.5.5-4z" fill="#FFE040"/>
-        </svg>`;
-    }
-
-    // Discord
-    if (nameLower.includes('discord') || targetLower.includes('discord')) {
-        return `<svg class="lgs-icon-svg" viewBox="0 0 24 24">
-            <rect width="24" height="24" rx="5" fill="#5865F2"/>
-            <path d="M18.5 6.5s-1.5-1-3-1.2c-.2.4-.4.8-.5 1.2-1.7-.2-3.4-.2-5 0-.2-.4-.4-.8-.5-1.2-1.5.2-3 1.2-3 1.2-2 3-2.5 6-2.2 9 1.6 1.2 3.2 1.2 3.2 1.2.4-.5.8-1.1 1.1-1.7-1.1-.4-1.6-1-1.6-1s.1.1.3.2c2.1 1 4.5 1 6.6 0 .2-.1.3-.2.3-.2s-.5.6-1.6 1c.3.6.7 1.2 1.1 1.7 0 0 1.6 0 3.2-1.2.3-3-.2-6-2.2-9zm-8.8 7.3c-.7 0-1.3-.6-1.3-1.4s.6-1.4 1.3-1.4 1.3.6 1.3 1.4-.6 1.4-1.3 1.4zm4.6 0c-.7 0-1.3-.6-1.3-1.4s.6-1.4 1.3-1.4 1.3.6 1.3 1.4-.6 1.4-1.3 1.4z" fill="#ffffff"/>
-        </svg>`;
-    }
-
-    // Steam
-    if (nameLower.includes('steam') || targetLower.includes('steam')) {
-        return `<svg class="lgs-icon-svg" viewBox="0 0 24 24">
-            <rect width="24" height="24" rx="5" fill="#171a21"/>
-            <circle cx="12" cy="12" r="9" stroke="#66c0f4" stroke-width="1.8" fill="none"/>
-            <circle cx="15.5" cy="8.5" r="3.2" fill="#66c0f4"/>
-            <circle cx="9" cy="15" r="2.2" fill="#66c0f4"/>
-            <line x1="10.8" y1="13.5" x2="13.2" y2="10.5" stroke="#66c0f4" stroke-width="2"/>
-        </svg>`;
-    }
-
-    // VS Code / Programming
-    if (iconType === 'code' || nameLower.includes('code') || targetLower.includes('code') || nameLower.includes('product')) {
-        return `<svg class="lgs-icon-svg" viewBox="0 0 24 24" fill="none">
-            <path d="M16 18l6-6-6-6M8 6l-6 6 6 6" stroke="#007acc" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-            <line x1="14" y1="4" x2="10" y2="20" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
-        </svg>`;
-    }
-
-    // Blender 3D
-    if (iconType === 'blender' || nameLower.includes('blender') || targetLower.includes('blender')) {
-        return `<svg class="lgs-icon-svg" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.5c-2.48 0-4.5-2.02-4.5-4.5S10.52 7.5 13 7.5s4.5 2.02 4.5 4.5-2.02 4.5-4.5 4.5z" fill="#ea7600"/>
-            <circle cx="13" cy="12" r="2.5" fill="#236192"/>
-            <path d="M6 8l4 3M4 12h6M6 16l4-3" stroke="#ea7600" stroke-width="2" stroke-linecap="round"/>
-        </svg>`;
-    }
-
-    // Spotify / Music / Media
-    if (iconType === 'media' || nameLower.includes('media') || nameLower.includes('spot') || targetLower.includes('spot')) {
-        return `<svg class="lgs-icon-svg" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" fill="#1db954"/>
-            <path d="M7 9.5c3.5-1 7.5-.8 10.5.8M7.5 12.5c3-.8 6.5-.6 9 .8M8 15.5c2.2-.6 5-.5 7 .6" stroke="#000" stroke-width="2" stroke-linecap="round"/>
-        </svg>`;
-    }
-
-    // Photoshop / Creative
-    if (iconType === 'photoshop' || nameLower.includes('photo') || targetLower.includes('photoshop')) {
-        return `<div class="lgs-icon-monogram" style="color: #31a8ff; background: #001e36; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: 900;">Ps</div>`;
-    }
-
-    // Dynamic Monogram fallback with stylish gradient
-    const initials = prof.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || prof.name.slice(0, 2).toUpperCase();
-    const gradients = [
-        'linear-gradient(135deg, #6366f1, #a855f7)',
-        'linear-gradient(135deg, #06b6d4, #3b82f6)',
-        'linear-gradient(135deg, #f59e0b, #ef4444)',
-        'linear-gradient(135deg, #10b981, #059669)',
-        'linear-gradient(135deg, #ec4899, #8b5cf6)'
-    ];
-    let hash = 0;
-    for (let i = 0; i < prof.name.length; i++) hash = (hash + prof.name.charCodeAt(i)) % gradients.length;
-    return `<div class="lgs-icon-monogram" style="background: ${gradients[hash]}; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: 800;">${initials}</div>`;
+    // Clean vector Lucide outline icon matching "App Icon" preset (#icon-zap)
+    return `<svg class="lgs-icon-svg" viewBox="0 0 24 24"><use href="#icon-zap"></use></svg>`;
 }
 
 // ============================================================================
@@ -5119,9 +6466,12 @@ function updateAppIconPresetPreview(procOrName) {
 
 function openProfileModal(mode, profData) {
     state.profileModalMode = mode;
+    state.editingProfileOldName = profData ? profData.name : state.currentProfile;
     state.runningAppsFilter = '';
     const modal = document.getElementById('profileConfigModal');
     const title = document.getElementById('profileModalTitle');
+    const modalSubtitle = document.getElementById('profileModalSubtitle');
+    const hotkeyNotice = document.getElementById('profileHotkeyNotice');
     const inputName = document.getElementById('profInputName');
     const inputExe = document.getElementById('profInputExe');
     const profExeGroup = document.getElementById('profExeGroup');
@@ -5140,6 +6490,8 @@ function openProfileModal(mode, profData) {
 
     if (mode === 'create') {
         if (title) title.textContent = 'CREATE APP PROFILE';
+        if (modalSubtitle) modalSubtitle.textContent = 'Configure auto-switching application targets, or press Ctrl+Shift+F2 on any window to create instantly';
+        if (hotkeyNotice) hotkeyNotice.style.display = 'flex';
         if (inputName) {
             inputName.value = '';
             inputName.readOnly = false;
@@ -5164,6 +6516,8 @@ function openProfileModal(mode, profData) {
         sendToAhk({ action: 'getRunningApps' });
     } else {
         if (title) title.textContent = `EDIT PROFILE — ${profData ? profData.name : state.currentProfile}`;
+        if (modalSubtitle) modalSubtitle.textContent = 'Configure auto-switching application targets, icon branding, and open window bindings';
+        if (hotkeyNotice) hotkeyNotice.style.display = 'none';
         if (inputName) {
             inputName.value = profData ? profData.name : state.currentProfile;
             inputName.readOnly = isDefault;
@@ -5185,7 +6539,8 @@ function openProfileModal(mode, profData) {
             if (defaultNotice) defaultNotice.style.display = 'flex';
             if (lockedBanner) lockedBanner.style.display = 'flex';
             if (appsList) appsList.style.display = 'none';
-            state.selectedIconPreset = 'desktop';
+            const rawIcon = (profData && profData.icon) ? profData.icon : 'desktop';
+            state.selectedIconPreset = rawIcon;
         } else {
             if (inputExe) {
                 inputExe.value = profData ? profData.targetExe || '' : '';
@@ -5204,7 +6559,7 @@ function openProfileModal(mode, profData) {
             if (appsList) appsList.style.display = 'grid';
 
             const rawIcon = (profData && profData.icon) ? profData.icon : '';
-            if (!rawIcon || rawIcon === 'generic' || rawIcon === 'auto' || rawIcon === 'app') {
+            if (!rawIcon || rawIcon === 'auto' || rawIcon === 'app') {
                 state.selectedIconPreset = 'auto';
             } else {
                 state.selectedIconPreset = rawIcon;
@@ -5297,15 +6652,61 @@ function saveProfileModal() {
         });
         showToast('Creating Profile', `Setting up ${name}...`);
     } else {
+        const oldName = state.editingProfileOldName || name;
+        const isRenaming = (name.toLowerCase() !== oldName.toLowerCase());
+
+        if (isRenaming) {
+            if (oldName.toLowerCase() === 'desktop' || state.profiles.some(p => p.name.toLowerCase() === oldName.toLowerCase() && p.isDefault)) {
+                showToast('Profile Error', 'The default system profile cannot be renamed.');
+                inputName?.focus();
+                return;
+            }
+            if (state.profiles.some(p => p.name.toLowerCase() === name.toLowerCase() && p.name.toLowerCase() !== oldName.toLowerCase())) {
+                showToast('Profile Error', `A profile named "${name}" already exists.`);
+                inputName?.focus();
+                return;
+            }
+        }
+
+        const targetProf = state.profiles.find(p => p.name.toLowerCase() === oldName.toLowerCase()) || state.profiles.find(p => p.name.toLowerCase() === name.toLowerCase());
+        if (targetProf) {
+            targetProf.name = name;
+            targetProf.icon = icon;
+            targetProf.switchOnHover = switchOnHover;
+            targetProf.osdIconOnly = osdIconOnly;
+            if (!isDefault) targetProf.targetExe = exe;
+        }
+
+        if (isRenaming) {
+            if (state.mappings && state.mappings[oldName]) {
+                state.mappings[name] = state.mappings[oldName];
+                delete state.mappings[oldName];
+            }
+            if (state.currentProfile === oldName) {
+                state.currentProfile = name;
+            }
+            if (state.lockedProfile === oldName) {
+                state.lockedProfile = name;
+            }
+            state.editingProfileOldName = name;
+        }
+
+        renderLgsProfiles();
+        updateActiveProfilePill();
+        if (typeof renderStudio === 'function') {
+            renderStudio();
+        }
+
         sendToAhk({
             action: 'updateProfile',
+            oldName: oldName,
             name: name,
             targetExe: exe,
             icon: icon,
             switchOnHover: switchOnHover,
             osdIconOnly: osdIconOnly
         });
-        showToast('Saving Profile', `Updated configuration for ${name}`);
+        showToast('Saving Profile', isRenaming ? `Renamed "${oldName}" to "${name}"` : `Updated configuration for ${name}`);
     }
 
     closeProfileModal();
@@ -5549,11 +6950,31 @@ function initButtonContextMenu() {
     const fkeySubmenu = document.getElementById('ctxFKeySubmenu');
 
     if (fkeyItem && fkeySubmenu) {
+        // Clicking row toggles/pins submenu open
+        fkeyItem.addEventListener('click', (e) => {
+            if (e.target.closest('#ctxFKeySubmenu')) return;
+            e.stopPropagation();
+            const isOpen = fkeySubmenu.classList.contains('open');
+            if (isOpen) {
+                fkeySubmenu.classList.remove('open');
+                fkeyItem.classList.remove('open');
+                fkeySubmenu.style.display = '';
+            } else {
+                if (submenuTimer) clearTimeout(submenuTimer);
+                fkeySubmenu.classList.add('open');
+                fkeyItem.classList.add('open');
+                fkeySubmenu.style.display = 'block';
+                adjustFKeySubmenuPosition();
+            }
+        });
+
         fkeyItem.addEventListener('mouseenter', () => {
             if (submenuTimer) clearTimeout(submenuTimer);
             fkeySubmenu.style.display = 'block';
+            adjustFKeySubmenuPosition();
         });
         fkeyItem.addEventListener('mouseleave', () => {
+            if (fkeySubmenu.classList.contains('open')) return;
             submenuTimer = setTimeout(() => {
                 fkeySubmenu.style.display = '';
             }, 200);
@@ -5561,8 +6982,10 @@ function initButtonContextMenu() {
         fkeySubmenu.addEventListener('mouseenter', () => {
             if (submenuTimer) clearTimeout(submenuTimer);
             fkeySubmenu.style.display = 'block';
+            adjustFKeySubmenuPosition();
         });
         fkeySubmenu.addEventListener('mouseleave', () => {
+            if (fkeySubmenu.classList.contains('open')) return;
             submenuTimer = setTimeout(() => {
                 fkeySubmenu.style.display = '';
             }, 200);
@@ -5592,7 +7015,10 @@ function openButtonContextMenu(e, btnId) {
     if (state.copiedButtonMapping && state.copiedButtonMapping.btnId) {
         ctxPaste.classList.remove('disabled');
         if (ctxPasteText) {
-            ctxPasteText.textContent = `Paste Mapping (from ${state.copiedButtonMapping.btnName})`;
+            const fromProf = state.copiedButtonMapping.fromProfile || state.currentProfile;
+            const isOtherProf = (fromProf !== state.currentProfile);
+            const profLabel = isOtherProf ? ` • ${fromProf}` : '';
+            ctxPasteText.textContent = `Paste Mapping (from ${state.copiedButtonMapping.btnName}${profLabel})`;
         }
     } else {
         ctxPaste.classList.add('disabled');
@@ -5618,8 +7044,17 @@ function openButtonContextMenu(e, btnId) {
     // Hardware F-Key Submenu
     const currentFKey = state.hardwareFKeys ? state.hardwareFKeys[btnId] : null;
     if (currentFKey) {
-        if (ctxFKeyItem) ctxFKeyItem.style.display = 'flex';
+        if (ctxFKeyItem) {
+            ctxFKeyItem.style.display = 'flex';
+            ctxFKeyItem.classList.remove('open');
+        }
         if (ctxFKeyDivider) ctxFKeyDivider.style.display = 'block';
+        const submenu = document.getElementById('ctxFKeySubmenu');
+        if (submenu) {
+            submenu.style.display = '';
+            submenu.style.maxHeight = '';
+            submenu.classList.remove('fly-up', 'fly-left', 'open');
+        }
         populateFKeySubmenu(btnId, currentFKey);
     } else {
         if (ctxFKeyItem) ctxFKeyItem.style.display = 'none';
@@ -5628,8 +7063,9 @@ function openButtonContextMenu(e, btnId) {
 
     // Display menu and position within viewport bounds
     menu.style.display = 'block';
-    const menuWidth = menu.offsetWidth || 210;
-    const menuHeight = menu.offsetHeight || 190;
+    const menuRect = menu.getBoundingClientRect();
+    const menuWidth = menuRect.width || menu.offsetWidth || 215;
+    const menuHeight = menuRect.height || menu.offsetHeight || 330;
 
     let posX = e.clientX;
     let posY = e.clientY;
@@ -5644,15 +7080,39 @@ function openButtonContextMenu(e, btnId) {
     menu.style.left = `${Math.max(12, posX)}px`;
     menu.style.top = `${Math.max(12, posY)}px`;
 
-    // Position submenu and prevent clipping offscreen
+    // Position submenu and prevent clipping offscreen horizontally or vertically
+    adjustFKeySubmenuPosition();
+}
+
+function adjustFKeySubmenuPosition() {
     const submenu = document.getElementById('ctxFKeySubmenu');
-    if (submenu) {
-        submenu.style.display = '';
-        if (posX + menuWidth + 210 > window.innerWidth) {
-            submenu.classList.add('fly-left');
-        } else {
-            submenu.classList.remove('fly-left');
-        }
+    const fkeyItem = document.getElementById('ctxBtnChangeFKey');
+    if (!submenu || !fkeyItem) return;
+
+    const itemRect = fkeyItem.getBoundingClientRect();
+    const naturalHeight = 330;
+
+    const spaceBelow = window.innerHeight - itemRect.top - 16;
+    const spaceAbove = itemRect.bottom - 16;
+
+    // Check vertical overflow: fly up if space below is insufficient and space above is greater
+    if (spaceBelow < naturalHeight && spaceAbove > spaceBelow) {
+        submenu.classList.add('fly-up');
+        const maxH = Math.max(160, Math.floor(spaceAbove));
+        submenu.style.maxHeight = `${maxH}px`;
+    } else {
+        submenu.classList.remove('fly-up');
+        const maxH = Math.max(160, Math.floor(spaceBelow));
+        submenu.style.maxHeight = `${maxH}px`;
+    }
+
+    // Check horizontal overflow: if right of submenu would go offscreen, fly left!
+    const menu = document.getElementById('buttonContextMenu');
+    const menuRect = menu ? menu.getBoundingClientRect() : itemRect;
+    if (menuRect.right + 215 > window.innerWidth - 12) {
+        submenu.classList.add('fly-left');
+    } else {
+        submenu.classList.remove('fly-left');
     }
 }
 
@@ -5660,7 +7120,15 @@ function closeButtonContextMenu() {
     const menu = document.getElementById('buttonContextMenu');
     if (menu) menu.style.display = 'none';
     const submenu = document.getElementById('ctxFKeySubmenu');
-    if (submenu) submenu.style.display = '';
+    const fkeyItem = document.getElementById('ctxBtnChangeFKey');
+    if (submenu) {
+        submenu.style.display = '';
+        submenu.style.maxHeight = '';
+        submenu.classList.remove('fly-up', 'fly-left', 'open');
+    }
+    if (fkeyItem) {
+        fkeyItem.classList.remove('open');
+    }
 }
 
 function populateFKeySubmenu(currentBtnId, currentFKey) {
@@ -5770,12 +7238,16 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
 function copyButtonMappingAction(btnId) {
     const btnInfo = DIAGRAM_POINTS[btnId];
     const btnName = btnInfo ? btnInfo.name : btnId;
+    const prof = state.mappings[state.currentProfile] || {};
+    const btnMap = prof[btnId] || null;
+
     state.copiedButtonMapping = {
         btnId: btnId,
         btnName: btnName,
-        profile: state.currentProfile
+        fromProfile: state.currentProfile,
+        mapping: btnMap ? JSON.parse(JSON.stringify(btnMap)) : null
     };
-    showToast('Button Mapping Copied', `Copied mapping from ${btnName}`);
+    showToast('Button Mapping Copied', `Copied mapping from ${btnName} (${state.currentProfile})`);
 }
 
 function pasteButtonMappingAction(targetBtnId) {
@@ -5785,17 +7257,30 @@ function pasteButtonMappingAction(targetBtnId) {
     }
     const sourceBtnId = state.copiedButtonMapping.btnId;
     const sourceName = state.copiedButtonMapping.btnName;
+    const fromProfile = state.copiedButtonMapping.fromProfile || state.currentProfile;
+    const toProfile = state.currentProfile;
     const targetInfo = DIAGRAM_POINTS[targetBtnId];
     const targetName = targetInfo ? targetInfo.name : targetBtnId;
 
+    // Optimistically update local mapping for instantaneous UI response
+    if (state.copiedButtonMapping.mapping) {
+        if (!state.mappings[toProfile]) state.mappings[toProfile] = {};
+        state.mappings[toProfile][targetBtnId] = JSON.parse(JSON.stringify(state.copiedButtonMapping.mapping));
+        refreshCardsAndStage();
+        updateSvgLines();
+    }
+
     sendToAhk({
         action: 'copySingleButtonMapping',
-        profile: state.currentProfile,
+        fromProfile: fromProfile,
+        toProfile: toProfile,
         fromBtnId: sourceBtnId,
-        toBtnId: targetBtnId
+        toBtnId: targetBtnId,
+        mapping: state.copiedButtonMapping.mapping
     });
 
-    showToast('Pasting Mapping...', `Applying from ${sourceName} into ${targetName}`);
+    const profMsg = (fromProfile !== toProfile) ? `from "${fromProfile}" into "${toProfile}"` : `into ${targetName}`;
+    showToast('Mapping Pasted', `Applied ${sourceName} ${profMsg}`);
 }
 
 // ============================================================================
@@ -6311,9 +7796,18 @@ function initMouseImageModal() {
             if (isCustom) {
                 const delBtn = card.querySelector('.preset-delete-btn');
                 if (delBtn) {
-                    delBtn.addEventListener('click', (e) => {
+                    delBtn.addEventListener('click', async (e) => {
                         e.stopPropagation();
-                        if (confirm(`Are you sure you want to delete custom mouse option "${preset.name}"?`)) {
+                        const ok = await showConfirmDialog({
+                            title: 'Delete Custom Mouse Option',
+                            message: `Are you sure you want to delete custom mouse option "${preset.name}"?`,
+                            details: 'This custom mouse model option will be permanently removed.',
+                            confirmText: 'Delete Option',
+                            cancelText: 'Cancel',
+                            type: 'danger',
+                            icon: 'trash-2'
+                        });
+                        if (ok) {
                             sendToAhk({
                                 action: 'deleteCustomMousePreset',
                                 presetId: preset.id
@@ -6749,7 +8243,7 @@ function saveButtonConfigForm() {
     showToast('Button Saved', `Configured button: ${name}`);
 }
 
-function confirmDeleteButton(btnId) {
+async function confirmDeleteButton(btnId) {
     if (!DIAGRAM_POINTS[btnId]) return;
 
     if (btnId === 'LeftClick' || btnId === 'RightClick') {
@@ -6758,7 +8252,16 @@ function confirmDeleteButton(btnId) {
     }
 
     const btnName = DIAGRAM_POINTS[btnId]?.name || btnId;
-    if (!confirm(`Are you sure you want to delete "${btnName}"?`)) {
+    const ok = await showConfirmDialog({
+        title: 'Delete Mouse Button',
+        message: `Are you sure you want to delete "${btnName}"?`,
+        details: 'This will remove the button target and callout card from the interactive diagram.',
+        confirmText: 'Delete Button',
+        cancelText: 'Cancel',
+        type: 'danger',
+        icon: 'trash-2'
+    });
+    if (!ok) {
         return;
     }
 
@@ -6849,6 +8352,7 @@ function generateFullBackupPayload() {
         },
         customMousePresets: state.customMousePresets || [],
         customActionPresets: state.customActionPresets || [],
+        textBlockPresets: state.textBlockPresets || [],
         rawIni: state.rawIni || ''
     };
 }
@@ -7007,6 +8511,7 @@ function handleLoadedBackupFile(fileName, content) {
         const btnCount = parsedJson.mouseLayout?.buttons ? parsedJson.mouseLayout.buttons.length : (parsedJson.mouseLayout?.diagramPoints ? Object.keys(parsedJson.mouseLayout.diagramPoints).length : 'Auto');
         const presetsCount = Array.isArray(parsedJson.customMousePresets) ? parsedJson.customMousePresets.length : 0;
         const actionPresetsCount = Array.isArray(parsedJson.customActionPresets) ? parsedJson.customActionPresets.length : 0;
+        const textBlocksCount = Array.isArray(parsedJson.textBlockPresets) ? parsedJson.textBlockPresets.length : 0;
         const hasHardwareFKeys = parsedJson.mouseLayout?.hardwareFKeys ? Object.keys(parsedJson.mouseLayout.hardwareFKeys).length : 0;
         const backupTime = parsedJson.timestamp ? new Date(parsedJson.timestamp).toLocaleString() : 'Unknown';
 
@@ -7015,7 +8520,7 @@ function handleLoadedBackupFile(fileName, content) {
                 <div><strong>${getSvgIcon('folder', 'svg-icon-xs')} Profiles:</strong> ${profCount} app profile(s)</div>
                 <div><strong>${getSvgIcon('mouse', 'svg-icon-xs')} Buttons:</strong> ${btnCount} mouse controls</div>
                 <div><strong>${getSvgIcon('zap', 'svg-icon-xs')} Hardware Keys:</strong> ${hasHardwareFKeys} F-keys mapped</div>
-                <div><strong>${getSvgIcon('image', 'svg-icon-xs')} Presets:</strong> ${presetsCount} mouse models • ${actionPresetsCount} actions</div>
+                <div><strong>${getSvgIcon('image', 'svg-icon-xs')} Presets:</strong> ${presetsCount} models • ${actionPresetsCount} macros • ${textBlocksCount} text blocks</div>
                 <div style="grid-column: span 2; color: var(--text-muted); font-size: 11px; margin-top: 4px;">
                     <strong>${getSvgIcon('clock', 'svg-icon-xs')} Created:</strong> ${backupTime} • <strong>App:</strong> ${parsedJson.app || 'OBM Studio'} v${parsedJson.version || '2.0'}
                 </div>
@@ -7261,15 +8766,11 @@ function closeStudioSettingsModal() {
 }
 
 function initStudioSettingsModal() {
-    const btnOpenStage = document.getElementById('btnOpenStudioSettings');
     const btnOpenHeader = document.getElementById('btnHeaderSettings');
     const modal = document.getElementById('studioSettingsModal');
     const btnClose = document.getElementById('btnSettingsModalClose');
     const btnDone = document.getElementById('btnSettingsCloseFooter');
 
-    if (btnOpenStage) {
-        btnOpenStage.addEventListener('click', () => openStudioSettingsModal());
-    }
     if (btnOpenHeader) {
         btnOpenHeader.addEventListener('click', () => openStudioSettingsModal());
     }
@@ -7302,6 +8803,26 @@ function initStudioSettingsModal() {
         }
     });
 
+    // Make the entire card container clickable, not just the small button
+    const actionableCards = [
+        { cardId: 'cardSettingsMouseImg', btnId: 'btnChangeMouseImage' },
+        { cardId: 'cardSettingsAddBtn', btnId: 'btnAddCustomButton' },
+        { cardId: 'cardSettingsCalibrate', btnId: 'btnCalibratePointers' },
+        { cardId: 'cardSettingsOmm', btnId: 'btnOpenOmmSetup' },
+        { cardId: 'cardSettingsBackup', btnId: 'btnToolbarBackup' }
+    ];
+    actionableCards.forEach(item => {
+        const card = document.getElementById(item.cardId);
+        const btn = document.getElementById(item.btnId);
+        if (card && btn) {
+            card.addEventListener('click', (e) => {
+                if (!e.target.closest(`#${item.btnId}`)) {
+                    btn.click();
+                }
+            });
+        }
+    });
+
     // Wire up quick toggles inside settings modal to mirror main checkboxes
     const chkSettingsMute = document.getElementById('chkSettingsMute');
     if (chkSettingsMute) {
@@ -7310,6 +8831,7 @@ function initStudioSettingsModal() {
             const mainChk = document.getElementById('chkMuteWhenFocused');
             if (mainChk) mainChk.checked = state.muteWhenFocused;
             sendToAhk({ action: 'toggleMuteWhenFocused', enabled: state.muteWhenFocused });
+            updateHeaderTogglesUI();
         });
     }
 
@@ -7319,6 +8841,7 @@ function initStudioSettingsModal() {
             const mainChk = document.getElementById('chkShowOSD');
             if (mainChk) mainChk.checked = e.target.checked;
             sendToAhk({ action: 'toggleOSD', enabled: e.target.checked });
+            updateHeaderTogglesUI();
         });
     }
 
@@ -7329,6 +8852,7 @@ function initStudioSettingsModal() {
             const mainChk = document.getElementById('chkAlwaysOnTop');
             if (mainChk) mainChk.checked = state.isAlwaysOnTop;
             sendToAhk({ action: 'setAlwaysOnTop', enabled: state.isAlwaysOnTop });
+            updateHeaderTogglesUI();
         });
     }
 }
