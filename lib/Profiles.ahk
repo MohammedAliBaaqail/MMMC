@@ -1,7 +1,7 @@
 #Requires AutoHotkey v2.0
 
 /**
- * Dynamic Profile & Macro Execution Engine for Logitech G502 X
+ * Dynamic Profile & Macro Execution Engine — My Mouse My Choice
  * Supports customizable button mappings and keyboard combinations per profile,
  * persisted via settings.ini.
  */
@@ -444,7 +444,8 @@ class ProfileEngine {
                 this.StopAllRunningMacros()
                 this.CurrentProfile := p
                 meta := this.ProfileMetadata.Has(p) ? this.ProfileMetadata[p] : ""
-                if (meta && meta.HasOwnProp("OsdIconOnly") && meta.OsdIconOnly) {
+                isIconOnly := (meta && meta.HasOwnProp("OsdIconOnly") && (meta.OsdIconOnly = 1 || meta.OsdIconOnly = true || meta.OsdIconOnly = "1" || meta.OsdIconOnly = "true"))
+                if (isIconOnly) {
                     OSD.ShowIcon(this.GetProfileIconPath(p))
                 } else {
                     OSD.Show("Profile: " . p, this.GetProfileDescription(p))
@@ -761,8 +762,10 @@ class ProfileEngine {
                 IniWrite(meta.TargetExe, this.ConfigPath, sec, "TargetExe")
                 IniWrite(meta.Icon, this.ConfigPath, sec, "Icon")
                 IniWrite(meta.IsDefault ? "1" : "0", this.ConfigPath, sec, "IsDefault")
-                IniWrite((meta.HasOwnProp("SwitchOnHover") && meta.SwitchOnHover) ? "1" : "0", this.ConfigPath, sec, "SwitchOnHover")
-                IniWrite((meta.HasOwnProp("OsdIconOnly") && meta.OsdIconOnly) ? "1" : "0", this.ConfigPath, sec, "OsdIconOnly")
+                isHover := (meta.HasOwnProp("SwitchOnHover") && (meta.SwitchOnHover = 1 || meta.SwitchOnHover = true || meta.SwitchOnHover = "1" || meta.SwitchOnHover = "true"))
+                isIconOnly := (meta.HasOwnProp("OsdIconOnly") && (meta.OsdIconOnly = 1 || meta.OsdIconOnly = true || meta.OsdIconOnly = "1" || meta.OsdIconOnly = "true"))
+                IniWrite(isHover ? "1" : "0", this.ConfigPath, sec, "SwitchOnHover")
+                IniWrite(isIconOnly ? "1" : "0", this.ConfigPath, sec, "OsdIconOnly")
                 if (meta.HasOwnProp("Desc"))
                     IniWrite(meta.Desc, this.ConfigPath, sec, "Desc")
             }
@@ -937,9 +940,9 @@ class ProfileEngine {
             if (icon != "")
                 this.ProfileMetadata[name].Icon := icon
             if (switchOnHover != -1)
-                this.ProfileMetadata[name].SwitchOnHover := switchOnHover ? true : false
+                this.ProfileMetadata[name].SwitchOnHover := (switchOnHover = 1 || switchOnHover = true || switchOnHover = "1" || switchOnHover = "true") ? true : false
             if (osdIconOnly != -1)
-                this.ProfileMetadata[name].OsdIconOnly := osdIconOnly ? true : false
+                this.ProfileMetadata[name].OsdIconOnly := (osdIconOnly = 1 || osdIconOnly = true || osdIconOnly = "1" || osdIconOnly = "true") ? true : false
         }
         
         this.SaveProfileConfig()
@@ -2064,7 +2067,7 @@ class ProfileEngine {
     }
 
     ; --- Button Event Handlers (F13 - F21) ---
-    ; Matches Logitech Onboard Memory Manager (OMM) physical layout with dynamic swapping support
+    ; Matches Onboard Memory Manager (OMM) physical layout with dynamic swapping support
 
     static HandleFKey(fKey, isDown) {
         btnId := this.FKeyToButtonMap.Has(fKey) ? this.FKeyToButtonMap[fKey] : ""

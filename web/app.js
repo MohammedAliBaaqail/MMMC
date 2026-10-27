@@ -604,7 +604,7 @@ function handleEngineMessage(msg) {
                 const customPreview = document.getElementById('customImagePreview');
                 if (customPreview) customPreview.src = defImg;
                 updateSvgLines();
-                showToast('Mouse Image Reset', 'Restored default Logitech G502 X diagram');
+                showToast('Mouse Image Reset', 'Restored default mouse layout diagram');
             }
         case 'customMousePresetsUpdated':
             if (msg.presets && Array.isArray(msg.presets)) {
@@ -2835,7 +2835,7 @@ function initModalControls() {
         });
     }
 
-    // Initialize Logitech G HUB Macro UI Controls
+    // Initialize Studio Macro UI Controls
     initGhubMacroUi();
 }
 
@@ -3213,7 +3213,7 @@ function updateSinglePreview() {
     txt.textContent = cleanLabel;
 }
 
-// Tab 1 Playback Mode & Delay Controls (Matches Logitech G HUB Macro section)
+// Tab 1 Playback Mode & Delay Controls (Advanced Macro Playback Modes)
 function setSinglePlaybackMode(mode) {
     const validMode = (mode === 'RepeatWhileHolding' || mode === 'Toggle') ? mode : 'NoRepeat';
     if (!state.modal.singleAction) {
@@ -3231,23 +3231,11 @@ function setSinglePlaybackMode(mode) {
         Toggle: { id: 'btnSingleTypeToggle', label: 'Toggle' }
     };
 
-    // Remove existing tooltip badge in Tab 1
-    const oldBadge = document.getElementById('singleTypeTooltipBadge');
-    if (oldBadge) oldBadge.remove();
-
     // Toggle button active classes
     Object.keys(mapping).forEach(k => {
         const btn = document.getElementById(mapping[k].id);
         if (btn) {
-            const isActive = (k === validMode);
-            btn.classList.toggle('active', isActive);
-            if (isActive) {
-                const badge = document.createElement('div');
-                badge.className = 'ghub-tooltip-badge';
-                badge.id = 'singleTypeTooltipBadge';
-                badge.textContent = mapping[k].label;
-                btn.appendChild(badge);
-            }
+            btn.classList.toggle('active', k === validMode);
         }
     });
 
@@ -3382,7 +3370,7 @@ function injectMouseButton(mouseBtn) {
 }
 
 // ============================================================================
-// TAB 2: LOGITECH G HUB MACRO ENGINE & SEQUENCER
+// TAB 2: ADVANCED STUDIO MACRO ENGINE & SEQUENCER
 // ============================================================================
 
 let currentMacroDrag = null;
@@ -3925,23 +3913,11 @@ function setGhubMacroType(type) {
         Sequence: { id: 'btnMacroTypeSequence', label: 'Sequence' }
     };
 
-    // Remove existing tooltip badge
-    const oldBadge = document.getElementById('ghubTypeTooltipBadge');
-    if (oldBadge) oldBadge.remove();
-
     // Toggle button active classes
     Object.keys(mapping).forEach(k => {
         const btn = document.getElementById(mapping[k].id);
         if (btn) {
-            const isActive = (k === state.modal.macroType);
-            btn.classList.toggle('active', isActive);
-            if (isActive) {
-                const badge = document.createElement('div');
-                badge.className = 'ghub-tooltip-badge';
-                badge.id = 'ghubTypeTooltipBadge';
-                badge.textContent = mapping[k].label;
-                btn.appendChild(badge);
-            }
+            btn.classList.toggle('active', k === state.modal.macroType);
         }
     });
 
@@ -5719,7 +5695,7 @@ function onCardCalibPointerDown(e, btnId) {
 }
 
 // ============================================================================
-// LOGITECH GAMING SOFTWARE (LGS) PROFILES BAR & AUTO-SWITCH CONTROLLER
+// APPLICATION PROFILES BAR & AUTO-SWITCH CONTROLLER
 // ============================================================================
 function initLgsProfilesBar() {
     const searchInput = document.getElementById('profileSearchInput');
@@ -5787,25 +5763,172 @@ function initLgsProfilesBar() {
         });
     }
 
+    // Smooth Wheel Accumulator & Draggable Track
+    let wheelAnimId = null;
+    let wheelTarget = null;
+    let inertiaAnimFrame = null;
+
+    function stopScrollAnimations() {
+        if (wheelAnimId) {
+            cancelAnimationFrame(wheelAnimId);
+            wheelAnimId = null;
+            wheelTarget = null;
+        }
+        if (inertiaAnimFrame) {
+            cancelAnimationFrame(inertiaAnimFrame);
+            inertiaAnimFrame = null;
+        }
+    }
+
+    function stepWheelScroll() {
+        if (wheelTarget === null || !track) return;
+        const current = track.scrollLeft;
+        const diff = wheelTarget - current;
+        if (Math.abs(diff) > 0.5) {
+            // Snappy lerp (0.28 per frame) ensures fluid, instant response without animation queue lag
+            track.scrollLeft = current + diff * 0.28;
+            wheelAnimId = requestAnimationFrame(stepWheelScroll);
+        } else {
+            track.scrollLeft = wheelTarget;
+            wheelTarget = null;
+            wheelAnimId = null;
+        }
+    }
+
+    function scrollTrackSmooth(delta) {
+        if (!track) return;
+        if (inertiaAnimFrame) {
+            cancelAnimationFrame(inertiaAnimFrame);
+            inertiaAnimFrame = null;
+        }
+        if (wheelTarget === null) {
+            wheelTarget = track.scrollLeft;
+        }
+        const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+        wheelTarget = Math.max(0, Math.min(maxScroll, wheelTarget + delta));
+        if (!wheelAnimId) {
+            wheelAnimId = requestAnimationFrame(stepWheelScroll);
+        }
+    }
+
     if (btnScrollLeft && track) {
         btnScrollLeft.addEventListener('click', () => {
-            track.scrollBy({ left: -180, behavior: 'smooth' });
+            scrollTrackSmooth(-220);
         });
     }
 
     if (btnScrollRight && track) {
         btnScrollRight.addEventListener('click', () => {
-            track.scrollBy({ left: 180, behavior: 'smooth' });
+            scrollTrackSmooth(220);
         });
     }
 
     if (track) {
+        // Lag-free mouse wheel scrolling with dynamic accumulator
         track.addEventListener('wheel', (e) => {
-            if (e.deltaY !== 0) {
+            const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+            if (delta !== 0) {
                 e.preventDefault();
-                track.scrollBy({ left: e.deltaY * 0.9, behavior: 'smooth' });
+                scrollTrackSmooth(delta * 1.15);
             }
+        }, { passive: false });
+
+        // Draggable Grab-to-Scroll
+        let isPointerDown = false;
+        let startX = 0;
+        let startScrollLeft = 0;
+        let hasDragged = false;
+        let lastX = 0;
+        let lastTime = 0;
+        let velocity = 0;
+        let preventNextClick = false;
+
+        track.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return; // Only primary button
+            stopScrollAnimations();
+            isPointerDown = true;
+            startX = e.clientX;
+            startScrollLeft = track.scrollLeft;
+            hasDragged = false;
+            lastX = e.clientX;
+            lastTime = performance.now();
+            velocity = 0;
         });
+
+        const handlePointerMove = (e) => {
+            if (!isPointerDown) return;
+            const deltaX = e.clientX - startX;
+
+            if (!hasDragged && Math.abs(deltaX) > 4) {
+                hasDragged = true;
+                track.classList.add('is-dragging');
+                hideProfileHoverPopover();
+            }
+
+            if (hasDragged) {
+                track.scrollLeft = startScrollLeft - deltaX;
+
+                const now = performance.now();
+                const dt = now - lastTime;
+                if (dt > 10) {
+                    const moveDist = e.clientX - lastX;
+                    velocity = 0.7 * (moveDist / dt) + 0.3 * velocity;
+                    lastX = e.clientX;
+                    lastTime = now;
+                }
+            }
+        };
+
+        const handlePointerEnd = () => {
+            if (!isPointerDown) return;
+            isPointerDown = false;
+
+            if (hasDragged) {
+                track.classList.remove('is-dragging');
+                preventNextClick = true;
+                setTimeout(() => {
+                    preventNextClick = false;
+                }, 80);
+
+                // Kinetic momentum glide on release
+                const now = performance.now();
+                if (now - lastTime < 80 && Math.abs(velocity) > 0.15) {
+                    let inertiaVel = -velocity * 16;
+                    if (inertiaVel > 35) inertiaVel = 35;
+                    if (inertiaVel < -35) inertiaVel = -35;
+
+                    function stepInertia() {
+                        if (Math.abs(inertiaVel) > 0.5) {
+                            track.scrollLeft += inertiaVel;
+                            inertiaVel *= 0.92;
+                            inertiaAnimFrame = requestAnimationFrame(stepInertia);
+                        } else {
+                            inertiaAnimFrame = null;
+                        }
+                    }
+                    inertiaAnimFrame = requestAnimationFrame(stepInertia);
+                }
+            }
+        };
+
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerEnd);
+        window.addEventListener('pointercancel', handlePointerEnd);
+
+        // Prevent native HTML5 image/link drag-and-drop ghosting
+        track.addEventListener('dragstart', (e) => {
+            e.preventDefault();
+        });
+
+        // Intercept and swallow card click event in capture phase if user was dragging
+        track.addEventListener('click', (e) => {
+            if (preventNextClick) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                preventNextClick = false;
+            }
+        }, true);
     }
 
     // Context Menu Item Listeners
@@ -6384,6 +6507,7 @@ function initProfileModalControls() {
     const btnBrowse = document.getElementById('btnBrowseAppExe');
     const btnDetect = document.getElementById('btnDetectRunningApps');
     const filterInput = document.getElementById('runningAppsFilter');
+    const inputName = document.getElementById('profInputName');
     const inputExe = document.getElementById('profInputExe');
 
     if (btnClose) btnClose.addEventListener('click', closeProfileModal);
@@ -6397,6 +6521,42 @@ function initProfileModalControls() {
 
     if (btnSave) {
         btnSave.addEventListener('click', saveProfileModal);
+    }
+
+    if (inputName) {
+        inputName.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveProfileModal();
+            }
+        });
+    }
+
+    if (inputExe) {
+        inputExe.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveProfileModal();
+            }
+        });
+    }
+
+    const inputOsdIconOnly = document.getElementById('profInputOsdIconOnly');
+    if (inputOsdIconOnly) {
+        inputOsdIconOnly.addEventListener('change', () => {
+            const curProfName = state.editingProfileOldName || state.currentProfile;
+            if (curProfName && state.profileModalMode === 'edit') {
+                const targetProf = state.profiles.find(p => p.name.toLowerCase() === curProfName.toLowerCase());
+                if (targetProf) {
+                    targetProf.osdIconOnly = inputOsdIconOnly.checked;
+                }
+                sendToAhk({
+                    action: 'updateProfileOsdIconOnly',
+                    name: curProfName,
+                    osdIconOnly: inputOsdIconOnly.checked
+                });
+            }
+        });
     }
 
     if (btnBrowse) {
@@ -6488,6 +6648,8 @@ function openProfileModal(mode, profData) {
 
     const isDefault = (mode === 'edit' && profData && (profData.isDefault || profData.name === 'Desktop'));
 
+    const isTruthy = (v) => (v === true || v === 1 || v === '1' || v === 'true');
+
     if (mode === 'create') {
         if (title) title.textContent = 'CREATE APP PROFILE';
         if (modalSubtitle) modalSubtitle.textContent = 'Configure auto-switching application targets, or press Ctrl+Shift+F2 on any window to create instantly';
@@ -6531,8 +6693,8 @@ function openProfileModal(mode, profData) {
             }
             if (profExeGroup) profExeGroup.style.opacity = '0.5';
             if (hoverGroup) hoverGroup.style.display = 'block';
-            if (inputHover) inputHover.checked = (profData && profData.switchOnHover) ? true : false;
-            if (inputOsdIconOnly) inputOsdIconOnly.checked = (profData && profData.osdIconOnly) ? true : false;
+            if (inputHover) inputHover.checked = (profData && isTruthy(profData.switchOnHover)) ? true : false;
+            if (inputOsdIconOnly) inputOsdIconOnly.checked = (profData && isTruthy(profData.osdIconOnly)) ? true : false;
             const hoverDesc = document.getElementById('profHoverDesc');
             if (hoverDesc) hoverDesc.textContent = 'Instantly activate Default profile when cursor hovers over Desktop or unassigned windows';
             if (appPickActions) appPickActions.style.display = 'none';
@@ -6549,8 +6711,8 @@ function openProfileModal(mode, profData) {
             }
             if (profExeGroup) profExeGroup.style.opacity = '1';
             if (hoverGroup) hoverGroup.style.display = 'block';
-            if (inputHover) inputHover.checked = (profData && profData.switchOnHover) ? true : false;
-            if (inputOsdIconOnly) inputOsdIconOnly.checked = (profData && profData.osdIconOnly) ? true : false;
+            if (inputHover) inputHover.checked = (profData && isTruthy(profData.switchOnHover)) ? true : false;
+            if (inputOsdIconOnly) inputOsdIconOnly.checked = (profData && isTruthy(profData.osdIconOnly)) ? true : false;
             const hoverDesc = document.getElementById('profHoverDesc');
             if (hoverDesc) hoverDesc.textContent = 'Instantly activate this profile when cursor hovers over the app window (no click or focus needed)';
             if (appPickActions) appPickActions.style.display = 'flex';
@@ -6599,6 +6761,7 @@ function openProfileModal(mode, profData) {
     syncIconPresetStripUI();
 
     if (modal) {
+        modal.style.display = 'flex';
         modal.classList.add('open');
         modal.classList.add('active');
     }
@@ -6613,6 +6776,7 @@ function closeProfileModal() {
     if (modal) {
         modal.classList.remove('open');
         modal.classList.remove('active');
+        modal.style.display = 'none';
     }
 }
 
@@ -6692,7 +6856,9 @@ function saveProfileModal() {
         }
 
         renderLgsProfiles();
-        updateActiveProfilePill();
+        refreshCardsAndStage();
+        updateSvgLines();
+        updateAutoSwitchUI();
         if (typeof renderStudio === 'function') {
             renderStudio();
         }
@@ -7582,10 +7748,10 @@ function sendButtonsToAhk() {
 const POPULAR_MOUSE_PRESETS = [
     {
         id: 'g502x',
-        name: 'Logitech G502 X / Hero',
-        tag: 'Logitech',
+        name: 'Default Multi-Button Mouse',
+        tag: 'Standard',
         badge: '13 Controls',
-        desc: 'Hybrid optical-mechanical switches, sniper paddle, and dual-mode tilt wheel.',
+        desc: 'Universal 11+ control layout with side buttons, sniper paddle, dual DPI selectors, and tilt wheel.',
         image: '../assets/g502x.png',
         buttons: DEFAULT_BUTTONS_CONFIG
     },
@@ -7644,8 +7810,8 @@ const POPULAR_MOUSE_PRESETS = [
     },
     {
         id: 'g604',
-        name: 'Logitech G604 Lightspeed',
-        tag: 'Logitech',
+        name: '6-Button Thumb Grid Mouse',
+        tag: 'MMO / MOBA',
         badge: '15 Controls (6 Thumb)',
         desc: '6 thumb keys, dual top index DPI keys, dual-mode metal hyperfast scroll wheel.',
         image: '../assets/logitech_g604.png',
@@ -7670,9 +7836,9 @@ const POPULAR_MOUSE_PRESETS = [
     },
     {
         id: 'gprox',
-        name: 'Logitech G Pro X Superlight',
-        tag: 'Logitech',
-        badge: '5 Buttons (Esports)',
+        name: 'Minimalist Lightweight Mouse',
+        tag: 'Esports',
+        badge: '5 Buttons (FPS)',
         desc: 'Ultra-lightweight competitive esports mouse with clean ambidextrous ergonomics.',
         image: '../assets/logitech_gprox.png',
         buttons: [
@@ -8020,7 +8186,7 @@ function initMouseImageModal() {
         });
     }
 
-    // Reset to Factory G502 X
+    // Reset to Default Mouse Layout
     if (btnReset) {
         btnReset.addEventListener('click', () => {
             const defPath = '../assets/g502x.png';
@@ -8035,7 +8201,7 @@ function initMouseImageModal() {
             state.cardOffsets = {};
             applyButtonsConfig(DEFAULT_BUTTONS_CONFIG);
 
-            showToast('Mouse Layout Reset', 'Restored Logitech G502 X factory default');
+            showToast('Mouse Layout Reset', 'Restored default mouse factory layout');
             setTimeout(updateSvgLines, 100);
             closeModal();
         });

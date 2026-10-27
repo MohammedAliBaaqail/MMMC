@@ -32,7 +32,7 @@ if not exist "%AHK_BASE%" (
     exit /b 1
 )
 
-"%AHK_COMPILER%" /in "%~dp0G502X_Manager.ahk" /out "%~dp0MyMouseMyChoice.exe" /icon "%~dp0assets\app.ico" /base "%AHK_BASE%" /silent
+"%AHK_COMPILER%" /in "%~dp0MyMouseMyChoice.ahk" /out "%~dp0MyMouseMyChoice.exe" /icon "%~dp0assets\app.ico" /base "%AHK_BASE%" /silent
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

@@ -1,9 +1,9 @@
 #Requires AutoHotkey v2.0
 
 /**
- * Logitech Onboard Memory Manager (OMM) Key Injector Assistant
+ * Onboard Memory Key Injector Assistant
  * Physical keyboards lack F13-F24 keys. This tool allows users to select
- * a key, gives a 3-second countdown to switch to OMM's keystroke recorder,
+ * a virtual key, gives a 3-second countdown to switch to the mouse's onboard memory tool,
  * and automatically fires the virtual F-key.
  */
 class OMMHelper {

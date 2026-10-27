@@ -60,7 +60,7 @@ class WebView2 {
 			options := this.EnvironmentOptions(options)
 		}
 		DllCall(dllPathOrFuncPtr, 'str', edgeRuntime,
-			'str', dataDir || (A_AppData . '\OBM_G502X_WebView2'), 'ptr', options,
+			'str', dataDir || (A_AppData . '\OBM_WebView2'), 'ptr', options,
 			'ptr', this.AsyncHandler(&p, this.Environment), 'hresult')
 		return p
 	}

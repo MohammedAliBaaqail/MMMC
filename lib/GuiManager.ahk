@@ -1,8 +1,8 @@
 #Requires AutoHotkey v2.0
 
 /**
- * Modern Dark-Themed GUI for Logitech G502 X Controller
- * Logitech Gaming Software (LGS) & G-HUB Hybrid Interface:
+ * Modern Dark-Themed GUI for Mouse Controller — My Mouse My Choice
+ * Advanced Mouse & Button Studio Interface:
  *   - Precision leader lines pinned directly to hardware buttons
  *   - Interactive Left Sidebar Command Drawer (Search, Categories & Click-to-Assign)
  *   - Single-click to select button target; double-click for modal combo builder
@@ -438,9 +438,9 @@ class GuiManager {
 
         g.SetFont("s9 norm cCDD6F4", "Segoe UI")
         g.Add("Text", "x30 y95 w1050", 
-            "HOW TO BIND IN LOGITECH ONBOARD MEMORY MANAGER (OMM):`n"
-            . "1. Open Logitech Onboard Memory Manager (OMM.exe).`n"
-            . "2. Click a button on your G502 X in OMM and choose 'Keystroke' -> 'Record'.`n"
+            "HOW TO BIND IN ONBOARD MEMORY MANAGER (OMM):`n"
+            . "1. Open your mouse hardware memory utility (e.g. OMM.exe, Synapse, etc.).`n"
+            . "2. Click a button on your mouse in OMM and choose 'Keystroke' -> 'Record'.`n"
             . "3. Click the matching button below. A 3-second countdown will begin.`n"
             . "4. Switch back to OMM during the countdown. The virtual key will be injected for you!`n"
             . "5. Save to onboard memory and close OMM."
@@ -533,13 +533,13 @@ class GuiManager {
     static OpenPointerCalibrator() {
         this.LoadCalibratorPoints()
 
-        dlg := Gui("+Owner" . this.MainGui.Hwnd . " +AlwaysOnTop -MinimizeBox", "🎯 G502 X Button Pointer Calibration")
+        dlg := Gui("+Owner" . this.MainGui.Hwnd . " +AlwaysOnTop -MinimizeBox", "🎯 Mouse Button Pointer Calibration")
         this.CalibratorDlg := dlg
         dlg.BackColor := "181825"
 
         ; Header
         dlg.SetFont("s13 bold cCDD6F4", "Segoe UI")
-        dlg.Add("Text", "x20 y12 w800", "🎯 Logitech G502 X Button Pointer Calibration")
+        dlg.Add("Text", "x20 y12 w800", "🎯 Mouse Button Pointer Calibration")
         dlg.SetFont("s9 norm cA6ADC8", "Segoe UI")
         dlg.Add("Text", "x20 y38 w980", 
             "1. Select a button in the row below.`n"
@@ -1321,7 +1321,7 @@ class GuiManager {
 
         ; Header
         rg.SetFont("s11 bold c89B4FA", "Segoe UI")
-        rg.Add("Text", "x25 y15 w590 Center", "LOGITECH G502 X — BUTTON STUDIO")
+        rg.Add("Text", "x25 y15 w590 Center", "MY MOUSE MY CHOICE — BUTTON STUDIO")
 
         layerName := this.GetLayerDisplayName(this.CurrentViewLayer)
         rg.SetFont("s9 bold cCDD6F4", "Segoe UI")

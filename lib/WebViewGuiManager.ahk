@@ -1,7 +1,7 @@
 #Requires AutoHotkey v2.0
 
 /**
- * Modern Embedded WebView2 GUI Manager for Logitech G502 X
+ * Modern Embedded WebView2 GUI Manager for My Mouse My Choice
  * Hosts web/index.html in Microsoft Edge WebView2, connecting ProfileEngine,
  * OSD, and tray status via bidirectional IPC.
  */
@@ -158,7 +158,7 @@ class WebViewGuiManager {
         if (!FileExist(dllPath))
             dllPath := A_ScriptDir . "\lib\64bit\WebView2Loader.dll"
 
-        baseData := A_AppData . "\OBM_G502X_WebView2"
+        baseData := A_AppData . "\OBM_WebView2"
         if (!DirExist(baseData)) {
             try DirCreate(baseData)
         }
@@ -179,12 +179,12 @@ class WebViewGuiManager {
     static CleanOrphanedProcesses() {
         try {
             currentPid := DllCall("GetCurrentProcessId")
-            baseData := A_AppData . "\OBM_G502X_WebView2"
+            baseData := A_AppData . "\OBM_WebView2"
 
             ; 1. Clean orphaned msedgewebview2 processes
             for proc in ComObjGet("winmgmts:").ExecQuery("Select ProcessId, CommandLine from Win32_Process where Name like 'msedgewebview2%'") {
                 cmd := proc.CommandLine
-                if (RegExMatch(cmd, "OBM_G502X_WV_(\d+)", &m)) {
+                if (RegExMatch(cmd, "OBM_WV_(\d+)", &m) || RegExMatch(cmd, "OBM_G502X_WV_(\d+)", &m)) {
                     ownerPid := Integer(m[1])
                     if (ownerPid != currentPid && !ProcessExist(ownerPid)) {
                         try ProcessClose(proc.ProcessId)
@@ -215,7 +215,7 @@ class WebViewGuiManager {
             this.wv := ""
         }
         currentPid := DllCall("GetCurrentProcessId")
-        baseData := A_AppData . "\OBM_G502X_WebView2"
+        baseData := A_AppData . "\OBM_WebView2"
         sessionDir := baseData . "\WV_" . currentPid
         if (DirExist(sessionDir)) {
             try DirDelete(sessionDir, true)
@@ -230,8 +230,8 @@ class WebViewGuiManager {
     }
 
     static OnControllerCreated(wvc) {
-        global g_G502X_wvc := wvc
-        global g_G502X_wv := wvc.CoreWebView2
+        global g_MMMC_wvc := wvc
+        global g_MMMC_wv := wvc.CoreWebView2
         this.wvc := wvc
         this.wv := wvc.CoreWebView2
         this.IsInitializing := false
@@ -284,7 +284,7 @@ class WebViewGuiManager {
         if (!FileExist(dllPath))
             dllPath := A_ScriptDir . "\lib\64bit\WebView2Loader.dll"
 
-        userData := A_AppData . "\OBM_G502X_WebView2\WV_FB_" . A_TickCount
+        userData := A_AppData . "\OBM_WebView2\WV_FB_" . A_TickCount
         try DirCreate(userData)
 
         this.Log("Retrying CreateControllerAsync with fallback: " . userData)
@@ -440,15 +440,26 @@ class WebViewGuiManager {
                     oldName := req.Has("oldName") ? req["oldName"] : pName
                     pExe := req.Has("targetExe") ? req["targetExe"] : ""
                     pIcon := req.Has("icon") ? req["icon"] : ""
-                    pHover := req.Has("switchOnHover") ? (req["switchOnHover"] ? true : false) : -1
-                    pOsdIconOnly := req.Has("osdIconOnly") ? (req["osdIconOnly"] ? true : false) : -1
+                    pHover := req.Has("switchOnHover") ? ((req["switchOnHover"] = 1 || req["switchOnHover"] = true || req["switchOnHover"] = "1" || req["switchOnHover"] = "true") ? true : false) : -1
+                    pOsdIconOnly := req.Has("osdIconOnly") ? ((req["osdIconOnly"] = 1 || req["osdIconOnly"] = true || req["osdIconOnly"] = "1" || req["osdIconOnly"] = "true") ? true : false) : -1
                     if (ProfileEngine.UpdateProfile(pName, pExe, pIcon, pHover, pOsdIconOnly, oldName)) {
                         this.SendProfilesUpdated()
-                        if (ProfileEngine.CurrentProfile == pName && pOsdIconOnly == 1) {
+                        if (ProfileEngine.CurrentProfile == pName && (pOsdIconOnly = 1 || pOsdIconOnly = true)) {
                             OSD.ShowIcon(ProfileEngine.GetProfileIconPath(pName))
                         } else {
                             OSD.Show("Profile Updated: " . pName, pExe != "" ? "App: " . pExe : "No Exe")
                         }
+                    }
+                }
+
+            case "updateProfileOsdIconOnly":
+                if (req.Has("name")) {
+                    pName := req["name"]
+                    isIconOnly := (req.Has("osdIconOnly") && (req["osdIconOnly"] = 1 || req["osdIconOnly"] = true || req["osdIconOnly"] = "1" || req["osdIconOnly"] = "true")) ? true : false
+                    if (ProfileEngine.ProfileMetadata.Has(pName)) {
+                        ProfileEngine.ProfileMetadata[pName].OsdIconOnly := isIconOnly
+                        ProfileEngine.SaveProfileConfig()
+                        this.SendProfilesUpdated()
                     }
                 }
 
@@ -663,7 +674,7 @@ class WebViewGuiManager {
                     "type", "mouseImageReset",
                     "mouseImage", ""
                 ))
-                OSD.Show("Mouse Image", "Restored default Logitech G502 X image")
+                OSD.Show("Mouse Image", "Restored default mouse layout diagram")
 
             case "saveCustomButtons":
                 if (req.Has("buttons")) {

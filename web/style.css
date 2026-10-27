@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LOGITECH G502 X — ADVANCED STUDIO STYLESHEET
+   MY MOUSE MY CHOICE — ADVANCED STUDIO STYLESHEET
    Aesthetics: Deep Obsidian / Cyber Slate / Electric Cyan & Amber Accents
    ========================================================================== */
 
@@ -3263,11 +3263,11 @@ body.calibrating-mode .btn-card.calib-selected::after {
 }
 
 /* ============================================================================
-   LOGITECH G HUB MACRO CREATION UI — OBM STUDIO THEMED
+   STUDIO MACRO CREATION UI — ADVANCED SEQUENCER
    ============================================================================ */
 
 /* ============================================================================
-   BUTTON STUDIO: FULL-PAGE EXPANSIVE WORKSTATION (Logitech G HUB & Cyberpunk Aesthetic)
+   BUTTON STUDIO: FULL-PAGE EXPANSIVE WORKSTATION
    ============================================================================ */
 #studioModal.studio-fullpage-backdrop {
     position: fixed !important;
@@ -3796,28 +3796,28 @@ body.calibrating-mode .btn-card.calib-selected::after {
 .behavior-card .single-modes-stack {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    flex: 1;
+    gap: 10px;
+    flex: 0 0 auto;
 }
 
 .behavior-card .single-types-stack {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: 12px;
+    justify-content: flex-start;
+    gap: 10px;
     background: transparent;
     border: none;
     padding: 0;
     width: 100%;
-    flex: 1;
+    flex: 0 0 auto;
 }
 
 .single-mode-card-btn {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     width: 100%;
-    padding: 16px 18px;
+    padding: 13px 16px;
     background: rgba(11, 14, 24, 0.65);
     border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 10px;
@@ -3826,11 +3826,13 @@ body.calibrating-mode .btn-card.calib-selected::after {
     transition: all var(--transition-fast);
     box-sizing: border-box;
     position: relative;
+    flex: 0 0 auto;
+    min-height: 62px;
 }
 
 .behavior-card .single-mode-card-btn {
-    flex: 1;
-    min-height: 68px;
+    flex: 0 0 auto;
+    min-height: 62px;
 }
 
 .single-mode-card-btn:hover {
@@ -3867,10 +3869,6 @@ body.calibrating-mode .btn-card.calib-selected::after {
     background: rgba(0, 210, 255, 0.22);
     color: var(--accent-cyan);
     box-shadow: 0 0 14px rgba(0, 210, 255, 0.35);
-}
-
-#singleTypeTooltipBadge {
-    display: none !important;
 }
 
 .single-mode-card-btn .mode-meta {
@@ -3921,12 +3919,13 @@ body.calibrating-mode .btn-card.calib-selected::after {
 }
 
 .single-delay-card {
-    margin-top: 16px;
-    padding: 16px 20px;
+    margin-top: 10px;
+    padding: 14px 18px;
     background: rgba(12, 15, 25, 0.65);
     border: 1px solid rgba(245, 158, 11, 0.3);
     border-radius: 10px;
     box-sizing: border-box;
+    flex: 0 0 auto;
 }
 
 .single-delay-header {
@@ -4059,8 +4058,8 @@ body.calibrating-mode .btn-card.calib-selected::after {
 .macro-behavior-card .single-modes-stack {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    flex: 1;
+    gap: 10px;
+    flex: 0 0 auto;
 }
 
 .macro-behavior-card .single-types-stack {
@@ -4068,28 +4067,27 @@ body.calibrating-mode .btn-card.calib-selected::after {
     flex-direction: column;
     justify-content: flex-start;
     gap: 10px;
-    flex: 1;
+    flex: 0 0 auto;
+    width: 100%;
 }
 
 .single-mode-card-btn.ghub-type-btn {
     width: 100% !important;
     height: auto !important;
-    min-height: 60px !important;
+    min-height: 62px !important;
+    flex: 0 0 auto !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-start !important;
-    padding: 14px 16px !important;
+    padding: 13px 16px !important;
     border-radius: 10px !important;
+    box-sizing: border-box !important;
 }
 
 .mode-tag.sequence-tag {
     background: rgba(168, 85, 247, 0.16) !important;
     color: #c084fc !important;
     border: 1px solid rgba(168, 85, 247, 0.3) !important;
-}
-
-#ghubTypeTooltipBadge {
-    display: none !important;
 }
 
 /* Macro Settings Deck (Anchored to Left Column Bottom) */
@@ -4100,6 +4098,18 @@ body.calibrating-mode .btn-card.calib-selected::after {
     margin-top: auto;
     padding-top: 14px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.macro-settings-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+}
+
+.macro-settings-row .macro-setting-card {
+    height: 100%;
+    margin: 0;
 }
 
 .macro-setting-card {
@@ -4323,7 +4333,7 @@ body.calibrating-mode .btn-card.calib-selected::after {
 }
 
 /* ============================================================================
-   LOGITECH G HUB MACRO CREATION UI — OBM STUDIO THEMED
+   STUDIO MACRO CREATION UI — ADVANCED SEQUENCER
    ============================================================================ */
 
 .ghub-macro-wrapper {
@@ -5202,6 +5212,7 @@ body.calibrating-mode .btn-card.calib-selected::after {
     align-items: center;
     gap: 10px;
     user-select: none;
+    cursor: pointer;
 }
 
 .modal-preset-toggle-row .switch-title {
@@ -5281,7 +5292,7 @@ body.calibrating-mode .btn-card.calib-selected::after {
 }
 
 /* ==========================================================================
-   LOGITECH GAMING SOFTWARE (LGS) PROFILES RIBBON
+   PROFILES & APPLICATION AUTO-SWITCHING RIBBON
    ========================================================================== */
 .lgs-profiles-bar {
     height: 98px;
@@ -5473,16 +5484,30 @@ body.calibrating-mode .btn-card.calib-selected::after {
     align-items: center;
     gap: 12px;
     overflow-x: auto;
-    scroll-behavior: smooth;
     padding: 8px 10px;
     height: 100%;
     box-sizing: border-box;
     flex: 1;
     scrollbar-width: none;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: pan-y;
 }
 
 .lgs-profiles-track::-webkit-scrollbar {
     display: none;
+}
+
+.lgs-profiles-track.is-dragging {
+    cursor: grabbing !important;
+}
+
+.lgs-profiles-track.is-dragging * {
+    cursor: grabbing !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    pointer-events: none !important;
 }
 
 /* Individual Profile Tile (Wide Horizontal Layout with Large Left Icon) */
@@ -5504,7 +5529,17 @@ body.calibrating-mode .btn-card.calib-selected::after {
     background: rgba(255, 255, 255, 0.03);
     flex-shrink: 0;
     user-select: none;
+    -webkit-user-select: none;
     box-sizing: border-box;
+}
+
+.lgs-profile-card img,
+.lgs-profile-card svg,
+.lgs-profile-card .lgs-icon-box,
+.lgs-profile-card .lgs-profile-info {
+    -webkit-user-drag: none;
+    user-drag: none;
+    pointer-events: none;
 }
 
 .lgs-profile-card:hover {
@@ -6101,6 +6136,8 @@ body.calibrating-mode .btn-card.calib-selected::after {
     border-radius: 8px;
     padding: 10px 14px;
     transition: all 0.2s ease;
+    cursor: pointer;
+    user-select: none;
 }
 
 .hover-switch-option:hover {
@@ -6135,6 +6172,7 @@ body.calibrating-mode .btn-card.calib-selected::after {
     transition: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     border-radius: 22px;
     border: 1px solid rgba(255, 255, 255, 0.2);
+    pointer-events: none;
 }
 
 .switch-slider:before {

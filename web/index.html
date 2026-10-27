@@ -131,7 +131,7 @@
         </div>
     </header>
 
-    <!-- Logitech Gaming Software (LGS) Profiles Ribbon -->
+    <!-- Application Profiles Ribbon -->
     <div class="lgs-profiles-bar" id="lgsProfilesBar">
         <!-- Left Controls: Header, Filter, Action Buttons -->
         <div class="lgs-bar-controls">
@@ -209,7 +209,7 @@
             <div class="resizer-handle-pill"></div>
         </div>
 
-        <!-- Center Workspace: Interactive G502 X Mouse Stage -->
+        <!-- Center Workspace: Interactive Mouse Stage -->
         <section class="mouse-stage" id="mouseStage">
             <div class="stage-toolbar">
                 <div class="selected-target-indicator">
@@ -291,7 +291,7 @@
 
                 <!-- Center Mouse Visual with SVG Vector Overlays -->
                 <div class="mouse-render-wrapper" id="mouseRenderWrap">
-                    <img src="../assets/g502x.png" alt="Logitech G502 X" class="mouse-bg-img" id="mouseImg">
+                    <img src="../assets/g502x.png" alt="Interactive Mouse Layout" class="mouse-bg-img" id="mouseImg">
                     
                     <!-- Dynamic SVG Pointer Lines & Hotspots -->
                     <svg class="mouse-svg-overlay" id="mouseSvg" viewBox="0 0 860 500">
@@ -498,7 +498,6 @@
                                             </div>
                                             <span class="mode-desc">Direct Passthrough. Key is held down while physically held, and released on release.</span>
                                         </div>
-                                        <div class="ghub-tooltip-badge" id="singleTypeTooltipBadge">No Repeat</div>
                                     </button>
 
                                     <button type="button" class="single-mode-card-btn" data-type="RepeatWhileHolding" data-title="Repeat While Holding" id="btnSingleTypeRepeat">
@@ -553,7 +552,7 @@
                     </div>
                 </div>
 
-                <!-- Tab 2: Macro Recorder (Logitech G HUB Inspired Full-Page UI) -->
+                <!-- Tab 2: Macro Recorder (Advanced Studio Sequencer) -->
                 <div class="modal-tab-content ghub-macro-wrapper studio-tab-pane" id="tabContentMacro">
                     <!-- Hidden inputs for backward compatibility -->
                     <select id="macroPlaybackMode" style="display:none;">
@@ -625,29 +624,31 @@
 
                             <!-- MACRO TIMING & BEHAVIOR SETTINGS DECK (MOVED TO LEFT SIDE BOTTOM) -->
                             <div class="macro-settings-deck">
-                                <div class="macro-setting-card">
-                                    <div class="macro-setting-header">
-                                        <label class="ghub-chk-container" for="chkUseStandardDelays">
-                                            <input type="checkbox" id="chkUseStandardDelays" checked>
+                                <div class="macro-settings-row">
+                                    <div class="macro-setting-card">
+                                        <div class="macro-setting-header">
+                                            <label class="ghub-chk-container" for="chkUseStandardDelays">
+                                                <input type="checkbox" id="chkUseStandardDelays" checked>
+                                                <span class="ghub-chk-box"></span>
+                                                <div class="macro-setting-text-col">
+                                                    <span class="ghub-chk-text">USE STANDARD DELAYS</span>
+                                                    <span class="macro-setting-sub">Fixed delay between actions</span>
+                                                </div>
+                                            </label>
+                                            <span class="ghub-delay-badge" id="ghubDelayPill" title="Click to edit standard delay between actions">50 ms</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="macro-setting-card">
+                                        <label class="ghub-chk-container" for="chkShowUpDown">
+                                            <input type="checkbox" id="chkShowUpDown" checked>
                                             <span class="ghub-chk-box"></span>
                                             <div class="macro-setting-text-col">
-                                                <span class="ghub-chk-text">USE STANDARD DELAYS</span>
-                                                <span class="macro-setting-sub">Fixed delay between actions</span>
+                                                <span class="ghub-chk-text">SHOW KEY DOWN / KEY UP</span>
+                                                <span class="macro-setting-sub">Display separate press and release blocks</span>
                                             </div>
                                         </label>
-                                        <span class="ghub-delay-badge" id="ghubDelayPill" title="Click to edit standard delay between actions">50 ms</span>
                                     </div>
-                                </div>
-
-                                <div class="macro-setting-card">
-                                    <label class="ghub-chk-container" for="chkShowUpDown">
-                                        <input type="checkbox" id="chkShowUpDown" checked>
-                                        <span class="ghub-chk-box"></span>
-                                        <div class="macro-setting-text-col">
-                                            <span class="ghub-chk-text">SHOW KEY DOWN / KEY UP</span>
-                                            <span class="macro-setting-sub">Display separate press and release blocks</span>
-                                        </div>
-                                    </label>
                                 </div>
 
                                 <div class="macro-setting-card">
@@ -739,7 +740,6 @@
                                             </div>
                                             <span class="mode-desc">Executes distinct actions On Press, While Holding, and On Release.</span>
                                         </div>
-                                        <div class="ghub-tooltip-badge" id="ghubTypeTooltipBadge">Sequence</div>
                                     </button>
                                 </div>
                             </div>
@@ -866,38 +866,38 @@
             <!-- Modal Action Footer -->
             <div class="modal-footer studio-fullpage-footer">
                 <div class="modal-footer-left">
-                    <div id="singlePresetToggleWrap" class="modal-preset-toggle-row">
-                        <label class="switch-toggle" for="singleSavePresetSwitch">
+                    <label id="singlePresetToggleWrap" class="modal-preset-toggle-row" for="singleSavePresetSwitch">
+                        <span class="switch-toggle">
                             <input type="checkbox" id="singleSavePresetSwitch">
                             <span class="switch-slider"></span>
-                        </label>
+                        </span>
                         <div class="switch-meta">
-                            <label class="switch-title" for="singleSavePresetSwitch">Save to Custom Presets</label>
+                            <span class="switch-title">Save to Custom Presets</span>
                             <span class="switch-desc">Save this combination to the Command Catalog under Custom</span>
                         </div>
-                    </div>
+                    </label>
 
-                    <div id="macroPresetToggleWrap" class="modal-preset-toggle-row" style="display: none;">
-                        <label class="switch-toggle" for="macroSavePresetSwitch" checked>
+                    <label id="macroPresetToggleWrap" class="modal-preset-toggle-row" for="macroSavePresetSwitch" style="display: none;">
+                        <span class="switch-toggle">
                             <input type="checkbox" id="macroSavePresetSwitch" checked>
                             <span class="switch-slider"></span>
-                        </label>
+                        </span>
                         <div class="switch-meta">
-                            <label class="switch-title" for="macroSavePresetSwitch">Save to Custom Presets</label>
+                            <span class="switch-title">Save to Custom Presets</span>
                             <span class="switch-desc">Save this macro to the Command Catalog under Custom</span>
                         </div>
-                    </div>
+                    </label>
 
-                    <div id="textPresetToggleWrap" class="modal-preset-toggle-row" style="display: none;">
-                        <label class="switch-toggle" for="textSavePresetSwitch">
+                    <label id="textPresetToggleWrap" class="modal-preset-toggle-row" for="textSavePresetSwitch" style="display: none;">
+                        <span class="switch-toggle">
                             <input type="checkbox" id="textSavePresetSwitch">
                             <span class="switch-slider"></span>
-                        </label>
+                        </span>
                         <div class="switch-meta">
-                            <label class="switch-title" for="textSavePresetSwitch">Save to Text Blocks</label>
+                            <span class="switch-title">Save to Text Blocks</span>
                             <span class="switch-desc">Save this text snippet to the Command Catalog under Text Blocks</span>
                         </div>
-                    </div>
+                    </label>
                 </div>
 
                 <div class="modal-footer-right">
@@ -970,30 +970,30 @@
 
                     <!-- Option: Switch on Mouse Hover -->
                     <div class="form-group mb-14" id="profHoverGroup">
-                        <div class="hover-switch-option">
-                            <label class="switch-toggle" for="profInputHoverSwitch">
+                        <label class="hover-switch-option" for="profInputHoverSwitch">
+                            <span class="switch-toggle">
                                 <input type="checkbox" id="profInputHoverSwitch">
                                 <span class="switch-slider"></span>
-                            </label>
+                            </span>
                             <div class="switch-meta">
-                                <label class="switch-title" for="profInputHoverSwitch">Switch on Mouse Hover</label>
+                                <span class="switch-title">Switch on Mouse Hover</span>
                                 <span class="switch-desc" id="profHoverDesc">Instantly activate this profile when cursor hovers over the app window (no click or focus needed)</span>
                             </div>
-                        </div>
+                        </label>
                     </div>
 
                     <!-- Option: Icon-Only Notification (HUD) -->
                     <div class="form-group mb-14" id="profOsdIconOnlyGroup">
-                        <div class="hover-switch-option">
-                            <label class="switch-toggle" for="profInputOsdIconOnly">
+                        <label class="hover-switch-option" for="profInputOsdIconOnly">
+                            <span class="switch-toggle">
                                 <input type="checkbox" id="profInputOsdIconOnly">
                                 <span class="switch-slider"></span>
-                            </label>
+                            </span>
                             <div class="switch-meta">
-                                <label class="switch-title" for="profInputOsdIconOnly">Icon-Only Notification</label>
+                                <span class="switch-title">Icon-Only Notification</span>
                                 <span class="switch-desc" id="profOsdIconOnlyDesc">Show only the app icon with no text in the floating on-screen display</span>
                             </div>
-                        </div>
+                        </label>
                     </div>
 
                     <div class="form-group mb-14">
@@ -1094,7 +1094,7 @@
             <div class="modal-header">
                 <div class="modal-header-titles">
                     <span class="modal-title"><svg class="svg-icon"><use href="#icon-zap"></use></svg> ONBOARD MEMORY SETUP & VIRTUAL KEY INJECTOR</span>
-                    <span class="modal-subtitle">Inject virtual F13–F21 keys into Logitech Onboard Memory Manager (OMM)</span>
+                    <span class="modal-subtitle">Inject virtual F13–F24 keys into mouse hardware memory software</span>
                 </div>
                 <button class="modal-close-btn" id="btnCloseOmmModal"><svg class="svg-icon"><use href="#icon-x"></use></svg></button>
             </div>
@@ -1103,14 +1103,14 @@
                 <!-- Instructions Banner -->
                 <div class="omm-guide-banner">
                     <div class="omm-guide-title">
-                        <span><svg class="svg-icon svg-icon-sm"><use href="#icon-clipboard-list"></use></svg></span> HOW TO CONFIGURE IN LOGITECH ONBOARD MEMORY MANAGER (OMM):
+                        <span><svg class="svg-icon svg-icon-sm"><use href="#icon-clipboard-list"></use></svg></span> HOW TO CONFIGURE IN ONBOARD MEMORY MANAGER:
                     </div>
                     <div class="omm-steps-list">
-                        <div><strong>1.</strong> Open Logitech Onboard Memory Manager (<strong>OMM.exe</strong>).</div>
+                        <div><strong>1.</strong> Open your mouse's Onboard Memory utility (e.g. <strong>OMM.exe</strong>, Synapse, etc.).</div>
                         <div><strong>2.</strong> Click the mouse button you want to configure and select <strong>Keystroke &rarr; Record</strong>.</div>
                         <div><strong>3.</strong> Click the matching <strong>"<svg class='svg-icon svg-icon-xs'><use href='#icon-zap'></use></svg> Inject Key"</strong> button below — a 3-second countdown will start with audio beeps.</div>
-                        <div><strong>4.</strong> Switch focus back to OMM during the countdown. The virtual F-key will be automatically typed!</div>
-                        <div><strong>5.</strong> Save to mouse onboard memory and close OMM. The button is now fully unlocked for Studio customization!</div>
+                        <div><strong>4.</strong> Switch focus back to the record field during the countdown. The virtual F-key will be automatically typed!</div>
+                        <div><strong>5.</strong> Save to mouse onboard memory and close the configuration tool. The button is now fully unlocked for Studio customization!</div>
                     </div>
                 </div>
 
@@ -1187,7 +1187,7 @@
                         <span style="font-size: 11px; color: var(--accent-cyan); font-weight: 600;">6 High-Res Presets</span>
                     </div>
                     <div class="mouse-preset-grid" id="mousePresetGrid">
-                        <!-- Populated dynamically via JS: cards for G502X, Basilisk, Naga, G604, G Pro X, Rival 5 -->
+                        <!-- Populated dynamically via JS: popular multi-button mouse presets -->
                     </div>
                 </div>
 
@@ -1197,8 +1197,8 @@
                         <img id="customImagePreview" src="../assets/g502x.png" alt="Mouse Preview" class="custom-img-preview-thumb" style="max-height: 115px; object-fit: contain;">
                     </div>
                     <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0;">
-                        <div id="presetSelectedName" style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px;">Logitech G502 X / Hero</div>
-                        <div id="presetSelectedDesc" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">Hybrid optical-mechanical switches, sniper paddle, and dual-mode tilt wheel.</div>
+                        <div id="presetSelectedName" style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px;">Default Multi-Button Mouse</div>
+                        <div id="presetSelectedDesc" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">Universal 11+ control layout with side buttons, sniper paddle, dual DPI selectors, and tilt wheel.</div>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button type="button" class="modal-btn save" id="btnApplyPresetImage" style="padding: 7px 14px; font-size: 12px; font-weight: 700;">
                                 <svg class="svg-icon"><use href="#icon-check"></use></svg> Apply Image Only
@@ -1378,7 +1378,7 @@
                             <div class="settings-card-icon img-icon"><svg class="svg-icon"><use href="#icon-image"></use></svg></div>
                             <div class="settings-card-content">
                                 <div class="settings-card-title">Mouse Diagram & Presets</div>
-                                <div class="settings-card-desc">Choose from popular gaming mice (G502 X, G604, G Pro X, Basilisk, Naga, Rival 5) or upload your own diagram.</div>
+                                <div class="settings-card-desc">Choose from popular multi-button mouse models or upload your own diagram.</div>
                             </div>
                         </div>
                         <button type="button" class="settings-action-btn" id="btnChangeMouseImage">
@@ -1417,17 +1417,17 @@
                         </button>
                     </div>
 
-                    <!-- Tile 4: Logitech OMM Setup -->
+                    <!-- Tile 4: Hardware Memory Setup -->
                     <div class="settings-card clickable" id="cardSettingsOmm">
                         <div class="settings-card-header">
                             <div class="settings-card-icon omm-icon"><svg class="svg-icon"><use href="#icon-zap"></use></svg></div>
                             <div class="settings-card-content">
-                                <div class="settings-card-title">Logitech OMM Integration</div>
-                                <div class="settings-card-desc">Setup Logitech Onboard Memory Manager and inject virtual F13–F24 keys for hardware button interception.</div>
+                                <div class="settings-card-title">Hardware Memory Setup</div>
+                                <div class="settings-card-desc">Setup onboard mouse memory keys (F13–F24) with virtual bindings for background interception.</div>
                             </div>
                         </div>
                         <button type="button" class="settings-action-btn omm" id="btnOpenOmmSetup">
-                            <span>OMM Setup</span>
+                            <span>Pairing Setup</span>
                             <span class="btn-arrow">→</span>
                         </button>
                     </div>
