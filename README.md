@@ -1,4 +1,4 @@
-# My Mouse My Choice (OBM) — Advanced Mouse & Macro Suite
+# My Mouse My Choice — Advanced Mouse & Macro Manager
 
 A lightweight, zero-bloat universal control center and macro execution suite for multi-button mice, combining onboard hardware memory with **AutoHotkey v2**, a low-level **Interception Kernel Driver**, and a modern **WebView2** interface.
 
