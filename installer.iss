@@ -42,7 +42,6 @@ Name: "startupicon"; Description: "Start automatically when Windows boots"; Grou
 [Files]
 ; Main standalone binary
 Source: "MyMouseMyChoice.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "G502X_Studio.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 ; Web UI layer (HTML, CSS, modern JS modules, app icons)
 Source: "web\*"; DestDir: "{app}\web"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Assets (mouse hardware diagrams, presets, icon)

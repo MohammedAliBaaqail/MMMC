@@ -340,8 +340,13 @@ class WebView2 {
 		Fill() {
 			if !this.ptr
 				return
-			DllCall('user32\GetClientRect', 'ptr', this.ParentWindow, 'ptr', RECT := Buffer(16))
-			this.Bounds := RECT
+			try {
+				hwnd := this.ParentWindow
+				if (hwnd) {
+					DllCall('user32\GetClientRect', 'ptr', hwnd, 'ptr', RECT := Buffer(16))
+					this.Bounds := RECT
+				}
+			}
 			return this
 		}
 		IsVisible {
@@ -374,10 +379,21 @@ class WebView2 {
 		add_AcceleratorKeyPressed(eventHandler) => (ComCall(19, this, 'ptr', eventHandler, 'int64*', &token := 0), token)	; ICoreWebView2AcceleratorKeyPressedEventHandler
 		remove_AcceleratorKeyPressed(token) => ComCall(20, this, 'int64', token)
 		ParentWindow {
-			get => (ComCall(21, this, 'ptr*', &parentWindow := 0), parentWindow)
-			set => ComCall(22, this, 'ptr', Value)
+			get {
+				try {
+					ComCall(21, this, 'ptr*', &parentWindow := 0)
+					return parentWindow
+				} catch {
+					return 0
+				}
+			}
+			set {
+				try ComCall(22, this, 'ptr', Value)
+			}
 		}
-		NotifyParentWindowPositionChanged() => ComCall(23, this)
+		NotifyParentWindowPositionChanged() {
+			try ComCall(23, this)
+		}
 		Close() => ComCall(24, this)
 		CoreWebView2 => (ComCall(25, this, 'ptr*', coreWebView2 := WebView2.Core()), coreWebView2)
 

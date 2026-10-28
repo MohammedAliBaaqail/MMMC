@@ -29,7 +29,7 @@ class WebViewGuiManager {
             this.ApplyThemeToTitleBar(this.MainGui.Hwnd)
             this.SetWindowIcon(this.MainGui.Hwnd)
             if (this.wvc != "") {
-                this.wvc.Fill()
+                try this.wvc.Fill()
             }
             return
         }
@@ -58,7 +58,7 @@ class WebViewGuiManager {
                 this.ApplyThemeToTitleBar(this.MainGui.Hwnd)
                 this.SetWindowIcon(this.MainGui.Hwnd)
                 if (this.wvc != "") {
-                    this.wvc.Fill()
+                    try this.wvc.Fill()
                 }
             }
         } else {
@@ -254,7 +254,7 @@ class WebViewGuiManager {
         }
 
         ; Fit window
-        wvc.Fill()
+        try wvc.Fill()
 
         ; Register IPC listener
         this.wv.add_WebMessageReceived(this.OnWebMessageReceived.Bind(this))
@@ -318,7 +318,16 @@ class WebViewGuiManager {
         if (minMax = -1) ; Minimized
             return
         if (this.wvc != "") {
-            this.wvc.Fill()
+            try {
+                RECT := Buffer(16, 0)
+                NumPut("int", 0, RECT, 0)
+                NumPut("int", 0, RECT, 4)
+                NumPut("int", w, RECT, 8)
+                NumPut("int", h, RECT, 12)
+                this.wvc.Bounds := RECT
+            } catch {
+                try this.wvc.Fill()
+            }
         }
         if (minMax = 1) {
             ; Maximized
@@ -413,6 +422,10 @@ class WebViewGuiManager {
             case "getInitialState":
                 this.SendInitialState()
 
+            case "toggleMasterSuspension":
+                targetState := req.Has("suspended") ? req["suspended"] : ""
+                ProfileEngine.ToggleMasterSuspension(targetState)
+
             case "selectProfile":
                 if (req.Has("profile")) {
                     ProfileEngine.SelectProfile(req["profile"])
@@ -424,8 +437,9 @@ class WebViewGuiManager {
                     pExe := req.Has("targetExe") ? req["targetExe"] : ""
                     pIcon := req.Has("icon") ? req["icon"] : "auto"
                     pHover := req.Has("switchOnHover") ? (req["switchOnHover"] ? true : false) : false
+                    pFocusHover := req.Has("focusOnHover") ? (req["focusOnHover"] ? true : false) : false
                     pOsdIconOnly := req.Has("osdIconOnly") ? (req["osdIconOnly"] ? true : false) : false
-                    if (ProfileEngine.AddProfile(pName, pExe, pIcon, pHover, pOsdIconOnly)) {
+                    if (ProfileEngine.AddProfile(pName, pExe, pIcon, pHover, pOsdIconOnly, pFocusHover)) {
                         this.SendProfilesUpdated()
                         ProfileEngine.SetProfile(pName)
                         if (!pOsdIconOnly)
@@ -449,8 +463,9 @@ class WebViewGuiManager {
                     pExe := req.Has("targetExe") ? req["targetExe"] : ""
                     pIcon := req.Has("icon") ? req["icon"] : ""
                     pHover := req.Has("switchOnHover") ? ((req["switchOnHover"] = 1 || req["switchOnHover"] = true || req["switchOnHover"] = "1" || req["switchOnHover"] = "true") ? true : false) : -1
+                    pFocusHover := req.Has("focusOnHover") ? ((req["focusOnHover"] = 1 || req["focusOnHover"] = true || req["focusOnHover"] = "1" || req["focusOnHover"] = "true") ? true : false) : -1
                     pOsdIconOnly := req.Has("osdIconOnly") ? ((req["osdIconOnly"] = 1 || req["osdIconOnly"] = true || req["osdIconOnly"] = "1" || req["osdIconOnly"] = "true") ? true : false) : -1
-                    if (ProfileEngine.UpdateProfile(pName, pExe, pIcon, pHover, pOsdIconOnly, oldName)) {
+                    if (ProfileEngine.UpdateProfile(pName, pExe, pIcon, pHover, pOsdIconOnly, oldName, pFocusHover)) {
                         this.SendProfilesUpdated()
                         if (ProfileEngine.CurrentProfile == pName && (pOsdIconOnly = 1 || pOsdIconOnly = true)) {
                             OSD.ShowIcon(ProfileEngine.GetProfileIconPath(pName))
@@ -513,6 +528,30 @@ class WebViewGuiManager {
                 this.PostMessage(Map("type", "gameKeyDelayChanged", "delay", ProfileEngine.GameKeyDelay))
                 if (OSD.Enabled)
                     OSD.Show("Game Key Delay: " . ProfileEngine.GameKeyDelay . " ms", "Keystroke pacing for game compatibility")
+
+            case "setFocusOnHoverMode":
+                modeVal := req.Has("mode") ? req["mode"] : "profile"
+                FocusFollowsMouse.SetMode(modeVal)
+                this.PostMessage(Map("type", "focusOnHoverModeChanged", "mode", FocusFollowsMouse.Mode))
+                if (OSD.Enabled)
+                    OSD.Show("Hover Focus: " . (FocusFollowsMouse.Mode = "profile" ? "Per Profile" : (FocusFollowsMouse.Mode = "all" ? "Always On" : "Disabled")), "Window hover activation")
+
+            case "setFocusOnHoverDelay":
+                delayVal := req.Has("delay") ? Integer(req["delay"]) : 120
+                FocusFollowsMouse.SetDelay(delayVal)
+                this.PostMessage(Map("type", "focusOnHoverDelayChanged", "delay", FocusFollowsMouse.Delay))
+                if (OSD.Enabled)
+                    OSD.Show("Hover Focus Delay: " . FocusFollowsMouse.Delay . " ms", "Window activation speed")
+
+            case "showKeyHistory":
+                try KeyHistory()
+
+            case "unstickAllKeys":
+                ProfileEngine.StopAllRunningMacros()
+                Send("{Blind}{LButton up}{RButton up}{MButton up}{Shift up}{Ctrl up}{Alt up}")
+                WebViewGuiManager.LogActivity("SYSTEM", "Emergency Unstick Triggered", "Sent UP for LButton, RButton, MButton, Shift, Ctrl, Alt")
+                if (OSD.Enabled)
+                    OSD.Show("Keys Unstuck", "Released all held keys and mouse buttons")
 
             case "getRunningApps":
                 procs := ProfileEngine.GetRunningProcesses()
@@ -848,6 +887,7 @@ class WebViewGuiManager {
                     "icon", meta.Icon,
                     "isDefault", meta.IsDefault ? true : false,
                     "switchOnHover", (meta.HasOwnProp("SwitchOnHover") && meta.SwitchOnHover) ? true : false,
+                    "focusOnHover", (meta.HasOwnProp("FocusOnHover") && meta.FocusOnHover) ? true : false,
                     "osdIconOnly", (meta.HasOwnProp("OsdIconOnly") && meta.OsdIconOnly) ? true : false,
                     "desc", meta.HasOwnProp("Desc") ? meta.Desc : p . " Profile"
                 ))
@@ -858,6 +898,7 @@ class WebViewGuiManager {
                 "type", "initialState",
                 "profile", ProfileEngine.CurrentProfile,
                 "profiles", profilesList,
+                "masterSuspended", ProfileEngine.IsMasterSuspended ? true : false,
                 "autoSwitch", ProfileEngine.AutoSwitchEnabled ? true : false,
                 "lockedProfile", ProfileEngine.LockedProfile,
                 "rapidFire", ProfileEngine.RapidFireEnabled ? true : false,
@@ -865,6 +906,8 @@ class WebViewGuiManager {
                 "showOSD", OSD.Enabled ? true : false,
                 "muteWhenFocused", ProfileEngine.MuteWhenStudioFocused ? true : false,
                 "gameKeyDelay", ProfileEngine.GameKeyDelay,
+                "focusOnHoverMode", FocusFollowsMouse.Mode,
+                "focusOnHoverDelay", FocusFollowsMouse.Delay,
                 "mappings", mappings,
                 "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport(),
                 "diagramPoints", diagPoints,
@@ -904,6 +947,7 @@ class WebViewGuiManager {
                 "icon", meta.Icon,
                 "isDefault", meta.IsDefault ? true : false,
                 "switchOnHover", (meta.HasOwnProp("SwitchOnHover") && meta.SwitchOnHover) ? true : false,
+                "focusOnHover", (meta.HasOwnProp("FocusOnHover") && meta.FocusOnHover) ? true : false,
                 "osdIconOnly", (meta.HasOwnProp("OsdIconOnly") && meta.OsdIconOnly) ? true : false,
                 "desc", meta.HasOwnProp("Desc") ? meta.Desc : p . " Profile"
             ))
@@ -2165,7 +2209,6 @@ class WebViewGuiManager {
     static PostMessage(obj) {
         try {
             jsonStr := JSON.stringify(obj)
-            this.Log("PostMessage: " . SubStr(jsonStr, 1, 80) . "... (len=" . StrLen(jsonStr) . ")")
             if (this.wv != "") {
                 this.wv.PostWebMessageAsString(jsonStr)
                 return
@@ -2211,6 +2254,17 @@ class WebViewGuiManager {
             "type", "shiftStateChanged",
             "isShift", isActive ? true : false,
             "shiftName", shiftName
+        ))
+    }
+
+    static LogActivity(category, eventText, details := "") {
+        timeStr := FormatTime(, "HH:mm:ss") . "." . SubStr(A_MSec, 1, 3)
+        this.PostMessage(Map(
+            "type", "activityLog",
+            "time", timeStr,
+            "category", category,
+            "text", eventText,
+            "details", details
         ))
     }
 
@@ -2309,6 +2363,9 @@ class WebViewGuiManager {
                     }
                     if (p.Has("switchOnHover")) {
                         IniWrite(p["switchOnHover"] ? "1" : "0", iniPath, sec, "SwitchOnHover")
+                    }
+                    if (p.Has("focusOnHover")) {
+                        IniWrite(p["focusOnHover"] ? "1" : "0", iniPath, sec, "FocusOnHover")
                     }
                     if (p.Has("osdIconOnly")) {
                         IniWrite(p["osdIconOnly"] ? "1" : "0", iniPath, sec, "OsdIconOnly")

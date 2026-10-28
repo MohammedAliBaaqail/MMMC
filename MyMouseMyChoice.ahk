@@ -2,7 +2,12 @@
 #SingleInstance Force
 #MaxThreadsPerHotkey 2
 #UseHook true
+KeyHistory 100
+InstallKeybdHook()
+InstallMouseHook()
 Persistent(true)
+; Elevate Windows system timer resolution to 1ms for ultra-responsive macro execution
+DllCall("winmm\timeBeginPeriod", "uint", 1)
 A_MaxHotkeysPerInterval := 2000
 A_HotkeyInterval := 2000
 OnError(LogError)
@@ -11,6 +16,7 @@ LogError(thrown, mode) {
 }
 OnExit(OnScriptExit)
 OnScriptExit(ExitReason, ExitCode) {
+    try DllCall("winmm\timeEndPeriod", "uint", 1)
     try WebViewGuiManager.SaveWindowGeometry()
     try WebViewGuiManager.Cleanup()
     try GdipHelper.Shutdown()
@@ -38,6 +44,7 @@ OnScriptExit(ExitReason, ExitCode) {
 #Include "lib/OSD.ahk"
 #Include "lib/OMMHelper.ahk"
 #Include "lib/Profiles.ahk"
+#Include "lib/FocusFollowsMouse.ahk"
 #Include "lib/GuiManager.ahk"
 #Include "lib/WebViewGuiManager.ahk"
 #Include "lib/QuickRemap.ahk"
@@ -52,6 +59,7 @@ ConfigFile := A_ScriptDir . "\settings.ini"
 
 ; Initialize profile mappings from settings
 ProfileEngine.Init(ConfigFile)
+FocusFollowsMouse.Init(ConfigFile)
 
 ; Load configuration if available
 InitialProfile := IniRead(ConfigFile, "General", "DefaultProfile", "Desktop")
@@ -63,6 +71,7 @@ GuiManager.IsAlwaysOnTop := (AlwaysOnTopPref = "1")
 
 ; Setup System Tray Menu
 ProfileEngine.OnProfilesListChanged := (*) => SetupTrayMenu()
+ProfileEngine.OnMasterSuspensionChanged := (*) => SetupTrayMenu()
 SetupTrayMenu()
 
 ; Display welcome OSD and Launch Modern Studio GUI
@@ -77,15 +86,27 @@ WebViewGuiManager.Show()
 *^+F2::
 ^+F2::ProfileEngine.CreateProfileFromFocusedWindow()
 
+#SuspendExempt
 ; Global Shortcut: Ctrl + Shift + F3 to toggle Studio window visibility
 *^+F3::
 ^+F3::ToggleStudioWindow()
+
+; Global Shortcut: Ctrl + Shift + F4 for Master App Killswitch toggle
+*^+F4::
+^+F4::ProfileEngine.ToggleMasterSuspension()
+#SuspendExempt False
 
 ; --- Tray Menu Setup ---
 SetupTrayMenu() {
     Tray := A_TrayMenu
     Tray.Delete()
     
+    Tray.Add("Master App Killswitch (Ctrl+Shift+F4)", (*) => ProfileEngine.ToggleMasterSuspension())
+    if (ProfileEngine.IsMasterSuspended) {
+        Tray.Check("Master App Killswitch (Ctrl+Shift+F4)")
+    }
+    Tray.Add() ; Separator
+
     Tray.Add("Live Quick Remap (Ctrl+Shift+F1)", (*) => QuickRemap.Start())
     Tray.Add("Open Studio (Ctrl+Shift+F3)", (*) => ToggleStudioWindow())
     Tray.Add("Auto-Switch App Profiles", (*) => ToggleAutoSwitch())

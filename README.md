@@ -72,7 +72,6 @@ Open your mouse manufacturer's lightweight onboard memory tool (for example, Log
 ## 📁 Project Structure
 
 - `MyMouseMyChoice.ahk` — Core application script, hardware hotkeys, system tray menu, and IPC dispatcher.
-- `G502X_Manager.ahk` — Compatibility alias redirecting to `MyMouseMyChoice.ahk`.
 - `lib/Profiles.ahk` — Dynamic profile engine, macro sequencer, and settings persistence.
 - `lib/WebViewGuiManager.ahk` — Embedded Microsoft Edge WebView2 GUI manager and bidirectional IPC bridge.
 - `lib/GuiManager.ahk` — Native AHK secondary fallback interface and button studio.

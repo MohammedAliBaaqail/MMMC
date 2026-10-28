@@ -12,10 +12,12 @@ class ProfileEngine {
     static LockedProfile := ""
     static LastActiveProcess := ""
     static AutoSwitchTimerFn := ""
+    static IsMasterSuspended := false
+    static OnMasterSuspensionChanged := ""
 
-    ; Profile Metadata: Map(profileName, { TargetExe: "...", Icon: "...", IsDefault: bool, SwitchOnHover: bool, OsdIconOnly: bool, Desc: "..." })
+    ; Profile Metadata: Map(profileName, { TargetExe: "...", Icon: "...", IsDefault: bool, SwitchOnHover: bool, FocusOnHover: bool, OsdIconOnly: bool, Desc: "..." })
     static ProfileMetadata := Map(
-        "Desktop",      { TargetExe: "", Icon: "desktop", IsDefault: true, SwitchOnHover: false, OsdIconOnly: false, Desc: "Default System & Desktop Profile" }
+        "Desktop",      { TargetExe: "", Icon: "desktop", IsDefault: true, SwitchOnHover: false, FocusOnHover: false, OsdIconOnly: false, Desc: "Default System & Desktop Profile" }
     )
 
     static IsGShiftActive := false
@@ -47,6 +49,8 @@ class ProfileEngine {
     static ActiveHoldTimers := Map()
     static ActiveToggleTimers := Map()
     static ActiveSequences := Map()
+    static SequenceTokens := Map()
+    static NextSeqToken := 0
     static PhysicalButtonStates := Map()
     static ActiveHeldButtons := Map()
     static ActiveHeldPressTimes := Map()
@@ -110,7 +114,7 @@ class ProfileEngine {
         ; Load metadata for each profile
         for prof in this.Profiles {
             if (!this.ProfileMetadata.Has(prof)) {
-                this.ProfileMetadata[prof] := { TargetExe: "", Icon: (prof = "Desktop" ? "desktop" : "auto"), IsDefault: (prof = "Desktop"), SwitchOnHover: false, OsdIconOnly: false, Desc: prof . " Profile" }
+                this.ProfileMetadata[prof] := { TargetExe: "", Icon: (prof = "Desktop" ? "desktop" : "auto"), IsDefault: (prof = "Desktop"), SwitchOnHover: false, FocusOnHover: false, OsdIconOnly: false, Desc: prof . " Profile" }
             }
             sec := "Profile_" . prof
             try {
@@ -118,6 +122,7 @@ class ProfileEngine {
                 savedIcon := IniRead(this.ConfigPath, sec, "Icon", this.ProfileMetadata[prof].Icon)
                 savedDef := (IniRead(this.ConfigPath, sec, "IsDefault", this.ProfileMetadata[prof].IsDefault ? "1" : "0") = "1")
                 savedHover := (IniRead(this.ConfigPath, sec, "SwitchOnHover", "0") = "1")
+                savedFocusHover := (IniRead(this.ConfigPath, sec, "FocusOnHover", "0") = "1")
                 savedOsdIconOnly := (IniRead(this.ConfigPath, sec, "OsdIconOnly", "0") = "1")
                 this.ProfileMetadata[prof].TargetExe := savedExe
                 if (prof != "Desktop" && (savedIcon == "generic" || savedIcon == ""))
@@ -125,6 +130,7 @@ class ProfileEngine {
                 this.ProfileMetadata[prof].Icon := savedIcon
                 this.ProfileMetadata[prof].IsDefault := savedDef
                 this.ProfileMetadata[prof].SwitchOnHover := savedHover
+                this.ProfileMetadata[prof].FocusOnHover := savedFocusHover
                 this.ProfileMetadata[prof].OsdIconOnly := savedOsdIconOnly
             }
             this.EnsureProfileIcon(prof, this.ProfileMetadata[prof].TargetExe)
@@ -486,8 +492,12 @@ class ProfileEngine {
         }
         this.ActiveToggleTimers.Clear()
 
+        this.SequenceTokens.Clear()
         for btnId, seq in this.ActiveSequences {
-            SetTimer(seq.fn, 0)
+            if (seq.HasOwnProp("fn") && seq.fn != "")
+                SetTimer(seq.fn, 0)
+            if (seq.HasOwnProp("act") && IsObject(seq.act) && seq.act.HasOwnProp("SeqRelease") && seq.act.SeqRelease.Length > 0)
+                try this.PlaySteps(seq.act.SeqRelease, btnId, 0, true)
         }
         this.ActiveSequences.Clear()
 
@@ -502,12 +512,29 @@ class ProfileEngine {
             try Send("{Blind}{LButton up}")
         if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
             try Send("{Blind}{RButton up}")
+        if (!GetKeyState("MButton", "P") && GetKeyState("MButton"))
+            try Send("{Blind}{MButton up}")
+        if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+            try Send("{Blind}{Shift up}")
+        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+            try Send("{Blind}{Ctrl up}")
+        if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+            try Send("{Blind}{Alt up}")
         this.PhysicalButtonStates.Clear()
         this.ShiftHolders.Clear()
         this.ButtonDispatchedLayer.Clear()
     }
 
     static ReleaseAllHeldButtons() {
+        this.SequenceTokens.Clear()
+        for btnId, seq in this.ActiveSequences {
+            if (seq.HasOwnProp("fn") && seq.fn != "")
+                SetTimer(seq.fn, 0)
+            if (seq.HasOwnProp("act") && IsObject(seq.act) && seq.act.HasOwnProp("SeqRelease") && seq.act.SeqRelease.Length > 0)
+                try this.PlaySteps(seq.act.SeqRelease, btnId, 0, true)
+        }
+        this.ActiveSequences.Clear()
+
         for btnId, releaseCmd in this.ActiveHeldButtons {
             if (!InStr(releaseCmd, "{"))
                 releaseCmd := "{" . releaseCmd . " up}"
@@ -519,10 +546,101 @@ class ProfileEngine {
             try Send("{Blind}{LButton up}")
         if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
             try Send("{Blind}{RButton up}")
+        if (!GetKeyState("MButton", "P") && GetKeyState("MButton"))
+            try Send("{Blind}{MButton up}")
+        if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+            try Send("{Blind}{Shift up}")
+        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+            try Send("{Blind}{Ctrl up}")
+        if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+            try Send("{Blind}{Alt up}")
+    }
+
+    static ToggleMasterSuspension(forceState := "") {
+        if (forceState !== "") {
+            newState := (forceState = 1 || forceState = true || forceState = "1" || forceState = "true") ? true : false
+        } else {
+            newState := !this.IsMasterSuspended
+        }
+
+        if (newState = this.IsMasterSuspended)
+            return
+
+        this.IsMasterSuspended := newState
+
+        if (this.IsMasterSuspended) {
+            ; 1. Cleanly stop any running macro sequences, repeat timers, and releases
+            this.StopAllRunningMacros()
+
+            ; 2. Stop rapid fire if active
+            this.RapidFireActive := false
+            if (this.rapidFireFn != "")
+                SetTimer(this.rapidFireFn, 0)
+
+            ; 3. Reset shift states and holders
+            this.IsGShiftActive := false
+            this.IsGShift1Active := false
+            this.IsGShift2Active := false
+            this.ShiftHolders.Clear()
+            if (this.OnShiftStateChanged) {
+                try this.OnShiftStateChanged(1, false)
+                try this.OnShiftStateChanged(2, false)
+            }
+
+            ; 4. Pause background timers
+            if (this.AutoSwitchTimerFn != "")
+                SetTimer(this.AutoSwitchTimerFn, 0)
+            if (FocusFollowsMouse.TimerFn != "")
+                SetTimer(FocusFollowsMouse.TimerFn, 0)
+
+            ; 5. Suspend all non-exempt hotkeys in AutoHotkey
+            Suspend(1)
+
+            ; 6. Update tray tip
+            try A_IconTip := "My Mouse My Choice (STOPPED)"
+
+            ; 7. Sound feedback & notification
+            try SoundBeep(450, 160)
+            OSD.Show("My Mouse My Choice: STOPPED", "All functions completely suspended (Ctrl+Shift+F4 to Resume)")
+
+            ; 8. WebView IPC & Activity Log
+            try WebViewGuiManager.PostMessage(Map("type", "masterSuspendedChanged", "suspended", true))
+            WebViewGuiManager.LogActivity("SYSTEM", "App Functions STOPPED / SUSPENDED", "All mouse intercepts, macros & timers are completely disabled (Ctrl+Shift+F4 to Resume)")
+        } else {
+            ; 1. Unsuspend AutoHotkey hotkeys
+            Suspend(0)
+
+            ; 2. Resume auto-switch timer if enabled
+            if (this.AutoSwitchEnabled)
+                this.StartAutoSwitchTimer()
+
+            ; 3. Resume FocusFollowsMouse
+            FocusFollowsMouse.UpdateTimerState()
+
+            ; 4. Update tray tip
+            try A_IconTip := "My Mouse My Choice"
+
+            ; 5. Sound feedback & notification
+            try SoundBeep(920, 160)
+            OSD.Show("My Mouse My Choice: ACTIVE", "Normal mouse intercepts and macros resumed (Ctrl+Shift+F4)")
+
+            ; 6. WebView IPC & Activity Log
+            try WebViewGuiManager.PostMessage(Map("type", "masterSuspendedChanged", "suspended", false))
+            WebViewGuiManager.LogActivity("SYSTEM", "App Functions RESUMED / ACTIVE", "Profile: " . this.CurrentProfile . " | All functions fully operational")
+        }
+
+        if (this.OnMasterSuspensionChanged) {
+            try this.OnMasterSuspensionChanged(this.IsMasterSuspended)
+        }
     }
 
     static SyncShiftState() {
         if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active && this.ShiftHolders.Count = 0)
+            return
+
+        ; If any sequence macro is actively running or a button is currently dispatched on shift,
+        ; do NOT prematurely deactivate shift layers!
+        if (this.ActiveSequences.Count > 0 || this.ButtonDispatchedLayer.Count > 0)
             return
 
         ; Verify all buttons in ShiftHolders are actually physically held
@@ -551,12 +669,19 @@ class ProfileEngine {
     }
 
     static SyncActiveHeldButtons() {
+        ; If any sequence macro is actively running, it manages its own held keys and must not be interrupted!
+        if (this.ActiveSequences.Count > 0)
+            return
+
         if (this.ActiveHeldButtons.Count = 0) {
             ; Check if logical LButton/RButton is stuck down when physically up
             if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
                 try Send("{Blind}{LButton up}")
             if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
                 try Send("{Blind}{RButton up}")
+            ; Check if logical Shift is stuck down when physically up
+            if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+                try Send("{Blind}{Shift up}")
             return
         }
 
@@ -768,8 +893,10 @@ class ProfileEngine {
                 IniWrite(meta.Icon, this.ConfigPath, sec, "Icon")
                 IniWrite(meta.IsDefault ? "1" : "0", this.ConfigPath, sec, "IsDefault")
                 isHover := (meta.HasOwnProp("SwitchOnHover") && (meta.SwitchOnHover = 1 || meta.SwitchOnHover = true || meta.SwitchOnHover = "1" || meta.SwitchOnHover = "true"))
+                isFocusHover := (meta.HasOwnProp("FocusOnHover") && (meta.FocusOnHover = 1 || meta.FocusOnHover = true || meta.FocusOnHover = "1" || meta.FocusOnHover = "true"))
                 isIconOnly := (meta.HasOwnProp("OsdIconOnly") && (meta.OsdIconOnly = 1 || meta.OsdIconOnly = true || meta.OsdIconOnly = "1" || meta.OsdIconOnly = "true"))
                 IniWrite(isHover ? "1" : "0", this.ConfigPath, sec, "SwitchOnHover")
+                IniWrite(isFocusHover ? "1" : "0", this.ConfigPath, sec, "FocusOnHover")
                 IniWrite(isIconOnly ? "1" : "0", this.ConfigPath, sec, "OsdIconOnly")
                 if (meta.HasOwnProp("Desc"))
                     IniWrite(meta.Desc, this.ConfigPath, sec, "Desc")
@@ -777,7 +904,7 @@ class ProfileEngine {
         }
     }
 
-    static AddProfile(name, targetExe := "", icon := "", switchOnHover := false, osdIconOnly := false) {
+    static AddProfile(name, targetExe := "", icon := "", switchOnHover := false, osdIconOnly := false, focusOnHover := false) {
         name := Trim(name)
         if (name == "" || this.HasProfile(name))
             return false
@@ -786,7 +913,7 @@ class ProfileEngine {
         if (icon == "" || icon == "generic")
             icon := (name = "Desktop") ? "desktop" : "auto"
             
-        this.ProfileMetadata[name] := { TargetExe: targetExe, Icon: icon, IsDefault: false, SwitchOnHover: switchOnHover, OsdIconOnly: osdIconOnly, Desc: name . " Profile" }
+        this.ProfileMetadata[name] := { TargetExe: targetExe, Icon: icon, IsDefault: false, SwitchOnHover: switchOnHover, FocusOnHover: focusOnHover, OsdIconOnly: osdIconOnly, Desc: name . " Profile" }
         
         ; Initialize ActiveMappings for this profile by copying Desktop defaults
         this.ActiveMappings[name] := Map()
@@ -873,7 +1000,7 @@ class ProfileEngine {
                 meta.Icon := newName
             this.ProfileMetadata[newName] := meta
         } else {
-            this.ProfileMetadata[newName] := { TargetExe: "", Icon: "auto", IsDefault: false, SwitchOnHover: false, OsdIconOnly: false, Desc: newName . " Profile" }
+            this.ProfileMetadata[newName] := { TargetExe: "", Icon: "auto", IsDefault: false, SwitchOnHover: false, FocusOnHover: false, OsdIconOnly: false, Desc: newName . " Profile" }
         }
 
         ; 3. Migrate ActiveMappings
@@ -921,7 +1048,7 @@ class ProfileEngine {
         return true
     }
 
-    static UpdateProfile(name, targetExe, icon := "", switchOnHover := -1, osdIconOnly := -1, oldName := "") {
+    static UpdateProfile(name, targetExe, icon := "", switchOnHover := -1, osdIconOnly := -1, oldName := "", focusOnHover := -1) {
         name := Trim(name)
         oldName := Trim(oldName)
         
@@ -939,13 +1066,15 @@ class ProfileEngine {
             targetExe := ""
 
         if (!this.ProfileMetadata.Has(name))
-            this.ProfileMetadata[name] := { TargetExe: targetExe, Icon: (icon != "" ? icon : (name = "Desktop" ? "desktop" : "auto")), IsDefault: (name = "Desktop"), SwitchOnHover: false, OsdIconOnly: (osdIconOnly != -1 ? (osdIconOnly ? true : false) : false), Desc: name . " Profile" }
+            this.ProfileMetadata[name] := { TargetExe: targetExe, Icon: (icon != "" ? icon : (name = "Desktop" ? "desktop" : "auto")), IsDefault: (name = "Desktop"), SwitchOnHover: false, FocusOnHover: false, OsdIconOnly: (osdIconOnly != -1 ? (osdIconOnly ? true : false) : false), Desc: name . " Profile" }
         else {
             this.ProfileMetadata[name].TargetExe := targetExe
             if (icon != "")
                 this.ProfileMetadata[name].Icon := icon
             if (switchOnHover != -1)
                 this.ProfileMetadata[name].SwitchOnHover := (switchOnHover = 1 || switchOnHover = true || switchOnHover = "1" || switchOnHover = "true") ? true : false
+            if (focusOnHover != -1)
+                this.ProfileMetadata[name].FocusOnHover := (focusOnHover = 1 || focusOnHover = true || focusOnHover = "1" || focusOnHover = "true") ? true : false
             if (osdIconOnly != -1)
                 this.ProfileMetadata[name].OsdIconOnly := (osdIconOnly = 1 || osdIconOnly = true || osdIconOnly = "1" || osdIconOnly = "true") ? true : false
         }
@@ -1612,6 +1741,9 @@ class ProfileEngine {
 
     ; Dynamic execution engine
     static DispatchButton(btnId, isDown) {
+        if (this.IsMasterSuspended)
+            return
+
         ; Filter Windows OS typematic auto-repeat on hold (for F-key mapped mouse buttons)
         if (isDown) {
             if (this.PhysicalButtonStates.Has(btnId) && this.PhysicalButtonStates[btnId])
@@ -1628,6 +1760,9 @@ class ProfileEngine {
         ; 1. HANDLE BUTTON RELEASE (isDown = false)
         ; -------------------------------------------------------------
         if (!isDown) {
+            relLayer := this.ButtonDispatchedLayer.Has(btnId) ? this.ButtonDispatchedLayer[btnId] : (this.IsGShift2Active ? "GShift2" : ((this.IsGShift1Active || this.IsGShiftActive) ? "GShift" : "Normal"))
+            WebViewGuiManager.LogActivity("BUTTON", "Release (Up) ▴ " . btnId, "Layer: " . relLayer . " | Profile: " . this.CurrentProfile)
+
             ; Check if this button was currently holding a Shift layer
             if (this.ShiftHolders.Has(btnId)) {
                 shiftNum := this.ShiftHolders[btnId]
@@ -1650,6 +1785,11 @@ class ProfileEngine {
                 return
             }
 
+            ; If Studio app is in focus and MuteWhenStudioFocused is active, do NOT execute fallback release!
+            if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
+                return
+            }
+
             ; Fallback regular release on current layer
             currentLayer := (this.IsGShift2Active ? "GShift2" : ((this.IsGShift1Active || this.IsGShiftActive) ? "GShift" : "Normal"))
             this.ExecuteButtonEvent(btnId, currentLayer, false)
@@ -1661,6 +1801,7 @@ class ProfileEngine {
         ; -------------------------------------------------------------
         isShiftActive := (this.ShiftHolders.Count > 0 || this.IsGShiftActive || this.IsGShift1Active || this.IsGShift2Active)
         currentLayer := (this.IsGShift2Active ? "GShift2" : ((this.IsGShift1Active || this.IsGShiftActive) ? "GShift" : "Normal"))
+        WebViewGuiManager.LogActivity("BUTTON", "Press (Down) ▾ " . btnId, "Layer: " . currentLayer . " | Profile: " . this.CurrentProfile)
 
         normCmd := mapping.Normal.Cmd
         normType := mapping.Normal.Type
@@ -1675,6 +1816,8 @@ class ProfileEngine {
             ; execute its mapping on the current shift layer! (Do NOT let its Normal shift setting override!)
             if (!isActShift) {
                 if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
+                    actLabel := act.HasOwnProp("Label") ? act.Label : (act.HasOwnProp("Cmd") ? act.Cmd : "Action")
+                    WebViewGuiManager.LogActivity("TEST", "Muted in Studio (Test Mode is ON) — " . actLabel, "Turn off Shield icon in header to execute in Studio")
                     return
                 }
                 this.ButtonDispatchedLayer[btnId] := currentLayer
@@ -1698,6 +1841,8 @@ class ProfileEngine {
         ; If Studio app is in focus and MuteWhenStudioFocused is active,
         ; prevent any mapping from executing (only visual highlight in NotifyButton fires)
         if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
+            actLabel := mapping.Normal.HasOwnProp("Label") ? mapping.Normal.Label : (mapping.Normal.HasOwnProp("Cmd") ? mapping.Normal.Cmd : "Action")
+            WebViewGuiManager.LogActivity("TEST", "Muted in Studio (Test Mode is ON) — " . actLabel, "Turn off Shield icon in header to execute in Studio")
             return
         }
 
@@ -1707,6 +1852,7 @@ class ProfileEngine {
     }
 
     static HandleShift1Modifier(btnId, isDown) {
+        WebViewGuiManager.LogActivity("SHIFT", (isDown ? "Hold ▾ " : "Release ▴ ") . "B-Shift 1", "Trigger: " . btnId)
         if (isDown) {
             this.IsGShift1Active := true
             this.IsGShiftActive := true
@@ -1715,10 +1861,12 @@ class ProfileEngine {
             this.IsGShift1Active := false
             this.IsGShiftActive := this.IsGShift2Active
             this.NotifyShift(1, false)
+            this.OnShiftLayerDeactivated("GShift1")
         }
     }
 
     static HandleShift2Modifier(btnId, isDown) {
+        WebViewGuiManager.LogActivity("SHIFT", (isDown ? "Hold ▾ " : "Release ▴ ") . "B-Shift 2", "Trigger: " . btnId)
         if (isDown) {
             this.IsGShift2Active := true
             this.IsGShiftActive := true
@@ -1727,6 +1875,7 @@ class ProfileEngine {
             this.IsGShift2Active := false
             this.IsGShiftActive := this.IsGShift1Active
             this.NotifyShift(2, false)
+            this.OnShiftLayerDeactivated("GShift2")
         }
     }
 
@@ -1763,6 +1912,7 @@ class ProfileEngine {
     }
 
     static ReleaseAllShiftModifiers() {
+        this.OnShiftLayerDeactivated("All")
         this.ShiftHolders.Clear()
         this.ButtonDispatchedLayer.Clear()
         this.IsGShiftActive := false
@@ -1770,6 +1920,57 @@ class ProfileEngine {
         this.IsGShift2Active := false
         this.NotifyShift(1, false)
         this.NotifyShift(2, false)
+    }
+
+    static OnShiftLayerDeactivated(layerName := "All") {
+        ; 1. Collect all buttons that were dispatched on the deactivated shift layer
+        buttonsToRelease := []
+        for btnId, dispLayer in this.ButtonDispatchedLayer {
+            if (layerName == "All" 
+                || dispLayer == layerName 
+                || (layerName == "GShift1" && (dispLayer == "GShift" || dispLayer == "GShift1"))
+                || (layerName == "GShift" && (dispLayer == "GShift" || dispLayer == "GShift1"))) {
+                buttonsToRelease.Push({ btnId: btnId, layer: dispLayer })
+            }
+        }
+
+        ; 2. Trigger the on-release / finish handler for each button
+        for item in buttonsToRelease {
+            if (this.ButtonDispatchedLayer.Has(item.btnId)) {
+                this.ButtonDispatchedLayer.Delete(item.btnId)
+            }
+            this.ExecuteButtonEvent(item.btnId, item.layer, false)
+        }
+
+        ; 3. Catch any active sequences that were initiated on shift but might not be in ButtonDispatchedLayer
+        seqsToFinish := []
+        for btnId, seq in this.ActiveSequences {
+            seqsToFinish.Push({ btnId: btnId, act: seq.act })
+        }
+        for item in seqsToFinish {
+            if (this.ActiveSequences.Has(item.btnId)) {
+                this.FinishSequence(item.btnId, item.act)
+            }
+        }
+
+        ; 4. Release any hold timers if shift is completely inactive
+        if (layerName == "All" || !this.IsGShiftActive) {
+            for btnId, fn in this.ActiveHoldTimers {
+                this.StopHold(btnId)
+            }
+        }
+
+        ; 5. Failsafe modifier unstick: if Shift, Ctrl, or Alt is logically down but physically not held on keyboard
+        if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+            try Send("{Blind}{Shift up}")
+        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+            try Send("{Blind}{Ctrl up}")
+        if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+            try Send("{Blind}{Alt up}")
+        if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+            try Send("{Blind}{LButton up}")
+        if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+            try Send("{Blind}{RButton up}")
     }
 
     static ExecuteButtonEvent(btnId, layer, isDown) {
@@ -1806,9 +2007,7 @@ class ProfileEngine {
                         this.StopHold(btnId)
                     }
                 case "Sequence":
-                    if (this.ActiveSequences.Has(btnId)) {
-                        this.FinishSequence(btnId, act)
-                    }
+                    this.FinishSequence(btnId, act)
                 default:
                     this.ExecuteActionUp(act, btnId)
             }
@@ -1990,28 +2189,49 @@ class ProfileEngine {
         }
     }
 
-    static PlaySteps(steps) {
+    static PlaySteps(steps, btnId := "", token := 0, isRelease := false) {
         if (!IsObject(steps) || steps.Length = 0)
             return
-        for step in steps {
+        totalSteps := steps.Length
+        for idx, step in steps {
+            ; Check sequence token before executing step
+            if (btnId != "" && token != 0) {
+                if (!this.SequenceTokens.Has(btnId) || this.SequenceTokens[btnId] != token)
+                    return
+            }
+
             k := step.Key
             if (k = "DoubleClick") {
                 Click(2)
+                WebViewGuiManager.LogActivity("STEP", "Double Click", "")
                 continue
             } else if (k = "TripleClick") {
                 Click(3)
+                WebViewGuiManager.LogActivity("STEP", "Triple Click", "")
                 continue
             }
             if (StrLen(k) = 1 && !InStr(k, "+")) {
                 k := StrLower(k)
             }
             if (step.Action = "Down") {
-                SendEvent("{" . k . " down}")
+                Send("{Blind}{" . k . " down}")
+                WebViewGuiManager.LogActivity("STEP", "{" . k . " down}", (!isRelease && step.HasOwnProp("Delay") && step.Delay > 0) ? (step.Delay . "ms delay") : "")
             } else if (step.Action = "Up") {
-                SendEvent("{" . k . " up}")
+                Send("{Blind}{" . k . " up}")
+                WebViewGuiManager.LogActivity("STEP", "{" . k . " up}", (!isRelease && step.HasOwnProp("Delay") && step.Delay > 0) ? (step.Delay . "ms delay") : "")
             }
-            if (step.HasOwnProp("Delay") && step.Delay > 0) {
-                Sleep(step.Delay)
+
+            ; Delays: only sleep between intermediate steps (no useless sleep after the final step!)
+            if (idx < totalSteps && step.HasOwnProp("Delay") && step.Delay > 0) {
+                sleepMs := isRelease ? Min(step.Delay, 30) : step.Delay
+                if (sleepMs > 0) {
+                    Sleep(sleepMs)
+                    ; Check sequence token again after sleep — if released during sleep, abort immediately!
+                    if (btnId != "" && token != 0) {
+                        if (!this.SequenceTokens.Has(btnId) || this.SequenceTokens[btnId] != token)
+                            return
+                    }
+                }
             }
         }
     }
@@ -2076,32 +2296,75 @@ class ProfileEngine {
     }
 
     static StartSequence(btnId, act) {
-        ; 1. Play ON PRESS steps once
-        if (act.HasOwnProp("SeqPress") && act.SeqPress.Length > 0) {
-            this.PlaySteps(act.SeqPress)
+        ; 1. Invalidate any prior sequence on this button and generate new cancellation token
+        this.NextSeqToken++
+        currToken := this.NextSeqToken
+        this.SequenceTokens[btnId] := currToken
+
+        ; 2. Stop any existing hold timer on this button
+        if (this.ActiveSequences.Has(btnId)) {
+            seqObj := this.ActiveSequences[btnId]
+            if (seqObj.HasOwnProp("fn") && seqObj.fn != "")
+                SetTimer(seqObj.fn, 0)
         }
 
-        ; 2. Start WHILE HOLDING loop timer
+        ; 3. Setup WHILE HOLDING loop if specified
+        fn := ""
         if (act.HasOwnProp("SeqHold") && act.SeqHold.Length > 0) {
-            fn := () => ProfileEngine.PlaySteps(act.SeqHold)
-            this.ActiveSequences[btnId] := { fn: fn, act: act }
+            fn := () => ProfileEngine.PlaySteps(act.SeqHold, btnId, currToken, false)
             interval := (act.HasOwnProp("RepeatInterval") && act.RepeatInterval > 0) ? act.RepeatInterval : 50
             SetTimer(fn, interval)
         }
+        this.ActiveSequences[btnId] := { fn: fn, act: act, token: currToken }
+
+        WebViewGuiManager.LogActivity("MACRO", "Sequence Start: " . (act.HasOwnProp("Label") ? act.Label : "Macro"), "OnPress: " . (act.HasOwnProp("SeqPress") ? act.SeqPress.Length : 0) . " steps | WhileHold: " . (act.HasOwnProp("SeqHold") ? act.SeqHold.Length : 0) . " steps")
+
+        ; 4. Play ON PRESS steps once with token cancellation tracking
+        if (act.HasOwnProp("SeqPress") && act.SeqPress.Length > 0) {
+            this.PlaySteps(act.SeqPress, btnId, currToken, false)
+        }
     }
 
-    static FinishSequence(btnId, act) {
-        ; 1. Stop WHILE HOLDING loop
+    static FinishSequence(btnId, act := "") {
+        ; 1. Invalidate any in-progress StartSequence thread for this button immediately!
+        ; Any sleeping StartSequence thread will detect this and abort immediately upon waking up.
+        if (this.SequenceTokens.Has(btnId)) {
+            this.SequenceTokens.Delete(btnId)
+        }
+
+        seqAct := act
+        ; 2. Stop WHILE HOLDING loop
         if (this.ActiveSequences.Has(btnId)) {
             seqObj := this.ActiveSequences[btnId]
-            SetTimer(seqObj.fn, 0)
+            if (seqObj.HasOwnProp("fn") && seqObj.fn != "") {
+                SetTimer(seqObj.fn, 0)
+            }
+            if (seqAct == "" || !seqAct.HasOwnProp("SeqRelease") || seqAct.SeqRelease.Length == 0) {
+                if (seqObj.HasOwnProp("act") && IsObject(seqObj.act))
+                    seqAct := seqObj.act
+            }
             this.ActiveSequences.Delete(btnId)
         }
 
-        ; 2. Play ON RELEASE steps once
-        if (act.HasOwnProp("SeqRelease") && act.SeqRelease.Length > 0) {
-            this.PlaySteps(act.SeqRelease)
+        WebViewGuiManager.LogActivity("MACRO", "Sequence Finish: " . (IsObject(seqAct) && seqAct.HasOwnProp("Label") ? seqAct.Label : "Macro"), "OnRelease: " . (IsObject(seqAct) && seqAct.HasOwnProp("SeqRelease") ? seqAct.SeqRelease.Length : 0) . " steps")
+
+        ; 3. Play ON RELEASE steps immediately (isRelease = true for zero-delay instant execution)
+        if (IsObject(seqAct) && seqAct.HasOwnProp("SeqRelease") && seqAct.SeqRelease.Length > 0) {
+            this.PlaySteps(seqAct.SeqRelease, btnId, 0, true)
         }
+
+        ; 4. Failsafe modifier cleanup: if any modifier was logically stuck down by an interrupted macro
+        ; but is physically not held on the keyboard, release it now.
+        if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+            try Send("{Blind}{Shift up}")
+        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+            try Send("{Blind}{Ctrl up}")
+        if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+            try Send("{Blind}{Alt up}")
+        if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+            try Send("{Blind}{LButton up}")
+        if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+            try Send("{Blind}{RButton up}")
     }
 
     ; --- Button Event Handlers (F13 - F21) ---
@@ -2162,11 +2425,13 @@ class ProfileEngine {
 
     ; --- Left & Right Click Handlers (B-Shift Layer Only) ---
     static NeedsLeftClickIntercept() {
-        ; NEVER intercept Left Click while Studio app is focused!
-        if (WebViewGuiManager.IsStudioFocused())
+        if (this.IsMasterSuspended)
             return false
 
-        this.SyncShiftState()
+        ; If this button is currently dispatched on a custom layer or has an active sequence,
+        ; we MUST intercept the release so the macro's OnRelease steps and cleanup execute reliably!
+        if (this.ButtonDispatchedLayer.Has("LeftClick") || this.ActiveSequences.Has("LeftClick"))
+            return true
 
         if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active)
             return false
@@ -2177,11 +2442,13 @@ class ProfileEngine {
     }
 
     static NeedsRightClickIntercept() {
-        ; NEVER intercept Right Click while Studio app is focused!
-        if (WebViewGuiManager.IsStudioFocused())
+        if (this.IsMasterSuspended)
             return false
 
-        this.SyncShiftState()
+        ; If this button is currently dispatched on a custom layer or has an active sequence,
+        ; we MUST intercept the release so the macro's OnRelease steps and cleanup execute reliably!
+        if (this.ButtonDispatchedLayer.Has("RightClick") || this.ActiveSequences.Has("RightClick"))
+            return true
 
         if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active)
             return false
@@ -2204,33 +2471,24 @@ class ProfileEngine {
     }
 
     static HandleLeftClick(isDown) {
-        this.NotifyButton("LeftClick", isDown)
-        if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
-            ; When Studio is focused, ALWAYS pass physical click through cleanly so left click is never lost!
-            if (isDown)
-                SendEvent("{Blind}{LButton down}")
-            else
-                SendEvent("{Blind}{LButton up}")
+        if (this.IsMasterSuspended)
             return
-        }
+        this.NotifyButton("LeftClick", isDown)
         this.DispatchButton("LeftClick", isDown)
     }
 
     static HandleRightClick(isDown) {
-        this.NotifyButton("RightClick", isDown)
-        if (this.MuteWhenStudioFocused && WebViewGuiManager.IsStudioFocused()) {
-            ; When Studio is focused, ALWAYS pass physical click through cleanly so right click is never lost!
-            if (isDown)
-                SendEvent("{Blind}{RButton down}")
-            else
-                SendEvent("{Blind}{RButton up}")
+        if (this.IsMasterSuspended)
             return
-        }
+        this.NotifyButton("RightClick", isDown)
         this.DispatchButton("RightClick", isDown)
     }
 
     ; Determines if WheelUp/WheelDown should be intercepted by AHK hook
     static NeedsWheelIntercept() {
+        if (this.IsMasterSuspended)
+            return false
+
         if (this.IsGShiftActive || this.IsGShift1Active || this.IsGShift2Active)
             return true
             
@@ -2258,6 +2516,8 @@ class ProfileEngine {
     static LastWheelNotifyTime := 0
 
     static NotifyWheel(btnId) {
+        if (this.IsMasterSuspended)
+            return
         now := A_TickCount
         if (now - this.LastWheelNotifyTime > 80) {
             this.LastWheelNotifyTime := now
@@ -2268,6 +2528,8 @@ class ProfileEngine {
 
     ; Native Scroll Wheel Mapping & Dispatch (No F-key required)
     static DispatchWheel(direction) {
+        if (this.IsMasterSuspended)
+            return
         btnId := (direction = "Up") ? "WheelUp" : "WheelDown"
 
         ; Determine active layer
@@ -2334,9 +2596,22 @@ class ProfileEngine {
     }
 
     static NotifyButton(btnName, isPressed) {
+        if (this.IsMasterSuspended)
+            return
+
         ; Suppress redundant UI flash on OS typematic repeats
         if (isPressed && this.PhysicalButtonStates.Has(btnName) && this.PhysicalButtonStates[btnName])
             return
+
+        ; If this is a pass-through click or scroll on normal layer, log it for complete visibility
+        if (btnName = "LeftClick" || btnName = "RightClick" || btnName = "WheelUp" || btnName = "WheelDown") {
+            if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active) {
+                if (!WebViewGuiManager.IsStudioFocused()) {
+                    WebViewGuiManager.LogActivity("BUTTON", (isPressed ? "Press (Down) ▾ " : "Release (Up) ▴ ") . btnName . " (Native)", "Layer: Normal | Profile: " . this.CurrentProfile)
+                }
+            }
+        }
+
         fn := this.OnButtonStateChanged
         if (fn) {
             fn(btnName, isPressed)

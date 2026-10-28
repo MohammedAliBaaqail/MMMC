@@ -27,6 +27,7 @@ const state = {
     hoveredButton: null,
     isRapidFire: false,
     isAlwaysOnTop: false,
+    isMasterSuspended: false,
     isShiftPhysicallyActive: false,
     activeShiftName: '',
 
@@ -66,6 +67,8 @@ const state = {
     rawIni: '',
     muteWhenFocused: true,
     gameKeyDelay: 20,
+    focusOnHoverMode: 'profile', // 'off' | 'profile' | 'all'
+    focusOnHoverDelay: 120,      // ms
 
     // Pointer & Card Calibration Mode State
     isCalibrating: false,
@@ -349,6 +352,40 @@ const CATALOG_DATA = [
 // ============================================================================
 // INITIALIZATION & LIFECYCLE
 // ============================================================================
+
+/**
+ * Schedules multi-frame and multi-timer stabilization of SVG leader lines.
+ * Absorbs font rendering (FOUT), window maximizing, image decoding, and CSS flexbox reflow
+ * so leader lines are guaranteed to align with cards without requiring window resizing.
+ */
+function scheduleStabilizedSvgLines() {
+    if (typeof syncCardMinWidthWithRightClick === 'function') {
+        syncCardMinWidthWithRightClick();
+    }
+    if (typeof updateSvgLines === 'function') {
+        updateSvgLines();
+    }
+
+    // Double requestAnimationFrame ensures layout and paint have occurred
+    requestAnimationFrame(() => {
+        if (typeof syncCardMinWidthWithRightClick === 'function') syncCardMinWidthWithRightClick();
+        if (typeof updateSvgLines === 'function') updateSvgLines();
+        requestAnimationFrame(() => {
+            if (typeof syncCardMinWidthWithRightClick === 'function') syncCardMinWidthWithRightClick();
+            if (typeof updateSvgLines === 'function') updateSvgLines();
+        });
+    });
+
+    // Staggered timers to absorb high-DPI scaling, window maximizing, and font loading
+    const delays = [25, 60, 120, 250, 450, 750, 1200];
+    delays.forEach(ms => {
+        setTimeout(() => {
+            if (typeof syncCardMinWidthWithRightClick === 'function') syncCardMinWidthWithRightClick();
+            if (typeof updateSvgLines === 'function') updateSvgLines();
+        }, ms);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initCatalog();
     initSidebarResizer();
@@ -367,11 +404,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initBackupModal();
     initStudioSettingsModal();
     initCustomConfirmModal();
+    initActivityLogModal();
     
     // Draw initial SVG lines after layout stabilizes
-    setTimeout(() => {
-        updateSvgLines();
-    }, 150);
+    scheduleStabilizedSvgLines();
 
     window.addEventListener('resize', () => {
         syncCardMinWidthWithRightClick();
@@ -379,9 +415,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('load', () => {
-        syncCardMinWidthWithRightClick();
-        updateSvgLines();
+        scheduleStabilizedSvgLines();
     });
+
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => {
+            scheduleStabilizedSvgLines();
+        });
+    }
 
     window.addEventListener('dragend', clearAllDropHovers);
     window.addEventListener('drop', clearAllDropHovers);
@@ -400,22 +441,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const mouseImg = document.getElementById('mouseImg');
     if (mouseImg) {
         if (mouseImg.complete) {
-            updateSvgLines();
+            scheduleStabilizedSvgLines();
         } else {
-            mouseImg.addEventListener('load', () => updateSvgLines());
+            mouseImg.addEventListener('load', () => scheduleStabilizedSvgLines());
         }
     }
 
-    const mouseContainer = document.getElementById('mouseContainer');
-    if (mouseContainer && window.ResizeObserver) {
+    // Comprehensive ResizeObserver: observes container, columns, mouse render wrap, and stage
+    if (window.ResizeObserver) {
         const ro = new ResizeObserver(() => {
+            syncCardMinWidthWithRightClick();
             updateSvgLines();
         });
-        ro.observe(mouseContainer);
-        const leftCol = document.getElementById('leftCallouts');
-        const rightCol = document.getElementById('rightCallouts');
-        if (leftCol) ro.observe(leftCol);
-        if (rightCol) ro.observe(rightCol);
+        const observedIds = ['mouseContainer', 'leftCallouts', 'rightCallouts', 'mouseRenderWrap', 'mouseStage', 'sidebarCatalog'];
+        observedIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) ro.observe(el);
+        });
     }
 
     const mouseStage = document.getElementById('mouseStage');
@@ -475,6 +517,9 @@ function handleEngineMessage(msg) {
             }
             if (msg.rawIni !== undefined) {
                 state.rawIni = msg.rawIni || '';
+            }
+            if (msg.masterSuspended !== undefined) {
+                state.isMasterSuspended = !!msg.masterSuspended;
             }
             
             // Saved sidebar width loading from settings.ini
@@ -554,7 +599,7 @@ function handleEngineMessage(msg) {
                     x: parseFloat(msg.mouseOffset.x) || 0,
                     y: parseFloat(msg.mouseOffset.y) || 0
                 };
-                applyMouseOffset();
+                applyMouseOffset(true);
                 updateCalibOffsetBadge();
             }
             if (msg.buttonNames) {
@@ -580,14 +625,27 @@ function handleEngineMessage(msg) {
             if (msg.gameKeyDelay !== undefined) {
                 state.gameKeyDelay = Number(msg.gameKeyDelay) || 20;
             }
+            if (msg.focusOnHoverMode !== undefined) {
+                state.focusOnHoverMode = msg.focusOnHoverMode;
+            }
+            if (msg.focusOnHoverDelay !== undefined) {
+                state.focusOnHoverDelay = Number(msg.focusOnHoverDelay) || 120;
+            }
             updateGameKeyDelayUI();
+            updateHoverFocusUI();
             updateHeaderTogglesUI();
             updateRapidFireUI(state.isRapidFire);
             renderLgsProfiles();
             updateAutoSwitchUI();
+            updateMasterPowerUI();
             switchLayerVisually('Normal');
             refreshCardsAndStage();
-            updateSvgLines();
+            scheduleStabilizedSvgLines();
+            break;
+
+        case 'masterSuspendedChanged':
+            state.isMasterSuspended = !!msg.suspended;
+            updateMasterPowerUI();
             break;
 
         case 'mouseImageSaved':
@@ -747,6 +805,16 @@ function handleEngineMessage(msg) {
             }
             break;
 
+        case 'focusOnHoverModeChanged':
+            state.focusOnHoverMode = msg.mode || 'profile';
+            updateHoverFocusUI();
+            break;
+
+        case 'focusOnHoverDelayChanged':
+            state.focusOnHoverDelay = Number(msg.delay) || 120;
+            updateHoverFocusUI();
+            break;
+
         case 'buttonMappingPasted':
             if (msg.mappings) {
                 state.mappings = msg.mappings;
@@ -851,6 +919,10 @@ function handleEngineMessage(msg) {
         case 'buttonStateChanged':
             // Flash button card and hotspot on physical mouse click
             flashButtonHardware(msg.btnId, msg.isDown);
+            break;
+
+        case 'activityLog':
+            addActivityLog(msg);
             break;
 
         case 'buttonNameUpdated':
@@ -1070,6 +1142,15 @@ function initHeaderControls() {
             updateHeaderTogglesUI();
         });
     }
+
+    // Master App Power Killswitch toggle
+    const btnMasterPower = document.getElementById('btnMasterPowerToggle');
+    if (btnMasterPower) {
+        btnMasterPower.addEventListener('click', () => {
+            sendToAhk({ action: 'toggleMasterSuspension' });
+        });
+    }
+
     const btnTop = document.getElementById('btnToggleAlwaysOnTop');
     if (btnTop) {
         btnTop.addEventListener('click', () => {
@@ -1120,6 +1201,17 @@ function initHeaderControls() {
         });
     }
 
+    const btnLogMute = document.getElementById('btnLogToggleTestMode');
+    if (btnLogMute) {
+        btnLogMute.addEventListener('click', () => {
+            state.muteWhenFocused = !state.muteWhenFocused;
+            if (chkMute) chkMute.checked = state.muteWhenFocused;
+            sendToAhk({ action: 'toggleMuteWhenFocused', enabled: state.muteWhenFocused });
+            updateHeaderTogglesUI();
+            showToast('Focus Test Mode', state.muteWhenFocused ? 'Active: Buttons highlight diagram safely' : 'Off: Normal button actions active');
+        });
+    }
+
     // Live Quick Remap Trigger button
     const btnQuick = document.getElementById('btnQuickRemap');
     if (btnQuick) {
@@ -1149,6 +1241,15 @@ function updateHeaderTogglesUI() {
         btnMute.classList.toggle('active', !!state.muteWhenFocused);
         btnMute.setAttribute('title', state.muteWhenFocused ? 'Focus Test Mode: Active (Clicks highlight diagram without executing macros)' : 'Focus Test Mode: Inactive (Normal actions execute in focus)');
     }
+    const btnLogMute = document.getElementById('btnLogToggleTestMode');
+    if (btnLogMute) {
+        btnLogMute.classList.toggle('active', !!state.muteWhenFocused);
+        const spanTxt = document.getElementById('logTestModeStatusText');
+        if (spanTxt) {
+            spanTxt.textContent = state.muteWhenFocused ? 'Test Mode: ON' : 'Test Mode: OFF';
+        }
+        btnLogMute.setAttribute('title', state.muteWhenFocused ? 'Focus Test Mode: Active (Clicks highlight diagram without executing macros)' : 'Focus Test Mode: Inactive (Normal actions execute in focus)');
+    }
 
     // Keep settings modal pill toggles in lockstep if rendered
     const chkSettingsTop = document.getElementById('chkSettingsTop');
@@ -1163,6 +1264,26 @@ function updateHeaderTogglesUI() {
     const chkSettingsMute = document.getElementById('chkSettingsMute');
     if (chkSettingsMute && chkSettingsMute.checked !== !!state.muteWhenFocused) {
         chkSettingsMute.checked = !!state.muteWhenFocused;
+    }
+}
+
+function updateMasterPowerUI() {
+    const btn = document.getElementById('btnMasterPowerToggle');
+    const stateText = document.getElementById('masterPowerStateText');
+    const banner = document.getElementById('masterSuspendedBanner');
+
+    if (!btn || !stateText) return;
+
+    if (state.isMasterSuspended) {
+        btn.classList.add('is-suspended');
+        btn.setAttribute('title', 'Master App Switch: App is STOPPED. Click or press Ctrl+Shift+F4 to Resume');
+        stateText.textContent = 'STOPPED';
+        if (banner) banner.style.display = 'flex';
+    } else {
+        btn.classList.remove('is-suspended');
+        btn.setAttribute('title', 'Master App Switch: App is ACTIVE. Click or press Ctrl+Shift+F4 to Stop');
+        stateText.textContent = 'ACTIVE';
+        if (banner) banner.style.display = 'none';
     }
 }
 
@@ -1279,6 +1400,7 @@ function switchLayerVisually(layer) {
 
     clearAllButtonHovers();
     refreshCardsAndStage();
+    syncCardMinWidthWithRightClick();
     updateSvgLines();
 }
 
@@ -1799,6 +1921,9 @@ function setSidebarWidth(w) {
     const clamped = Math.round(Math.max(260, Math.min(700, w)));
     document.documentElement.style.setProperty('--sidebar-width', `${clamped}px`);
     sidebar.style.width = `${clamped}px`;
+    if (typeof updateSvgLines === 'function') {
+        updateSvgLines();
+    }
 }
 
 function autoFitSidebarWidth(isInitial = false) {
@@ -2030,7 +2155,7 @@ function renderAllCards() {
     applyAllCardOffsets();
     syncCardMinWidthWithRightClick();
     refreshCardsAndStage();
-    updateSvgLines();
+    scheduleStabilizedSvgLines();
 }
 
 function attachCardEventListeners(card, btnId) {
@@ -4144,12 +4269,14 @@ function renderMacroSteps() {
             steps.forEach((step, sIdx) => {
                 // If custom delays enabled, show delay pill between steps
                 if (!state.modal.useStandardDelays && sIdx > 0) {
+                    const delayTargetIdx = sIdx - 1;
+                    const prevStep = steps[delayTargetIdx];
                     const delayChip = document.createElement('span');
                     delayChip.className = 'ghub-delay-chip';
                     delayChip.setAttribute('data-section', secKey);
-                    delayChip.setAttribute('data-index', sIdx);
+                    delayChip.setAttribute('data-index', delayTargetIdx);
                     delayChip.setAttribute('title', 'Click to edit delay, or drag to move/reorder');
-                    delayChip.textContent = `${step.Delay || 50} ms`;
+                    delayChip.textContent = `${prevStep.Delay || 50} ms`;
                     delayChip.draggable = true;
 
                     delayChip.addEventListener('dragstart', (e) => {
@@ -4158,8 +4285,8 @@ function renderMacroSteps() {
                         currentMacroDrag = {
                             type: 'delay-chip',
                             section: secKey,
-                            index: sIdx,
-                            delay: step.Delay || 50
+                            index: delayTargetIdx,
+                            delay: prevStep.Delay || 50
                         };
                         e.dataTransfer.effectAllowed = 'move';
                         try {
@@ -4410,6 +4537,14 @@ function initKeyboardGlobal() {
     });
 
     window.addEventListener('keydown', (e) => {
+        // Master Killswitch Hotkey: Ctrl + Shift + F4
+        if (e.ctrlKey && e.shiftKey && (e.key === 'F4' || e.code === 'F4')) {
+            e.preventDefault();
+            e.stopPropagation();
+            sendToAhk({ action: 'toggleMasterSuspension' });
+            return;
+        }
+
         // Prevent Space key from activating focused buttons in Studio Modal
         if (e.key === ' ' || e.code === 'Space') {
             const modal = document.getElementById('studioModal');
@@ -5329,15 +5464,21 @@ function setCalibMoveMode(mode) {
     updateSvgLines();
 }
 
-function applyMouseOffset() {
+function applyMouseOffset(immediate = false) {
     const wrap = document.getElementById('mouseRenderWrap');
     if (!wrap) return;
     const offX = state.mouseOffset?.x || 0;
     const offY = state.mouseOffset?.y || 0;
-    if (offX !== 0 || offY !== 0) {
-        wrap.style.transform = `translate(${offX}px, ${offY}px)`;
+    if (immediate) {
+        const prevTransition = wrap.style.transition;
+        wrap.style.transition = 'none';
+        wrap.style.transform = (offX !== 0 || offY !== 0) ? `translate(${offX}px, ${offY}px)` : '';
+        void wrap.offsetHeight;
+        requestAnimationFrame(() => {
+            wrap.style.transition = prevTransition;
+        });
     } else {
-        wrap.style.transform = '';
+        wrap.style.transform = (offX !== 0 || offY !== 0) ? `translate(${offX}px, ${offY}px)` : '';
     }
 }
 
@@ -6680,6 +6821,7 @@ function openProfileModal(mode, profData) {
     const filterInput = document.getElementById('runningAppsFilter');
     const hoverGroup = document.getElementById('profHoverGroup');
     const inputHover = document.getElementById('profInputHoverSwitch');
+    const inputFocusHover = document.getElementById('profInputFocusOnHover');
     const inputOsdIconOnly = document.getElementById('profInputOsdIconOnly');
 
     if (filterInput) filterInput.value = '';
@@ -6704,6 +6846,7 @@ function openProfileModal(mode, profData) {
         if (profExeGroup) profExeGroup.style.opacity = '1';
         if (hoverGroup) hoverGroup.style.display = 'block';
         if (inputHover) inputHover.checked = false;
+        if (inputFocusHover) inputFocusHover.checked = false;
         if (inputOsdIconOnly) inputOsdIconOnly.checked = false;
         if (appPickActions) appPickActions.style.display = 'flex';
         if (defaultNotice) defaultNotice.style.display = 'none';
@@ -6732,6 +6875,7 @@ function openProfileModal(mode, profData) {
             if (profExeGroup) profExeGroup.style.opacity = '0.5';
             if (hoverGroup) hoverGroup.style.display = 'block';
             if (inputHover) inputHover.checked = (profData && isTruthy(profData.switchOnHover)) ? true : false;
+            if (inputFocusHover) inputFocusHover.checked = (profData && isTruthy(profData.focusOnHover)) ? true : false;
             if (inputOsdIconOnly) inputOsdIconOnly.checked = (profData && isTruthy(profData.osdIconOnly)) ? true : false;
             const hoverDesc = document.getElementById('profHoverDesc');
             if (hoverDesc) hoverDesc.textContent = 'Instantly activate Default profile when cursor hovers over Desktop or unassigned windows';
@@ -6750,6 +6894,7 @@ function openProfileModal(mode, profData) {
             if (profExeGroup) profExeGroup.style.opacity = '1';
             if (hoverGroup) hoverGroup.style.display = 'block';
             if (inputHover) inputHover.checked = (profData && isTruthy(profData.switchOnHover)) ? true : false;
+            if (inputFocusHover) inputFocusHover.checked = (profData && isTruthy(profData.focusOnHover)) ? true : false;
             if (inputOsdIconOnly) inputOsdIconOnly.checked = (profData && isTruthy(profData.osdIconOnly)) ? true : false;
             const hoverDesc = document.getElementById('profHoverDesc');
             if (hoverDesc) hoverDesc.textContent = 'Instantly activate this profile when cursor hovers over the app window (no click or focus needed)';
@@ -6822,6 +6967,7 @@ function saveProfileModal() {
     const inputName = document.getElementById('profInputName');
     const inputExe = document.getElementById('profInputExe');
     const inputHover = document.getElementById('profInputHoverSwitch');
+    const inputFocusHover = document.getElementById('profInputFocusOnHover');
     const inputOsdIconOnly = document.getElementById('profInputOsdIconOnly');
     const name = inputName ? inputName.value.trim() : '';
     const icon = state.selectedIconPreset || 'auto';
@@ -6836,6 +6982,7 @@ function saveProfileModal() {
     // Default Desktop profile can never have an executable assigned
     const exe = isDefault ? '' : (inputExe ? inputExe.value.trim() : '');
     const switchOnHover = inputHover ? inputHover.checked : false;
+    const focusOnHover = inputFocusHover ? inputFocusHover.checked : false;
     const osdIconOnly = inputOsdIconOnly ? inputOsdIconOnly.checked : false;
 
     if (state.profileModalMode === 'create') {
@@ -6850,6 +6997,7 @@ function saveProfileModal() {
             targetExe: exe,
             icon: icon,
             switchOnHover: switchOnHover,
+            focusOnHover: focusOnHover,
             osdIconOnly: osdIconOnly
         });
         showToast('Creating Profile', `Setting up ${name}...`);
@@ -6875,6 +7023,7 @@ function saveProfileModal() {
             targetProf.name = name;
             targetProf.icon = icon;
             targetProf.switchOnHover = switchOnHover;
+            targetProf.focusOnHover = focusOnHover;
             targetProf.osdIconOnly = osdIconOnly;
             if (!isDefault) targetProf.targetExe = exe;
         }
@@ -6908,6 +7057,7 @@ function saveProfileModal() {
             targetExe: exe,
             icon: icon,
             switchOnHover: switchOnHover,
+            focusOnHover: focusOnHover,
             osdIconOnly: osdIconOnly
         });
         showToast('Saving Profile', isRenaming ? `Renamed "${oldName}" to "${name}"` : `Updated configuration for ${name}`);
@@ -8962,6 +9112,9 @@ function openStudioSettingsModal() {
     const chkTop = document.getElementById('chkSettingsTop');
     if (chkTop) chkTop.checked = !!state.isAlwaysOnTop;
 
+    updateGameKeyDelayUI();
+    updateHoverFocusUI();
+
     modal.style.display = 'flex';
 }
 
@@ -9078,6 +9231,35 @@ function initStudioSettingsModal() {
             });
         });
     }
+
+    // Wire up Window Hover Focus mode pills
+    const hoverModePills = document.getElementById('hoverFocusModePills');
+    if (hoverModePills) {
+        hoverModePills.querySelectorAll('.preset-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.getAttribute('data-mode');
+                setFocusOnHoverMode(mode);
+            });
+        });
+    }
+
+    // Wire up Window Hover Focus delay input and preset pills
+    const inputHoverDelay = document.getElementById('inputHoverFocusDelay');
+    if (inputHoverDelay) {
+        inputHoverDelay.addEventListener('change', (e) => {
+            setFocusOnHoverDelay(e.target.value);
+        });
+    }
+
+    const hoverDelayPills = document.getElementById('hoverFocusDelayPresetPills');
+    if (hoverDelayPills) {
+        hoverDelayPills.querySelectorAll('.preset-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.getAttribute('data-delay');
+                setFocusOnHoverDelay(val);
+            });
+        });
+    }
 }
 
 function updateGameKeyDelayUI() {
@@ -9109,6 +9291,616 @@ function setGameKeyDelay(val) {
     sendToAhk({ action: 'setGameKeyDelay', delay: num });
     showToast('Game Key Delay', `Keystroke hold & pacing set to ${num} ms`);
 }
+
+function updateHoverFocusUI() {
+    const mode = state.focusOnHoverMode || 'profile';
+    const delay = state.focusOnHoverDelay !== undefined ? state.focusOnHoverDelay : 120;
+
+    const hoverModePills = document.getElementById('hoverFocusModePills');
+    if (hoverModePills) {
+        hoverModePills.querySelectorAll('.preset-pill').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+        });
+    }
+
+    const inputDelay = document.getElementById('inputHoverFocusDelay');
+    if (inputDelay && document.activeElement !== inputDelay) {
+        inputDelay.value = delay;
+    }
+
+    const hoverDelayPills = document.getElementById('hoverFocusDelayPresetPills');
+    if (hoverDelayPills) {
+        hoverDelayPills.querySelectorAll('.preset-pill').forEach(btn => {
+            btn.classList.toggle('active', Number(btn.getAttribute('data-delay')) === delay);
+        });
+    }
+}
+
+function setFocusOnHoverMode(mode) {
+    if (mode !== 'off' && mode !== 'profile' && mode !== 'all') mode = 'profile';
+    state.focusOnHoverMode = mode;
+    updateHoverFocusUI();
+    sendToAhk({ action: 'setFocusOnHoverMode', mode: mode });
+    const labelMap = { off: 'Disabled', profile: 'Per Profile', all: 'Always Active (All)' };
+    showToast('Hover Focus', `Mode set to ${labelMap[mode] || mode}`);
+}
+
+function setFocusOnHoverDelay(val) {
+    const num = Math.max(0, Math.min(1000, parseInt(val, 10) || 0));
+    state.focusOnHoverDelay = num;
+    updateHoverFocusUI();
+    sendToAhk({ action: 'setFocusOnHoverDelay', delay: num });
+    showToast('Hover Focus Delay', `Activation dwell time set to ${num} ms`);
+}
+// ============================================================================
+// LIVE BUTTON & MACRO ACTIVITY LOG + HARDWARE VISUALIZER
+// ============================================================================
+state.activityLogs = [];
+state.visualizerPressedKeys = new Set();
+state.visualizerDownKeys = new Set();
+state.visualizerViewMode = 'split';
+
+function initActivityLogModal() {
+    const btnOpen = document.getElementById('btnOpenActivityLog');
+    const modal = document.getElementById('activityLogModal');
+    const card = document.getElementById('activityLogCard');
+    const btnClose = document.getElementById('btnCloseActivityLog');
+    const btnHistory = document.getElementById('btnOpenAhkKeyHistory');
+    const btnUnstick = document.getElementById('btnEmergencyUnstick');
+    const btnCopy = document.getElementById('btnCopyActivityLog');
+    const btnClear = document.getElementById('btnClearActivityLog');
+    const btnClearVis = document.getElementById('btnClearVisualizerKeys');
+
+    if (btnOpen) btnOpen.addEventListener('click', openActivityLogModal);
+    if (btnClose) btnClose.addEventListener('click', closeActivityLogModal);
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeActivityLogModal();
+        });
+    }
+
+    if (btnHistory) {
+        btnHistory.addEventListener('click', () => {
+            sendToAhk({ action: 'showKeyHistory' });
+            showToast('AHK KeyHistory', 'Opening native Windows KeyHistory window...');
+        });
+    }
+
+    if (btnUnstick) {
+        btnUnstick.addEventListener('click', () => {
+            sendToAhk({ action: 'unstickAllKeys' });
+            showToast('Emergency Unstick', 'Sent UP commands for Shift, Ctrl, Alt, and Mouse Buttons');
+        });
+    }
+
+    if (btnCopy) {
+        btnCopy.addEventListener('click', copyActivityLogs);
+    }
+
+    if (btnClear) {
+        btnClear.addEventListener('click', clearActivityLogs);
+    }
+
+    if (btnClearVis) {
+        btnClearVis.addEventListener('click', clearVisualizerBoard);
+    }
+
+    // View mode switcher: Split / Keyboard / Logs
+    const viewBtns = document.querySelectorAll('.log-view-btn');
+    viewBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.dataset.mode;
+            setVisualizerViewMode(mode);
+        });
+    });
+
+    // Listen to physical keyboard & mouse events when modal is active
+    window.addEventListener('keydown', onVisualizerNativeKeyDown, true);
+    window.addEventListener('keyup', onVisualizerNativeKeyUp, true);
+    window.addEventListener('mousedown', onVisualizerNativeMouseDown, true);
+    window.addEventListener('mouseup', onVisualizerNativeMouseUp, true);
+    window.addEventListener('wheel', onVisualizerNativeWheel, { passive: true, capture: true });
+
+    // Auto-scroll checkbox toggle listener: instantly jump to bottom when re-checked
+    const chkAuto = document.getElementById('chkLogAutoScroll');
+    if (chkAuto) {
+        chkAuto.addEventListener('change', () => {
+            if (chkAuto.checked) {
+                const stream = document.getElementById('activityLogStream');
+                if (stream) stream.scrollTop = stream.scrollHeight;
+            }
+        });
+    }
+
+    // Enable horizontal mouse wheel scrolling over ribbon bar
+    const ribbon = document.getElementById('visualizerRibbonStream');
+    if (ribbon) {
+        ribbon.addEventListener('wheel', (e) => {
+            if (e.deltaY !== 0) {
+                e.preventDefault();
+                ribbon.scrollLeft += e.deltaY;
+            }
+        }, { passive: false });
+    }
+}
+
+function setVisualizerViewMode(mode) {
+    const card = document.getElementById('activityLogCard');
+    if (!card) return;
+    state.visualizerViewMode = mode;
+
+    card.classList.remove('mode-split', 'mode-visualizer', 'mode-table');
+    card.classList.add(`mode-${mode}`);
+
+    document.querySelectorAll('.log-view-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+    });
+}
+
+function openActivityLogModal() {
+    const modal = document.getElementById('activityLogModal');
+    if (!modal) return;
+    renderActivityLogs();
+    modal.style.display = 'flex';
+}
+
+function closeActivityLogModal() {
+    const modal = document.getElementById('activityLogModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function clearVisualizerBoard() {
+    state.visualizerPressedKeys.clear();
+    state.visualizerDownKeys.clear();
+
+    document.querySelectorAll('.vkey').forEach(el => {
+        el.classList.remove('was-pressed', 'is-down');
+        const st = el.querySelector('.vkey-status');
+        if (st) st.textContent = '';
+    });
+
+    const stream = document.getElementById('visualizerRibbonStream');
+    if (stream) stream.innerHTML = '';
+    showToast('Visualizer Reset', 'Cleared highlighted keys and recent event history');
+}
+
+/**
+ * Updates a key on the visual keyboard / mouse pads
+ * @param {string} vkeyId - The data-vkey identifier
+ * @param {boolean} isDown - Whether key is down or up
+ * @param {string} displayName - Human-friendly label (e.g. "Left Click", "S", "Alt")
+ */
+function updateVisualizerKey(vkeyId, isDown, displayName) {
+    if (!vkeyId) return;
+
+    // Deduplicate state transitions: ignore duplicate Down if already down, and duplicate Up if already up
+    const isCurrentlyDown = state.visualizerDownKeys.has(vkeyId);
+    if (isDown && isCurrentlyDown) return;
+    if (!isDown && !isCurrentlyDown) return;
+
+    if (isDown) {
+        state.visualizerDownKeys.add(vkeyId);
+        state.visualizerPressedKeys.add(vkeyId);
+    } else {
+        state.visualizerDownKeys.delete(vkeyId);
+    }
+
+    // Resolve element by exact data-vkey or case-insensitive fallback
+    let el = document.querySelector(`.vkey[data-vkey="${vkeyId}"]`);
+    if (!el) {
+        // Try common variations
+        const allKeys = document.querySelectorAll('.vkey[data-vkey]');
+        for (const k of allKeys) {
+            if (k.dataset.vkey.toLowerCase() === vkeyId.toLowerCase()) {
+                el = k;
+                break;
+            }
+        }
+    }
+
+    const name = displayName || (el ? el.dataset.vkey : vkeyId);
+
+    if (el) {
+        const statusEl = el.querySelector('.vkey-status');
+        if (isDown) {
+            el.classList.add('was-pressed');
+            el.classList.add('is-down');
+            if (statusEl) statusEl.textContent = '↓';
+        } else {
+            el.classList.add('was-pressed'); // Retains the different pressed color from the screenshot!
+            el.classList.remove('is-down');
+            if (statusEl) statusEl.textContent = '↑';
+        }
+    }
+
+    // Append event capsule to top ribbon bar
+    addVisualizerRibbonChip(name, isDown);
+}
+
+function isScrollbarClick(e) {
+    if (!e || !(e.target instanceof HTMLElement)) return false;
+    const el = e.target;
+    const rect = el.getBoundingClientRect();
+    // Vertical scrollbar: click is on the right edge inside the element's client area
+    const isVerticalScrollbar = (el.scrollHeight > el.clientHeight) && 
+        (e.clientX >= rect.left + el.clientWidth);
+    // Horizontal scrollbar: click is on the bottom edge inside the element's client area
+    const isHorizontalScrollbar = (el.scrollWidth > el.clientWidth) && 
+        (e.clientY >= rect.top + el.clientHeight);
+    return isVerticalScrollbar || isHorizontalScrollbar;
+}
+
+function isEventOnScrollbarOrUI(e) {
+    if (!e || !e.target) return false;
+    if (isScrollbarClick(e)) return true;
+    if (e.target.closest && e.target.closest(
+        '#activityLogColTable, .visualizer-ribbon-bar, .activity-log-header, .activity-log-footer, button, input, select, label, a, .custom-dialog-close-btn, .log-action-btn, .log-view-btn'
+    )) {
+        return true;
+    }
+    return false;
+}
+
+function addVisualizerRibbonChip(name, isDown) {
+    const ribbon = document.getElementById('visualizerRibbonStream');
+    if (!ribbon) return;
+
+    // Smart auto-scroll: check if user is at (or very near) the newest end before adding
+    const isAtEnd = (ribbon.scrollWidth - ribbon.scrollLeft - ribbon.clientWidth) <= 35;
+
+    const chip = document.createElement('span');
+    chip.className = `vribbon-chip ${isDown ? '' : 'chip-up'}`;
+    chip.innerHTML = `
+        <span class="chip-name">${escapeHtml(name)}</span>
+        <span class="vchip-arrow">${isDown ? '↓' : '↑'}</span>
+    `;
+
+    ribbon.appendChild(chip);
+
+    // Keep at most 40 recent event chips
+    while (ribbon.children.length > 40) {
+        const first = ribbon.firstChild;
+        const firstWidth = first ? (first.offsetWidth || 0) : 0;
+        ribbon.removeChild(first);
+        // If user scrolled back to read older history, preserve their view position
+        if (!isAtEnd && firstWidth > 0) {
+            ribbon.scrollLeft = Math.max(0, ribbon.scrollLeft - firstWidth);
+        }
+    }
+
+    // Only auto-scroll to the end if the user was already at the end
+    if (isAtEnd) {
+        ribbon.scrollLeft = ribbon.scrollWidth;
+    }
+}
+
+function isActivityLogModalVisible() {
+    const modal = document.getElementById('activityLogModal');
+    return modal && modal.style.display === 'flex';
+}
+
+function logVisualizerEvent(category, text, details = '') {
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}.${String(now.getMilliseconds()).padStart(3, '0')}`;
+    addActivityLog({
+        time: timeStr,
+        category: category,
+        text: text,
+        details: details
+    }, true);
+}
+
+function onVisualizerNativeKeyDown(e) {
+    if (!isActivityLogModalVisible() || e.repeat) return;
+    const vkey = mapDomCodeToVKey(e.code);
+    const name = getReadableDomKeyName(e);
+    updateVisualizerKey(vkey, true, name);
+    logVisualizerEvent('KEY', `Press (Down) ▾ ${name}`, `Key: ${e.code || vkey} | Focused`);
+}
+
+function onVisualizerNativeKeyUp(e) {
+    if (!isActivityLogModalVisible()) return;
+    const vkey = mapDomCodeToVKey(e.code);
+    const name = getReadableDomKeyName(e);
+    updateVisualizerKey(vkey, false, name);
+    logVisualizerEvent('KEY', `Release (Up) ▴ ${name}`, `Key: ${e.code || vkey} | Focused`);
+}
+
+const activeVisualizerMouseButtons = new Set();
+
+function onVisualizerNativeMouseDown(e) {
+    if (!isActivityLogModalVisible()) return;
+    // Disregard clicks on scrollbars, log tables, headers, and UI controls so dragging scrollbars never triggers button clicks
+    if (isEventOnScrollbarOrUI(e)) return;
+
+    const mapping = {
+        0: { vkey: 'MouseLeft', name: 'Left Click' },
+        1: { vkey: 'MouseMiddle', name: 'Middle Click' },
+        2: { vkey: 'MouseRight', name: 'Right Click' },
+        3: { vkey: 'MouseBack', name: 'Back' },
+        4: { vkey: 'MouseForward', name: 'Forward' }
+    };
+    const btn = mapping[e.button];
+    if (btn) {
+        activeVisualizerMouseButtons.add(e.button);
+        updateVisualizerKey(btn.vkey, true, btn.name);
+        logVisualizerEvent('BUTTON', `Press (Down) ▾ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
+    }
+}
+
+function onVisualizerNativeMouseUp(e) {
+    if (!isActivityLogModalVisible()) return;
+    // Only dispatch key-up if this button was actually pressed inside the test canvas
+    if (!activeVisualizerMouseButtons.has(e.button)) return;
+
+    activeVisualizerMouseButtons.delete(e.button);
+    const mapping = {
+        0: { vkey: 'MouseLeft', name: 'Left Click' },
+        1: { vkey: 'MouseMiddle', name: 'Middle Click' },
+        2: { vkey: 'MouseRight', name: 'Right Click' },
+        3: { vkey: 'MouseBack', name: 'Back' },
+        4: { vkey: 'MouseForward', name: 'Forward' }
+    };
+    const btn = mapping[e.button];
+    if (btn) {
+        updateVisualizerKey(btn.vkey, false, btn.name);
+        logVisualizerEvent('BUTTON', `Release (Up) ▴ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
+    }
+}
+
+function onVisualizerNativeWheel(e) {
+    if (!isActivityLogModalVisible()) return;
+    // Ignore wheel over scrollable table or ribbon so users can scroll logs without firing fake wheel test events
+    if (isEventOnScrollbarOrUI(e)) return;
+
+    const isUp = e.deltaY < 0;
+    const vkey = isUp ? 'MouseWheelUp' : 'MouseWheelDown';
+    const name = isUp ? 'Scroll Up' : 'Scroll Down';
+
+    updateVisualizerKey(vkey, true, name);
+    logVisualizerEvent('WHEEL', name, `Mouse Hardware | Delta: ${e.deltaY}`);
+    setTimeout(() => {
+        updateVisualizerKey(vkey, false, name);
+    }, 140);
+}
+
+function mapDomCodeToVKey(code) {
+    if (!code) return '';
+    return code;
+}
+
+function getReadableDomKeyName(e) {
+    if (!e || !e.code) return '';
+    const code = e.code;
+    if (code.startsWith('Key')) return code.substring(3);
+    if (code.startsWith('Digit')) return code.substring(5);
+    if (code.startsWith('Numpad') && code.length === 7) return 'Num ' + code.substring(6);
+    if (code === 'ControlLeft' || code === 'ControlRight') return 'Ctrl';
+    if (code === 'ShiftLeft' || code === 'ShiftRight') return 'Shift';
+    if (code === 'AltLeft' || code === 'AltRight') return 'Alt';
+    if (code === 'MetaLeft' || code === 'MetaRight') return 'Win';
+    if (code === 'Space') return 'Space';
+    if (code === 'Escape') return 'Esc';
+    if (code === 'ArrowUp') return 'Up';
+    if (code === 'ArrowDown') return 'Down';
+    if (code === 'ArrowLeft') return 'Left';
+    if (code === 'ArrowRight') return 'Right';
+    return e.key || code;
+}
+
+function parseAndDispatchAhkToVisualizer(entry) {
+    if (!entry) return;
+    const cat = (entry.category || '').toUpperCase();
+    const txt = entry.text || '';
+
+    // 1. Hardware mouse button clicks & native clicks
+    if (cat === 'BUTTON') {
+        const isDown = txt.includes('Down') || txt.includes('Press');
+        let btnId = '';
+        const match = txt.match(/▾\s*([a-zA-Z0-9_]+)|▴\s*([a-zA-Z0-9_]+)/);
+        if (match) {
+            btnId = match[1] || match[2] || '';
+        }
+        btnId = btnId.replace(/\s*\(Native\)/i, '').trim();
+
+        const mouseMap = {
+            'leftclick': { vkey: 'MouseLeft', name: 'Left Click' },
+            'rightclick': { vkey: 'MouseRight', name: 'Right Click' },
+            'middle': { vkey: 'MouseMiddle', name: 'Middle Click' },
+            'back': { vkey: 'MouseBack', name: 'Back' },
+            'forward': { vkey: 'MouseForward', name: 'Forward' },
+            'wheelup': { vkey: 'MouseWheelUp', name: 'Scroll Up' },
+            'wheeldown': { vkey: 'MouseWheelDown', name: 'Scroll Down' },
+            'tiltleft': { vkey: 'MouseMiddle', name: 'Tilt Left' },
+            'tiltright': { vkey: 'MouseMiddle', name: 'Tilt Right' }
+        };
+        const mapped = mouseMap[btnId.toLowerCase()];
+        if (mapped) {
+            updateVisualizerKey(mapped.vkey, isDown, mapped.name);
+            if ((btnId.toLowerCase() === 'wheelup' || btnId.toLowerCase() === 'wheeldown') && isDown) {
+                setTimeout(() => updateVisualizerKey(mapped.vkey, false, mapped.name), 140);
+            }
+        }
+        return;
+    }
+
+    // 2. Macro execution steps: {Key down} or {Key up}
+    if (cat === 'STEP') {
+        const match = txt.match(/\{([a-zA-Z0-9_]+)\s+(down|up)\}/i);
+        if (match) {
+            const rawKey = match[1];
+            const isDown = match[2].toLowerCase() === 'down';
+            const mapped = mapAhkKeyNameToVisualizer(rawKey);
+            if (mapped) {
+                updateVisualizerKey(mapped.vkey, isDown, mapped.name);
+            }
+        }
+        return;
+    }
+
+    // 3. Shift layer hold / release
+    if (cat === 'SHIFT') {
+        const isDown = txt.includes('Hold') || txt.includes('▾');
+        updateVisualizerKey('MouseBack', isDown, 'B-Shift');
+    }
+}
+
+function mapAhkKeyNameToVisualizer(key) {
+    if (!key) return null;
+    const k = key.toLowerCase();
+
+    // Mouse buttons inside macros
+    if (k === 'lbutton') return { vkey: 'MouseLeft', name: 'Left Click' };
+    if (k === 'rbutton') return { vkey: 'MouseRight', name: 'Right Click' };
+    if (k === 'mbutton') return { vkey: 'MouseMiddle', name: 'Middle Click' };
+    if (k === 'xbutton1') return { vkey: 'MouseBack', name: 'Back' };
+    if (k === 'xbutton2') return { vkey: 'MouseForward', name: 'Forward' };
+
+    // Modifiers
+    if (k === 'alt' || k === 'lalt') return { vkey: 'AltLeft', name: 'Alt' };
+    if (k === 'ralt') return { vkey: 'AltRight', name: 'Alt' };
+    if (k === 'ctrl' || k === 'lctrl' || k === 'control') return { vkey: 'ControlLeft', name: 'Ctrl' };
+    if (k === 'rctrl') return { vkey: 'ControlRight', name: 'Ctrl' };
+    if (k === 'shift' || k === 'lshift') return { vkey: 'ShiftLeft', name: 'Shift' };
+    if (k === 'rshift') return { vkey: 'ShiftRight', name: 'Shift' };
+    if (k === 'lwin' || k === 'win') return { vkey: 'MetaLeft', name: 'Win' };
+    if (k === 'rwin') return { vkey: 'MetaRight', name: 'Win' };
+
+    // Common keys
+    if (k === 'space') return { vkey: 'Space', name: 'Space' };
+    if (k === 'tab') return { vkey: 'Tab', name: 'Tab' };
+    if (k === 'enter') return { vkey: 'Enter', name: 'Enter' };
+    if (k === 'escape' || k === 'esc') return { vkey: 'Escape', name: 'Esc' };
+    if (k === 'backspace') return { vkey: 'Backspace', name: 'Backspace' };
+    if (k === 'capslock') return { vkey: 'CapsLock', name: 'Caps' };
+    if (k === 'delete' || k === 'del') return { vkey: 'Delete', name: 'Del' };
+    if (k === 'insert' || k === 'ins') return { vkey: 'Insert', name: 'Ins' };
+    if (k === 'home') return { vkey: 'Home', name: 'Home' };
+    if (k === 'end') return { vkey: 'End', name: 'End' };
+    if (k === 'pageup' || k === 'pgup') return { vkey: 'PageUp', name: 'PgUp' };
+    if (k === 'pagedown' || k === 'pgdn') return { vkey: 'PageDown', name: 'PgDn' };
+
+    // Letters
+    if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+        const u = key.toUpperCase();
+        return { vkey: 'Key' + u, name: u };
+    }
+
+    // Digits
+    if (key.length === 1 && /[0-9]/.test(key)) {
+        return { vkey: 'Digit' + key, name: key };
+    }
+
+    // F-Keys
+    if (/^f([1-9]|1[0-2])$/i.test(key)) {
+        const f = key.toUpperCase();
+        return { vkey: f, name: f };
+    }
+
+    return { vkey: key, name: key };
+}
+
+function addActivityLog(entry, skipVisualizer = false) {
+    if (!entry) return;
+    state.activityLogs.push(entry);
+    if (state.activityLogs.length > 300) {
+        state.activityLogs.shift();
+    }
+
+    // Pass event to visualizer if not already handled
+    if (!skipVisualizer) {
+        parseAndDispatchAhkToVisualizer(entry);
+    }
+
+    const badge = document.getElementById('logCountBadge');
+    if (badge) badge.textContent = `${state.activityLogs.length} events`;
+
+    const stream = document.getElementById('activityLogStream');
+    const modal = document.getElementById('activityLogModal');
+    if (modal && modal.style.display === 'flex' && stream) {
+        const emptyState = document.getElementById('logEmptyState');
+        if (emptyState) emptyState.remove();
+
+        const chkAuto = document.getElementById('chkLogAutoScroll');
+        // Smart auto-scroll check: only auto-scroll if user is currently near the bottom
+        const isNearBottom = (stream.scrollHeight - stream.scrollTop - stream.clientHeight) <= 50;
+
+        const row = createActivityLogRow(entry);
+        stream.appendChild(row);
+
+        while (stream.children.length > 300) {
+            stream.removeChild(stream.firstElementChild);
+        }
+
+        if ((!chkAuto || chkAuto.checked) && isNearBottom) {
+            stream.scrollTop = stream.scrollHeight;
+        }
+    }
+}
+
+function createActivityLogRow(entry) {
+    const row = document.createElement('div');
+    row.className = 'activity-log-row';
+
+    const catClass = (entry.category || 'system').toLowerCase();
+    row.innerHTML = `
+        <span class="col-time">${escapeHtml(entry.time || '')}</span>
+        <span class="col-cat"><span class="log-pill cat-${catClass}">${escapeHtml(entry.category || 'EVENT')}</span></span>
+        <span class="col-event" title="${escapeHtml(entry.text || '')}">${escapeHtml(entry.text || '')}</span>
+        <span class="col-details" title="${escapeHtml(entry.details || '')}">${escapeHtml(entry.details || '')}</span>
+    `;
+    return row;
+}
+
+function renderActivityLogs() {
+    const stream = document.getElementById('activityLogStream');
+    if (!stream) return;
+
+    stream.innerHTML = '';
+    if (state.activityLogs.length === 0) {
+        stream.innerHTML = `
+            <div class="log-empty-state" id="logEmptyState">
+                <svg class="svg-icon log-empty-icon"><use href="#icon-terminal"></use></svg>
+                <div class="log-empty-title">Waiting for button activity...</div>
+                <div class="log-empty-sub">Click any mouse button, press keys, or execute macros to see the real-time execution stream.</div>
+            </div>
+        `;
+        return;
+    }
+
+    state.activityLogs.forEach(entry => {
+        stream.appendChild(createActivityLogRow(entry));
+    });
+
+    const badge = document.getElementById('logCountBadge');
+    if (badge) badge.textContent = `${state.activityLogs.length} events`;
+
+    const chkAuto = document.getElementById('chkLogAutoScroll');
+    if (!chkAuto || chkAuto.checked) {
+        stream.scrollTop = stream.scrollHeight;
+    }
+}
+
+function clearActivityLogs() {
+    state.activityLogs = [];
+    renderActivityLogs();
+    showToast('Activity Log', 'Cleared all logged events');
+}
+
+function copyActivityLogs() {
+    if (state.activityLogs.length === 0) {
+        showToast('Activity Log', 'No events to copy');
+        return;
+    }
+    const text = state.activityLogs.map(e => `[${e.time}] [${e.category}] ${e.text} | ${e.details}`).join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied', `Copied ${state.activityLogs.length} log events to clipboard`);
+    }).catch(() => {
+        showToast('Clipboard Error', 'Failed to copy to clipboard');
+    });
+}
+
+
 
 
 

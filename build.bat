@@ -13,7 +13,6 @@ set "AHK_BASE=C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe"
 
 REM --- Close running instances so file is not locked ---
 taskkill /f /im MyMouseMyChoice.exe >nul 2>&1
-taskkill /f /im G502X_Studio.exe >nul 2>&1
 taskkill /f /im Ahk2Exe.exe >nul 2>&1
 ping 127.0.0.1 -n 2 >nul
 
@@ -40,8 +39,7 @@ if %ERRORLEVEL% NEQ 0 (
     pause
     exit /b %ERRORLEVEL%
 )
-copy /y "%~dp0MyMouseMyChoice.exe" "%~dp0G502X_Studio.exe" >nul
-echo       Standalone binary created: MyMouseMyChoice.exe (also synced G502X_Studio.exe)
+echo       Standalone binary created: MyMouseMyChoice.exe
 echo.
 
 REM --- Step 2: Build Windows Setup Installer ---
