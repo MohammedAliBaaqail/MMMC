@@ -36,6 +36,8 @@ InstallMouseHook()
 Persistent(true)
 ; Elevate Windows system timer resolution to 1ms for ultra-responsive macro execution
 DllCall("winmm\timeBeginPeriod", "uint", 1)
+; Ensure input thread and driver hooks take precedence even during 100% CPU game loads
+try ProcessSetPriority("High")
 A_MaxHotkeysPerInterval := 5000
 A_HotkeyInterval := 2000
 OnError(LogError)

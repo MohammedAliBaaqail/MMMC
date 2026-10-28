@@ -26,12 +26,18 @@ class WebViewGuiManager {
 
     static Show() {
         if (this.MainGui != "" && WinExist(this.MainGui.Hwnd)) {
+            if (this.wv != "") {
+                try this.wv.Resume()
+            }
             this.MainGui.Show()
+            if (this.wvc != "") {
+                try {
+                    this.wvc.IsVisible := true
+                    this.wvc.Fill()
+                }
+            }
             this.ApplyThemeToTitleBar(this.MainGui.Hwnd)
             this.SetWindowIcon(this.MainGui.Hwnd)
-            if (this.wvc != "") {
-                try this.wvc.Fill()
-            }
             return
         }
 
@@ -45,6 +51,13 @@ class WebViewGuiManager {
         if (this.MainGui != "" && WinExist(this.MainGui.Hwnd)) {
             this.SaveWindowGeometry()
             this.StopRecording()
+            ; Free 100% of CPU and GPU: hide controller and suspend WebView2
+            if (this.wvc != "") {
+                try this.wvc.IsVisible := false
+            }
+            if (this.wv != "") {
+                try this.wv.TrySuspendAsync()
+            }
             this.MainGui.Hide()
         }
     }
@@ -54,12 +67,7 @@ class WebViewGuiManager {
             if (DllCall("IsWindowVisible", "Ptr", this.MainGui.Hwnd)) {
                 this.OnWindowCloseOrHide()
             } else {
-                this.MainGui.Show()
-                this.ApplyThemeToTitleBar(this.MainGui.Hwnd)
-                this.SetWindowIcon(this.MainGui.Hwnd)
-                if (this.wvc != "") {
-                    try this.wvc.Fill()
-                }
+                this.Show()
             }
         } else {
             this.Show()
@@ -69,6 +77,13 @@ class WebViewGuiManager {
     static OnWindowCloseOrHide() {
         this.SaveWindowGeometry()
         this.StopRecording()
+        ; Free 100% of CPU and GPU: hide controller and suspend WebView2
+        if (this.wvc != "") {
+            try this.wvc.IsVisible := false
+        }
+        if (this.wv != "") {
+            try this.wv.TrySuspendAsync()
+        }
         if (this.MainGui && WinExist(this.MainGui.Hwnd)) {
             this.MainGui.Hide()
         }
@@ -80,12 +95,17 @@ class WebViewGuiManager {
         this.IsInitializing := true
         this.HasAttemptedFallback := false
 
-        ; Read AlwaysOnTop setting
+        ; Read AlwaysOnTop and ReactWhenUnfocused settings
         iniPath := A_ScriptDir . "\settings.ini"
         try {
             this.IsAlwaysOnTop := (IniRead(iniPath, "General", "AlwaysOnTop", "0") = "1")
         } catch {
             this.IsAlwaysOnTop := false
+        }
+        try {
+            this.ReactWhenUnfocused := (IniRead(iniPath, "Settings", "ReactWhenUnfocused", "0") = "1")
+        } catch {
+            this.ReactWhenUnfocused := false
         }
 
         ; Hook ProfileEngine callbacks
@@ -106,6 +126,8 @@ class WebViewGuiManager {
 
         ; Register OS-level minimum window tracking limit (WM_GETMINMAXINFO)
         OnMessage(0x0024, (wParam, lParam, msg, hwnd) => WebViewGuiManager.OnGetMinMaxInfo(lParam, hwnd))
+        ; Register window activation / focus change listener (WM_ACTIVATE) for smart gaming power throttling
+        OnMessage(0x0006, (wParam, lParam, msg, hwnd) => WebViewGuiManager.OnActivate(wParam, lParam, hwnd))
 
         ; Set custom app icon (16x16 caption, 32x32 taskbar)
         this.SetWindowIcon(g.Hwnd)
@@ -323,10 +345,24 @@ class WebViewGuiManager {
     static _saveGeometryTimer := () => WebViewGuiManager.SaveWindowGeometry()
 
     static OnSize(minMax, w, h) {
-        if (minMax = -1) ; Minimized
+        if (minMax = -1) { ; Minimized
+            ; Free 100% of CPU and GPU: hide controller and suspend WebView2 rendering
+            if (this.wvc != "") {
+                try this.wvc.IsVisible := false
+            }
+            if (this.wv != "") {
+                try this.wv.TrySuspendAsync()
+            }
             return
+        }
+
+        ; Restored or Maximized: resume and restore visibility
+        if (this.wv != "") {
+            try this.wv.Resume()
+        }
         if (this.wvc != "") {
             try {
+                this.wvc.IsVisible := true
                 RECT := Buffer(16, 0)
                 NumPut("int", 0, RECT, 0)
                 NumPut("int", 0, RECT, 4)
@@ -343,6 +379,25 @@ class WebViewGuiManager {
         } else if (minMax = 0) {
             ; Normal / Restored
             SetTimer(this._saveGeometryTimer, -500)
+        }
+    }
+
+    static OnActivate(wParam, lParam, hwnd) {
+        if (!this.MainGui || hwnd != this.MainGui.Hwnd)
+            return
+        wa := wParam & 0xFFFF
+        if (wa == 0) {
+            ; Window became INACTIVE (user clicked outside or switched to game)
+            this.IsFocused := false
+        } else {
+            ; Window became ACTIVE
+            this.IsFocused := true
+            if (this.wv != "") {
+                try this.wv.Resume()
+            }
+            if (this.wvc != "") {
+                try this.wvc.IsVisible := true
+            }
         }
     }
 
@@ -524,6 +579,10 @@ class WebViewGuiManager {
                 if (OSD.Enabled) {
                     OSD.Show("Test in Focus: " . (ProfileEngine.MuteWhenStudioFocused ? "ACTIVE" : "OFF"), ProfileEngine.MuteWhenStudioFocused ? "Buttons highlight without executing actions" : "Normal button actions active")
                 }
+
+            case "toggleReactWhenUnfocused":
+                enabled := req.Has("enabled") ? req["enabled"] : !this.ReactWhenUnfocused
+                this.SetReactWhenUnfocused(enabled)
 
             case "toggleInterceptionDriver":
                 enabled := req.Has("enabled") ? req["enabled"] : !InterceptionDriver.Enabled
@@ -991,6 +1050,7 @@ class WebViewGuiManager {
                 "alwaysOnTop", this.IsAlwaysOnTop ? true : false,
                 "showOSD", OSD.Enabled ? true : false,
                 "muteWhenFocused", ProfileEngine.MuteWhenStudioFocused ? true : false,
+                "reactWhenUnfocused", this.ReactWhenUnfocused ? true : false,
                 "gameKeyDelay", ProfileEngine.GameKeyDelay,
                 "focusOnHoverMode", FocusFollowsMouse.Mode,
                 "focusOnHoverDelay", FocusFollowsMouse.Delay,
@@ -2297,13 +2357,49 @@ class WebViewGuiManager {
     ; =========================================================================
     ; OUTBOUND IPC TO WEBVIEW2
     ; =========================================================================
+    static IsFocused := false
+
+    static ReactWhenUnfocused := false
+
+    static SetReactWhenUnfocused(enabled) {
+        this.ReactWhenUnfocused := !!enabled
+        cfg := (HasProp(ProfileEngine, "ConfigPath") && ProfileEngine.ConfigPath != "") ? ProfileEngine.ConfigPath : (A_ScriptDir . "\settings.ini")
+        try IniWrite(this.ReactWhenUnfocused ? "1" : "0", cfg, "Settings", "ReactWhenUnfocused")
+        this.PostMessage(Map("type", "reactWhenUnfocusedChanged", "enabled", this.ReactWhenUnfocused ? true : false))
+        if (OSD.Enabled) {
+            OSD.Show("React When Unfocused: " . (this.ReactWhenUnfocused ? "ENABLED" : "OFF"), this.ReactWhenUnfocused ? "UI flashes on clicks while open in background" : "Power saving active (0% background CPU)")
+        }
+    }
+
+    static ShouldDispatchVisuals() {
+        ; 1. If Studio has active focus, always dispatch visuals
+        if (this.IsStudioFocused())
+            return true
+
+        ; 2. If Studio is hidden or minimized to clock / taskbar, NEVER dispatch visuals
+        if (!this.IsStudioVisible())
+            return false
+
+        ; 3. When open on screen but unfocused: only dispatch if user enabled ReactWhenUnfocused
+        return this.ReactWhenUnfocused ? true : false
+    }
+
     static IsStudioVisible() {
-        return (this.MainGui != "" && WinExist(this.MainGui.Hwnd) && DllCall("IsWindowVisible", "ptr", this.MainGui.Hwnd))
+        if (!this.MainGui || !WinExist(this.MainGui.Hwnd))
+            return false
+        if (DllCall("IsIconic", "ptr", this.MainGui.Hwnd))
+            return false
+        return DllCall("IsWindowVisible", "ptr", this.MainGui.Hwnd) ? true : false
     }
 
     static PostMessage(obj) {
         try {
-            ; Guard: drop high-frequency UI updates if Studio window is hidden or minimized
+            ; Guard: drop high-frequency live rendering/logging events if visuals shouldn't be dispatched
+            if (!this.ShouldDispatchVisuals() && obj.Has("type")) {
+                t := obj["type"]
+                if (t == "activityLog" || t == "buttonStateChanged" || t == "shiftStateChanged" || t == "liveKeyPreview" || t == "singleKeyRecorded" || t == "macroStepRecorded")
+                    return
+            }
             if (!this.IsStudioVisible() && obj.Has("type")) {
                 t := obj["type"]
                 if (t == "activityLog" || t == "buttonStateChanged" || t == "shiftStateChanged")
@@ -2343,7 +2439,8 @@ class WebViewGuiManager {
     }
 
     static OnButtonStateChangedHandler(btnId, isDown) {
-        if (!this.IsStudioVisible())
+        ; High-frequency event: only dispatch when visually active or allowed by user setting!
+        if (!this.ShouldDispatchVisuals())
             return
         this.PostMessage(Map(
             "type", "buttonStateChanged",
@@ -2353,7 +2450,8 @@ class WebViewGuiManager {
     }
 
     static OnShiftStateChangedHandler(isActive, shiftName) {
-        if (!this.IsStudioVisible())
+        ; High-frequency event: only dispatch when visually active or allowed by user setting!
+        if (!this.ShouldDispatchVisuals())
             return
         this.PostMessage(Map(
             "type", "shiftStateChanged",
@@ -2363,7 +2461,8 @@ class WebViewGuiManager {
     }
 
     static LogActivity(category, eventText, details := "") {
-        if (!this.IsStudioVisible())
+        ; High-frequency event: only dispatch when visually active or allowed by user setting!
+        if (!this.ShouldDispatchVisuals())
             return
         timeStr := FormatTime(, "HH:mm:ss") . "." . SubStr(A_MSec, 1, 3)
         this.PostMessage(Map(

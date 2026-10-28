@@ -74,6 +74,7 @@ const state = {
     interceptionDriverAvailable: false,
     isAdmin: false,
     runAtStartup: false,
+    reactWhenUnfocused: false,
 
     // Pointer & Card Calibration Mode State
     isCalibrating: false,
@@ -669,6 +670,11 @@ function handleEngineMessage(msg) {
                 const chkStartup = document.getElementById('chkSettingsStartup');
                 if (chkStartup) chkStartup.checked = state.runAtStartup;
             }
+            if (msg.reactWhenUnfocused !== undefined) {
+                state.reactWhenUnfocused = !!msg.reactWhenUnfocused;
+                const chkReact = document.getElementById('chkSettingsReactUnfocused');
+                if (chkReact) chkReact.checked = state.reactWhenUnfocused;
+            }
             updateGameKeyDelayUI();
             updateHoverFocusUI();
             updateInterceptionDriverUI();
@@ -697,6 +703,12 @@ function handleEngineMessage(msg) {
             state.runAtStartup = !!msg.enabled;
             const chkStartup = document.getElementById('chkSettingsStartup');
             if (chkStartup) chkStartup.checked = state.runAtStartup;
+            break;
+
+        case 'reactWhenUnfocusedChanged':
+            state.reactWhenUnfocused = !!msg.enabled;
+            const chkReact = document.getElementById('chkSettingsReactUnfocused');
+            if (chkReact) chkReact.checked = state.reactWhenUnfocused;
             break;
 
         case 'requireAdminRestart':
@@ -2538,6 +2550,7 @@ function syncCardMinWidthWithRightClick() {
 // Flash hardware feedback when a physical mouse button is clicked
 function flashButtonHardware(btnId, isDown) {
     if (state.isCalibrating) return;
+    if (document.hidden && !state.reactWhenUnfocused) return;
     const card = document.getElementById(`card_${btnId}`);
     const hotspot = document.querySelector(`.svg-hotspot-circle[data-btn="${btnId}"]`);
     const line = document.querySelector(`.svg-leader-line[data-btn="${btnId}"]`);
@@ -2552,12 +2565,6 @@ function flashButtonHardware(btnId, isDown) {
         if (isDown) el.classList.add('flash-pressed');
         else el.classList.remove('flash-pressed');
     });
-
-    if (isDown) {
-        if (state.currentLayer !== 'Normal' || (btnId !== 'LeftClick' && btnId !== 'RightClick' && btnId !== 'WheelUp' && btnId !== 'WheelDown')) {
-            selectButton(btnId);
-        }
-    }
 }
 
 // ============================================================================
@@ -9175,6 +9182,8 @@ function openStudioSettingsModal() {
     if (chkTop) chkTop.checked = !!state.isAlwaysOnTop;
     const chkStartup = document.getElementById('chkSettingsStartup');
     if (chkStartup) chkStartup.checked = !!state.runAtStartup;
+    const chkReact = document.getElementById('chkSettingsReactUnfocused');
+    if (chkReact) chkReact.checked = !!state.reactWhenUnfocused;
 
     updateGameKeyDelayUI();
     updateHoverFocusUI();
@@ -9284,6 +9293,14 @@ function initStudioSettingsModal() {
         chkSettingsStartup.addEventListener('change', (e) => {
             state.runAtStartup = e.target.checked;
             sendToAhk({ action: 'toggleRunAtStartup', enabled: state.runAtStartup });
+        });
+    }
+
+    const chkSettingsReactUnfocused = document.getElementById('chkSettingsReactUnfocused');
+    if (chkSettingsReactUnfocused) {
+        chkSettingsReactUnfocused.addEventListener('change', (e) => {
+            state.reactWhenUnfocused = e.target.checked;
+            sendToAhk({ action: 'toggleReactWhenUnfocused', enabled: state.reactWhenUnfocused });
         });
     }
 
@@ -9844,7 +9861,7 @@ function getReadableDomKeyName(e) {
 }
 
 function parseAndDispatchAhkToVisualizer(entry) {
-    if (!entry) return;
+    if (!entry || !isActivityLogModalVisible()) return;
     const cat = (entry.category || '').toUpperCase();
     const txt = entry.text || '';
 
@@ -9957,13 +9974,16 @@ function mapAhkKeyNameToVisualizer(key) {
 
 function addActivityLog(entry, skipVisualizer = false) {
     if (!entry) return;
+    if (document.hidden && !state.reactWhenUnfocused) return;
     state.activityLogs.push(entry);
-    if (state.activityLogs.length > 300) {
+    if (state.activityLogs.length > 150) {
         state.activityLogs.shift();
     }
 
-    // Pass event to visualizer if not already handled
-    if (!skipVisualizer) {
+    const modal = document.getElementById('activityLogModal');
+    const isModalOpen = modal && modal.style.display === 'flex';
+
+    if (!skipVisualizer && isModalOpen) {
         parseAndDispatchAhkToVisualizer(entry);
     }
 
@@ -9971,19 +9991,17 @@ function addActivityLog(entry, skipVisualizer = false) {
     if (badge) badge.textContent = `${state.activityLogs.length} events`;
 
     const stream = document.getElementById('activityLogStream');
-    const modal = document.getElementById('activityLogModal');
-    if (modal && modal.style.display === 'flex' && stream) {
+    if (isModalOpen && stream) {
         const emptyState = document.getElementById('logEmptyState');
         if (emptyState) emptyState.remove();
 
         const chkAuto = document.getElementById('chkLogAutoScroll');
-        // Smart auto-scroll check: only auto-scroll if user is currently near the bottom
         const isNearBottom = (stream.scrollHeight - stream.scrollTop - stream.clientHeight) <= 50;
 
         const row = createActivityLogRow(entry);
         stream.appendChild(row);
 
-        while (stream.children.length > 300) {
+        while (stream.children.length > 150) {
             stream.removeChild(stream.firstElementChild);
         }
 

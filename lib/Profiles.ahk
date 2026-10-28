@@ -11,6 +11,8 @@ class ProfileEngine {
     static AutoSwitchEnabled := true
     static LockedProfile := ""
     static LastActiveProcess := ""
+    static LastActiveHwnd := 0
+    static HasAnyHoverProfile := false
     static AutoSwitchTimerFn := ""
     static IsMasterSuspended := false
     static OnMasterSuspensionChanged := ""
@@ -250,6 +252,18 @@ class ProfileEngine {
                 }
             }
         }
+        this.UpdateHoverProfileCache()
+    }
+
+    static UpdateHoverProfileCache() {
+        hasHover := false
+        for _, meta in this.ProfileMetadata {
+            if (meta.HasOwnProp("SwitchOnHover") && (meta.SwitchOnHover = 1 || meta.SwitchOnHover = true || meta.SwitchOnHover = "1" || meta.SwitchOnHover = "true")) {
+                hasHover := true
+                break
+            }
+        }
+        this.HasAnyHoverProfile := hasHover
     }
 
     static CleanLabel(str) {
@@ -464,6 +478,8 @@ class ProfileEngine {
                 fn := this.OnProfileChanged
                 if (fn)
                     fn(p)
+                if (HasProp(FocusFollowsMouse, "UpdateTimerState"))
+                    FocusFollowsMouse.UpdateTimerState()
                 return
             }
         }
@@ -759,7 +775,7 @@ class ProfileEngine {
         if (!this.AutoSwitchTimerFn) {
             this.AutoSwitchTimerFn := () => ProfileEngine.PeriodicMaintenance()
         }
-        SetTimer(this.AutoSwitchTimerFn, 100)
+        SetTimer(this.AutoSwitchTimerFn, 150)
     }
 
     static StopAutoSwitchTimer() {
@@ -807,32 +823,35 @@ class ProfileEngine {
             guiHwnd := (HasProp(WebViewGuiManager, "MainGui") && WebViewGuiManager.MainGui != "") ? WebViewGuiManager.MainGui.Hwnd : 0
 
             ; 1. First check if mouse is hovering over an app window whose profile has SwitchOnHover enabled
-            try {
-                MouseGetPos(&mX, &mY, &mHwnd)
-                if (mHwnd) {
-                    if (!guiHwnd || (mHwnd != guiHwnd && !DllCall("IsChild", "ptr", guiHwnd, "ptr", mHwnd))) {
-                        hoverProc := WinGetProcessName(mHwnd)
-                        if (hoverProc != "" && hoverProc != "AutoHotkey64.exe" && hoverProc != "msedgewebview2.exe") {
-                            hoverProf := this.FindProfileForProcess(hoverProc, true)
-                            if (hoverProf != "") {
-                                matchedProfile := hoverProf
-                                triggerProc := hoverProc . " (hover)"
-                            } else {
-                                ; If default profile has SwitchOnHover enabled, check if hovering over desktop or unassigned app
-                                defProf := "Desktop"
-                                for pName, pMeta in this.ProfileMetadata {
-                                    if (pMeta.HasOwnProp("IsDefault") && pMeta.IsDefault) {
-                                        defProf := pName
-                                        break
+            ; PERFORMANCE OPTIMIZATION: Only poll mouse position and hover windows if at least one profile actually has SwitchOnHover enabled!
+            if (this.HasAnyHoverProfile) {
+                try {
+                    MouseGetPos(&mX, &mY, &mHwnd)
+                    if (mHwnd) {
+                        if (!guiHwnd || (mHwnd != guiHwnd && !DllCall("IsChild", "ptr", guiHwnd, "ptr", mHwnd))) {
+                            hoverProc := WinGetProcessName(mHwnd)
+                            if (hoverProc != "" && hoverProc != "AutoHotkey64.exe" && hoverProc != "msedgewebview2.exe") {
+                                hoverProf := this.FindProfileForProcess(hoverProc, true)
+                                if (hoverProf != "") {
+                                    matchedProfile := hoverProf
+                                    triggerProc := hoverProc . " (hover)"
+                                } else {
+                                    ; If default profile has SwitchOnHover enabled, check if hovering over desktop or unassigned app
+                                    defProf := "Desktop"
+                                    for pName, pMeta in this.ProfileMetadata {
+                                        if (pMeta.HasOwnProp("IsDefault") && pMeta.IsDefault) {
+                                            defProf := pName
+                                            break
+                                        }
                                     }
-                                }
-                                if (this.ProfileMetadata.Has(defProf)) {
-                                    defMeta := this.ProfileMetadata[defProf]
-                                    if (defMeta.HasOwnProp("SwitchOnHover") && defMeta.SwitchOnHover) {
-                                        otherProf := this.FindProfileForProcess(hoverProc, false)
-                                        if (otherProf == "") {
-                                            matchedProfile := defProf
-                                            triggerProc := hoverProc . " (default hover)"
+                                    if (this.ProfileMetadata.Has(defProf)) {
+                                        defMeta := this.ProfileMetadata[defProf]
+                                        if (defMeta.HasOwnProp("SwitchOnHover") && defMeta.SwitchOnHover) {
+                                            otherProf := this.FindProfileForProcess(hoverProc, false)
+                                            if (otherProf == "") {
+                                                matchedProfile := defProf
+                                                triggerProc := hoverProc . " (default hover)"
+                                            }
                                         }
                                     }
                                 }
@@ -848,6 +867,10 @@ class ProfileEngine {
                 if (!activeHwnd)
                     return
                     
+                ; Fast-path: If focused window hasn't changed, skip heavy process query & regex matching
+                if (!this.HasAnyHoverProfile && activeHwnd == this.LastActiveHwnd)
+                    return
+
                 if (guiHwnd && (activeHwnd == guiHwnd || DllCall("IsChild", "ptr", guiHwnd, "ptr", activeHwnd)))
                     return
                     
@@ -866,6 +889,7 @@ class ProfileEngine {
                 if (activeProc = "explorer.exe" && winClass != "Progman" && winClass != "WorkerW" && winClass != "CabinetWClass")
                     return
 
+                this.LastActiveHwnd := activeHwnd
                 matchedProfile := this.FindProfileForProcess(activeProc, false)
                 triggerProc := activeProc . " (focus)"
             }
@@ -946,6 +970,7 @@ class ProfileEngine {
         
         this.SaveProfileConfig()
         this.EnsureProfileIcon(name, targetExe)
+        this.UpdateHoverProfileCache()
         if (this.OnProfilesListChanged) {
             try this.OnProfilesListChanged()
         }
@@ -981,6 +1006,7 @@ class ProfileEngine {
         }
 
         this.SaveProfileConfig()
+        this.UpdateHoverProfileCache()
         if (this.OnProfilesListChanged) {
             try this.OnProfilesListChanged()
         }
@@ -1099,6 +1125,7 @@ class ProfileEngine {
         
         this.SaveProfileConfig()
         this.EnsureProfileIcon(name, targetExe)
+        this.UpdateHoverProfileCache()
         if (this.OnProfilesListChanged) {
             try this.OnProfilesListChanged()
         }
@@ -2709,15 +2736,17 @@ class ProfileEngine {
         ; If this is a pass-through click or scroll on normal layer, log it for complete visibility
         if (btnName = "LeftClick" || btnName = "RightClick" || btnName = "WheelUp" || btnName = "WheelDown") {
             if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active) {
-                if (!WebViewGuiManager.IsStudioFocused()) {
+                if (WebViewGuiManager.ShouldDispatchVisuals()) {
                     WebViewGuiManager.LogActivity("BUTTON", (isPressed ? "Press (Down) ▾ " : "Release (Up) ▴ ") . btnName . " (Native)", "Layer: Normal | Profile: " . this.CurrentProfile)
                 }
             }
         }
 
-        fn := this.OnButtonStateChanged
-        if (fn) {
-            fn(btnName, isPressed)
+        if (WebViewGuiManager.ShouldDispatchVisuals()) {
+            fn := this.OnButtonStateChanged
+            if (fn) {
+                fn(btnName, isPressed)
+            }
         }
     }
 

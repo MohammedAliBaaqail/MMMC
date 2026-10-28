@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    MY MOUSE MY CHOICE — ADVANCED STUDIO STYLESHEET
    Aesthetics: Deep Obsidian / Cyber Slate / Electric Cyan & Amber Accents
    ========================================================================== */
@@ -7495,6 +7495,19 @@ body.calibrating-mode .btn-card.calib-selected::after {
 }
 .settings-pill-toggle:has(#chkSettingsMute:checked) .svg-icon {
     color: #fbbf24;
+}
+
+.settings-pill-toggle:has(#chkSettingsReactUnfocused:checked) {
+    background: rgba(168, 85, 247, 0.12);
+    border-color: rgba(168, 85, 247, 0.4);
+    color: #fff;
+}
+.settings-pill-toggle #chkSettingsReactUnfocused:checked + .pill-dot {
+    background: #a855f7;
+    box-shadow: 0 0 8px #a855f7;
+}
+.settings-pill-toggle:has(#chkSettingsReactUnfocused:checked) .svg-icon {
+    color: #a855f7;
 }
 
 /* Game Key Delay Badge & Settings Tile */

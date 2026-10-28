@@ -36,8 +36,23 @@ class FocusFollowsMouse {
         if (this.Mode == "off") {
             SetTimer(this.TimerFn, 0)
             this.Reset()
+        } else if (this.Mode == "profile") {
+            ; Smart Gaming / Battery Check: Only poll if active profile actually has FocusOnHover enabled!
+            prof := (HasProp(ProfileEngine, "CurrentProfile") && ProfileEngine.CurrentProfile != "") ? ProfileEngine.CurrentProfile : "Desktop"
+            hasHover := false
+            if (HasProp(ProfileEngine, "ProfileMetadata") && ProfileEngine.ProfileMetadata.Has(prof)) {
+                meta := ProfileEngine.ProfileMetadata[prof]
+                if (meta.HasOwnProp("FocusOnHover") && (meta.FocusOnHover = 1 || meta.FocusOnHover = true || meta.FocusOnHover = "1" || meta.FocusOnHover = "true"))
+                    hasHover := true
+            }
+            if (hasHover) {
+                SetTimer(this.TimerFn, 50)
+            } else {
+                SetTimer(this.TimerFn, 0)
+                this.Reset()
+            }
         } else {
-            ; 50ms tick ensures responsive hover detection without high CPU usage
+            ; "all" mode
             SetTimer(this.TimerFn, 50)
         }
     }
