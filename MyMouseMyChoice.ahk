@@ -1,5 +1,28 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
+
+; Ensure settings.ini exists
+ConfigFile := A_ScriptDir . "\settings.ini"
+if (!FileExist(ConfigFile) && FileExist(A_ScriptDir . "\settings.default.ini")) {
+    try FileCopy(A_ScriptDir . "\settings.default.ini", ConfigFile)
+}
+
+; Check if Kernel Driver mode is enabled in settings
+useInterception := (IniRead(ConfigFile, "General", "UseInterceptionDriver", "0") = "1")
+
+; Only auto-elevate to Administrator when Kernel Driver mode is active!
+if (useInterception && !A_IsAdmin) {
+    try {
+        argsStr := ""
+        for arg in A_Args
+            argsStr .= " " . arg
+        if (A_IsCompiled)
+            Run('*RunAs "' . A_ScriptFullPath . '" /restart' . argsStr)
+        else
+            Run('*RunAs "' . A_AhkPath . '" /restart "' . A_ScriptFullPath . '"' . argsStr)
+        ExitApp()
+    }
+}
 #MaxThreadsPerHotkey 10
 #UseHook true
 KeyHistory 0
@@ -24,6 +47,7 @@ OnScriptExit(ExitReason, ExitCode) {
     try DllCall("winmm\timeEndPeriod", "uint", 1)
     try WebViewGuiManager.SaveWindowGeometry()
     try WebViewGuiManager.Cleanup()
+    try InterceptionDriver.Cleanup()
     try GdipHelper.Shutdown()
     FileAppend(FormatTime(, "yyyy-MM-dd HH:mm:ss") . " | SCRIPT EXIT: Reason=" . ExitReason . ", Code=" . ExitCode . "`n", A_ScriptDir . "\webview_debug.log")
 }
@@ -53,6 +77,8 @@ OnScriptExit(ExitReason, ExitCode) {
 #Include "lib/GuiManager.ahk"
 #Include "lib/WebViewGuiManager.ahk"
 #Include "lib/QuickRemap.ahk"
+#Include "lib/InterceptionDriver.ahk"
+#Include "lib/StartupManager.ahk"
 
 ; --- Application Initialization ---
 A_IconTip := "My Mouse My Choice"
@@ -60,14 +86,11 @@ iconFile := A_ScriptDir . "\assets\app.ico"
 if FileExist(iconFile) {
     try TraySetIcon(iconFile)
 }
-ConfigFile := A_ScriptDir . "\settings.ini"
-if (!FileExist(ConfigFile) && FileExist(A_ScriptDir . "\settings.default.ini")) {
-    try FileCopy(A_ScriptDir . "\settings.default.ini", ConfigFile)
-}
 
 ; Initialize profile mappings from settings
 ProfileEngine.Init(ConfigFile)
 FocusFollowsMouse.Init(ConfigFile)
+InterceptionDriver.Init(ConfigFile)
 
 ; Load configuration if available
 InitialProfile := IniRead(ConfigFile, "General", "DefaultProfile", "Desktop")
@@ -82,9 +105,22 @@ ProfileEngine.OnProfilesListChanged := (*) => SetupTrayMenu()
 ProfileEngine.OnMasterSuspensionChanged := (*) => SetupTrayMenu()
 SetupTrayMenu()
 
-; Display welcome OSD and Launch Modern Studio GUI
-OSD.Show("My Mouse My Choice Active", "Profile: " . ProfileEngine.CurrentProfile . " (Ready)")
-WebViewGuiManager.Show()
+; Check if launched with /minimized or /startup argument
+isMinimized := false
+for arg in A_Args {
+    if (arg = "/minimized" || arg = "/startup" || arg = "-minimized" || arg = "-startup") {
+        isMinimized := true
+        break
+    }
+}
+
+if (!isMinimized) {
+    OSD.Show("My Mouse My Choice Active", "Profile: " . ProfileEngine.CurrentProfile . " (Ready)")
+    WebViewGuiManager.Show()
+} else {
+    if (OSD.Enabled)
+        OSD.Show("My Mouse My Choice", "Started in tray (Profile: " . ProfileEngine.CurrentProfile . ")")
+}
 
 ; Global Shortcut: Ctrl + Shift + F1 for Live Quick Remap on the fly
 *^+F1::
@@ -121,6 +157,10 @@ SetupTrayMenu() {
     if (ProfileEngine.AutoSwitchEnabled) {
         Tray.Check("Auto-Switch App Profiles")
     }
+    Tray.Add("Run at Windows Startup", (*) => ToggleStartupFromTray())
+    if (StartupManager.IsEnabled()) {
+        Tray.Check("Run at Windows Startup")
+    }
     
     Tray.Add() ; Separator
     
@@ -154,6 +194,18 @@ ToggleAutoSwitch() {
     try WebViewGuiManager.PostMessage(Map("type", "autoSwitchChanged", "enabled", ProfileEngine.AutoSwitchEnabled ? true : false))
     SetupTrayMenu()
     OSD.Show("Auto-Switch: " . (ProfileEngine.AutoSwitchEnabled ? "Enabled" : "Disabled"), "Window focus tracking")
+}
+
+ToggleStartupFromTray() {
+    newVal := !StartupManager.IsEnabled()
+    StartupManager.SetEnabled(newVal, ConfigFile)
+    SetupTrayMenu()
+    if (OSD.Enabled)
+        OSD.Show("Windows Startup", newVal ? "Enabled (Runs at Login)" : "Disabled")
+    try WebViewGuiManager.PostMessage(Map(
+        "type", "runAtStartupChanged",
+        "enabled", newVal ? true : false
+    ))
 }
 
 OnSelectProfileFromTray(ItemName, ItemPos, MyMenu) {

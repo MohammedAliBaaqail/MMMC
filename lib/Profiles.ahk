@@ -504,6 +504,11 @@ class ProfileEngine {
         this.ActiveSequences.Clear()
 
         for btnId, releaseCmd in this.ActiveHeldButtons {
+            if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                if (InterceptionDriver.SendChordUp(releaseCmd))
+                    continue
+            }
+
             if (!InStr(releaseCmd, "{"))
                 releaseCmd := "{" . releaseCmd . " up}"
             try Send("{Blind}" . releaseCmd)
@@ -538,6 +543,11 @@ class ProfileEngine {
         this.ActiveSequences.Clear()
 
         for btnId, releaseCmd in this.ActiveHeldButtons {
+            if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                if (InterceptionDriver.SendChordUp(releaseCmd))
+                    continue
+            }
+
             if (!InStr(releaseCmd, "{"))
                 releaseCmd := "{" . releaseCmd . " up}"
             try Send("{Blind}" . releaseCmd)
@@ -710,6 +720,11 @@ class ProfileEngine {
             if (this.ActiveHeldButtons.Has(btnId)) {
                 releaseCmd := this.ActiveHeldButtons[btnId]
                 this.ActiveHeldButtons.Delete(btnId)
+                if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                    if (InterceptionDriver.SendChordUp(releaseCmd))
+                        continue
+                }
+
                 if (!InStr(releaseCmd, "{"))
                     releaseCmd := "{" . releaseCmd . " up}"
                 try Send("{Blind}" . releaseCmd)
@@ -2060,11 +2075,15 @@ class ProfileEngine {
             if (holdKey != "") {
                 this.ActiveHeldButtons[btnId] := "{" . holdKey . " up}"
                 this.ActiveHeldPressTimes[btnId] := A_TickCount
+                if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                    if (InterceptionDriver.SendKeyOrButtonDown(holdKey))
+                        return
+                }
                 Send("{Blind}{" . holdKey . " down}")
                 return
             }
             ; Modifier + Key/Mouse button hold support (e.g. ^{LButton}, +{w}, !{Space}, ^{c}, etc.)
-            if (RegExMatch(act.Cmd, "i)^([!^#]+)\{?([A-Za-z0-9_]+)\}?$", &modKeyMatch)) {
+            if (RegExMatch(act.Cmd, "i)^([!^#+]+)\{?([A-Za-z0-9_]+)\}?$", &modKeyMatch)) {
                 mods := modKeyMatch[1]
                 k := modKeyMatch[2]
                 if (k != "WheelUp" && k != "WheelDown" && k != "WheelLeft" && k != "WheelRight"
@@ -2083,6 +2102,10 @@ class ProfileEngine {
                         relCmd .= "{LWin up}"
                     this.ActiveHeldButtons[btnId] := relCmd
                     this.ActiveHeldPressTimes[btnId] := A_TickCount
+                    if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                        if (InterceptionDriver.SendChordDown(mods . "{" . k . " down}"))
+                            return
+                    }
                     Send("{Blind}" . mods . "{" . k . " down}")
                     return
                 }
@@ -2105,12 +2128,26 @@ class ProfileEngine {
                 }
                 if (downCmd != "") {
                     modPrefix := ""
-                    if (RegExMatch(act.Cmd, "i)\{Blind\}([!^#]+)", &modMatch))
+                    if (RegExMatch(act.Cmd, "i)\{Blind\}([!^#+]+)", &modMatch))
                         modPrefix := modMatch[1]
-                    else if (RegExMatch(act.Cmd, "^([!^#]+)", &modMatch))
+                    else if (RegExMatch(act.Cmd, "^([!^#+]+)", &modMatch))
                         modPrefix := modMatch[1]
+                    if (modPrefix != "") {
+                        if (InStr(modPrefix, "^"))
+                            upCmd .= "{Ctrl up}"
+                        if (InStr(modPrefix, "!"))
+                            upCmd .= "{Alt up}"
+                        if (InStr(modPrefix, "+"))
+                            upCmd .= "{Shift up}"
+                        if (InStr(modPrefix, "#"))
+                            upCmd .= "{LWin up}"
+                    }
                     this.ActiveHeldButtons[btnId] := upCmd
                     this.ActiveHeldPressTimes[btnId] := A_TickCount
+                    if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                        if (InterceptionDriver.SendChordDown(modPrefix . downCmd))
+                            return
+                    }
                     Send("{Blind}" . modPrefix . downCmd)
                     return
                 }
@@ -2132,6 +2169,11 @@ class ProfileEngine {
                 if (this.GameKeyDelay > 0 && elapsed < this.GameKeyDelay) {
                     Sleep(this.GameKeyDelay - elapsed)
                 }
+            }
+
+            if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                if (InterceptionDriver.SendChordUp(releaseCmd))
+                    return
             }
 
             if (!InStr(releaseCmd, "{"))
@@ -2163,6 +2205,10 @@ class ProfileEngine {
             return
         }
         if ((act.Type = "Send" || act.Type = "Default") && act.Cmd != "") {
+            if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                if (InterceptionDriver.SendSequence(act.Cmd, Max(25, this.GameKeyDelay)))
+                    return
+            }
             if (act.Cmd = "{DoubleClick}" || act.Cmd = "{LButton 2}") {
                 Click(2)
             } else if (act.Cmd = "{TripleClick}" || act.Cmd = "{LButton 3}") {
@@ -2210,11 +2256,19 @@ class ProfileEngine {
 
                 k := step.Key
                 if (k = "DoubleClick") {
-                    Click(2)
+                    if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                        InterceptionDriver.SendSequence("{DoubleClick}")
+                    } else {
+                        Click(2)
+                    }
                     WebViewGuiManager.LogActivity("STEP", "Double Click", "")
                     continue
                 } else if (k = "TripleClick") {
-                    Click(3)
+                    if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                        InterceptionDriver.SendSequence("{TripleClick}")
+                    } else {
+                        Click(3)
+                    }
                     WebViewGuiManager.LogActivity("STEP", "Triple Click", "")
                     continue
                 }
@@ -2222,10 +2276,18 @@ class ProfileEngine {
                     k := StrLower(k)
                 }
                 if (step.Action = "Down") {
-                    Send("{Blind}{" . k . " down}")
+                    if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                        InterceptionDriver.SendKeyOrButtonDown(k)
+                    } else {
+                        Send("{Blind}{" . k . " down}")
+                    }
                     WebViewGuiManager.LogActivity("STEP", "{" . k . " down}", (!isRelease && step.HasOwnProp("Delay") && step.Delay > 0) ? (step.Delay . "ms delay") : "")
                 } else if (step.Action = "Up") {
-                    Send("{Blind}{" . k . " up}")
+                    if (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled && InterceptionDriver.IsAvailable) {
+                        InterceptionDriver.SendKeyOrButtonUp(k)
+                    } else {
+                        Send("{Blind}{" . k . " up}")
+                    }
                     WebViewGuiManager.LogActivity("STEP", "{" . k . " up}", (!isRelease && step.HasOwnProp("Delay") && step.Delay > 0) ? (step.Delay . "ms delay") : "")
                 }
 

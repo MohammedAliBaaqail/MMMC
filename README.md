@@ -1,6 +1,19 @@
 # My Mouse My Choice (OBM) — Advanced Mouse & Macro Suite
 
-A lightweight, zero-bloat universal control center and macro execution suite for multi-button mice, combining onboard hardware memory with **AutoHotkey v2** and a modern **WebView2** interface.
+A lightweight, zero-bloat universal control center and macro execution suite for multi-button mice, combining onboard hardware memory with **AutoHotkey v2**, a low-level **Interception Kernel Driver**, and a modern **WebView2** interface.
+
+---
+
+## 📸 Screenshots
+
+### Main Studio Dashboard
+![Main Studio Dashboard](assets/screenshot_main.png)
+
+### Button Studio & Macro Engine
+![Button Studio & Macro Engine](assets/screenshot_button_studio.png)
+
+### Keystroke Recording & Direct Mouse Injection
+![Keystroke Recording](assets/screenshot_keystroke.png)
 
 ---
 
@@ -15,6 +28,24 @@ A lightweight, zero-bloat universal control center and macro execution suite for
    - **Live Hardware Monitor**: Real-time visual dashboard with dynamic SVG leader lines and hotspots that illuminate when mouse buttons are pressed.
    - **Hardware Key Injector Assistant**: Built-in countdown injector solves the problem of physical keyboards lacking `F13`–`F24` keys when pairing buttons in onboard memory software.
    - **Interactive Pointer Calibrator**: Visual editor to reposition button callout lines or upload custom mouse images and layouts.
+
+---
+
+## 🛡️ Interception Kernel Driver Mode (Hardware-Level Injection)
+
+*My Mouse My Choice* features an optional low-level **Interception Kernel Driver** integration (`mouclass.sys` & `kbdclass.sys` filter drivers):
+
+* **Pure Hardware-Level Events (`flags = 0`):**
+  Standard Windows user-mode injection APIs (`SendInput`, `mouse_event`) mark synthetic events with `LLMHF_INJECTED (0x01)` and `LLKHF_INJECTED (0x10)`. The Interception driver dispatches inputs directly through the kernel input stack with `flags = 0`, making them indistinguishable from physical hardware switches.
+* **Elevated Windows & UIPI Bypass:**
+  Standard user-mode scripts cannot interact with elevated windows (Task Manager, Registry Editor, UAC dialogs). The kernel driver dispatches at the ring-0 level, operating seamlessly across all windows regardless of integrity level.
+* **Raw Input & Anti-Cheat Compatibility:**
+  Bypasses user-mode hooks and synthetic input blocks in competitive games, raw input handlers, and direct device polling.
+* **Smart Elevation (Zero UAC Prompts by Default):**
+  * When Kernel Driver Mode is turned **OFF**, the app starts quietly as a standard non-elevated user—**no UAC prompt appears on boot**.
+  * When you toggle **Enable Kernel Mode** inside Studio Settings, the app offers an in-app confirmation dialog and elevates cleanly.
+* **Silent Windows Startup:**
+  When both Startup and Kernel Driver modes are active, the app registers a Windows Task Scheduler job (`/rl highest`), enabling silent elevated auto-launch at Windows logon **with zero UAC prompts**.
 
 ---
 
@@ -73,6 +104,8 @@ Open your mouse manufacturer's lightweight onboard memory tool (for example, Log
 
 - `MyMouseMyChoice.ahk` — Core application script, hardware hotkeys, system tray menu, and IPC dispatcher.
 - `lib/Profiles.ahk` — Dynamic profile engine, macro sequencer, and settings persistence.
+- `lib/InterceptionDriver.ahk` — Low-level kernel filter driver controller and hardware event dispatcher.
+- `lib/StartupManager.ahk` — Silent Windows startup and boot auto-launch controller (supporting Task Scheduler `/rl highest`).
 - `lib/WebViewGuiManager.ahk` — Embedded Microsoft Edge WebView2 GUI manager and bidirectional IPC bridge.
 - `lib/GuiManager.ahk` — Native AHK secondary fallback interface and button studio.
 - `lib/OMMHelper.ahk` — Virtual key injection assistant for onboard memory pairing.

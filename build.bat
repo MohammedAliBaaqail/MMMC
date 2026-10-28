@@ -16,6 +16,12 @@ taskkill /f /im MyMouseMyChoice.exe >nul 2>&1
 taskkill /f /im Ahk2Exe.exe >nul 2>&1
 ping 127.0.0.1 -n 2 >nul
 
+REM --- Unlock destination binary if process is elevated / write-locked ---
+if exist "%~dp0MyMouseMyChoice.exe" (
+    del /f /q "%~dp0MyMouseMyChoice.old.exe" >nul 2>&1
+    move /y "%~dp0MyMouseMyChoice.exe" "%~dp0MyMouseMyChoice.old.exe" >nul 2>&1
+)
+
 REM --- Step 1: Compile Standalone Executable ---
 echo [1/2] Compiling MyMouseMyChoice.exe with Ahk2Exe...
 
@@ -36,7 +42,7 @@ if not exist "%AHK_BASE%" (
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo Error: Ahk2Exe compilation failed with code %ERRORLEVEL%.
-    pause
+    if "%~1" NEQ "/nopause" pause
     exit /b %ERRORLEVEL%
 )
 echo       Standalone binary created: MyMouseMyChoice.exe
@@ -59,7 +65,7 @@ if not defined ISCC (
     echo Standalone executable MyMouseMyChoice.exe was built successfully,
     echo but installer setup could not be compiled.
     echo.
-    pause
+    if "%~1" NEQ "/nopause" pause
     exit /b 0
 )
 

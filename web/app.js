@@ -1,5 +1,5 @@
 /**
- * My Mouse My Choice — Advanced Studio Frontend Controller
+ * My Mouse My Choice â€” Advanced Studio Frontend Controller
  * Complete bidirectional IPC, SVG leader line rendering, drag-and-drop,
  * and Button Studio modal with single/combo recording and macro sequencing.
  */
@@ -69,6 +69,11 @@ const state = {
     gameKeyDelay: 20,
     focusOnHoverMode: 'profile', // 'off' | 'profile' | 'all'
     focusOnHoverDelay: 120,      // ms
+    useInterceptionDriver: false,
+    interceptionDriverInstalled: false,
+    interceptionDriverAvailable: false,
+    isAdmin: false,
+    runAtStartup: false,
 
     // Pointer & Card Calibration Mode State
     isCalibrating: false,
@@ -647,8 +652,26 @@ function handleEngineMessage(msg) {
             if (msg.focusOnHoverDelay !== undefined) {
                 state.focusOnHoverDelay = Number(msg.focusOnHoverDelay) || 120;
             }
+            if (msg.useInterceptionDriver !== undefined) {
+                state.useInterceptionDriver = !!msg.useInterceptionDriver;
+            }
+            if (msg.interceptionDriverInstalled !== undefined) {
+                state.interceptionDriverInstalled = !!msg.interceptionDriverInstalled;
+            }
+            if (msg.interceptionDriverAvailable !== undefined) {
+                state.interceptionDriverAvailable = !!msg.interceptionDriverAvailable;
+            }
+            if (msg.isAdmin !== undefined) {
+                state.isAdmin = !!msg.isAdmin;
+            }
+            if (msg.runAtStartup !== undefined) {
+                state.runAtStartup = !!msg.runAtStartup;
+                const chkStartup = document.getElementById('chkSettingsStartup');
+                if (chkStartup) chkStartup.checked = state.runAtStartup;
+            }
             updateGameKeyDelayUI();
             updateHoverFocusUI();
+            updateInterceptionDriverUI();
             updateHeaderTogglesUI();
             updateRapidFireUI(state.isRapidFire);
             renderLgsProfiles();
@@ -657,6 +680,27 @@ function handleEngineMessage(msg) {
             switchLayerVisually('Normal');
             refreshCardsAndStage();
             scheduleStabilizedSvgLines();
+            break;
+
+        case 'interceptionDriverChanged':
+            state.useInterceptionDriver = !!msg.enabled;
+            if (msg.installed !== undefined) {
+                state.interceptionDriverInstalled = !!msg.installed;
+            }
+            if (msg.available !== undefined) {
+                state.interceptionDriverAvailable = !!msg.available;
+            }
+            updateInterceptionDriverUI();
+            break;
+
+        case 'runAtStartupChanged':
+            state.runAtStartup = !!msg.enabled;
+            const chkStartup = document.getElementById('chkSettingsStartup');
+            if (chkStartup) chkStartup.checked = state.runAtStartup;
+            break;
+
+        case 'requireAdminRestart':
+            promptAdminRestartForDriver();
             break;
 
         case 'masterSuspendedChanged':
@@ -2624,7 +2668,7 @@ function updateSvgLines() {
         // Tag label (Button Name on the button itself)
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.setAttribute('x', targetX);
-        text.setAttribute('y', targetY - (state.isCalibrating ? 18 : 15));
+        text.setAttribute('y', targetY - (state.isCalibrating ? 24 : 20));
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('class', `svg-hotspot-text ${isSelected ? 'active' : ''} ${state.isCalibrating ? 'svg-hotspot-tag' : ''} ${isCardHovered ? 'drop-hover' : ''} ${isHovered ? 'btn-hover' : ''}`);
         text.setAttribute('data-btn', btnId);
@@ -3027,8 +3071,8 @@ function openButtonStudio(btnId) {
     state.modal.buttonId = btnId;
     const info = DIAGRAM_POINTS[btnId] || { name: btnId };
 
-    document.getElementById('modalTargetTitle').textContent = `BUTTON STUDIO — ${getButtonDisplayName(btnId).toUpperCase()}`;
-    document.getElementById('modalTargetMeta').textContent = `Profile: ${state.currentProfile} • Active Layer: ${state.currentLayer}`;
+    document.getElementById('modalTargetTitle').textContent = `BUTTON STUDIO â€” ${getButtonDisplayName(btnId).toUpperCase()}`;
+    document.getElementById('modalTargetMeta').textContent = `Profile: ${state.currentProfile} â€¢ Active Layer: ${state.currentLayer}`;
 
     const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
     if (btnAssignShift) {
@@ -3178,9 +3222,9 @@ function openMacroPresetEditor(preset) {
     }
 
     const titleEl = document.getElementById('modalTargetTitle');
-    if (titleEl) titleEl.textContent = `MACRO STUDIO — EDIT: ${(preset.name || preset.label || 'MACRO').toUpperCase()}`;
+    if (titleEl) titleEl.textContent = `MACRO STUDIO â€” EDIT: ${(preset.name || preset.label || 'MACRO').toUpperCase()}`;
     const metaEl = document.getElementById('modalTargetMeta');
-    if (metaEl) metaEl.textContent = `Custom Presets Library • Sequence & Actions Editor`;
+    if (metaEl) metaEl.textContent = `Custom Presets Library â€¢ Sequence & Actions Editor`;
 
     const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
     if (btnAssignShift) btnAssignShift.style.display = 'none';
@@ -3245,9 +3289,9 @@ function openSinglePresetEditor(preset) {
     }
 
     const titleEl = document.getElementById('modalTargetTitle');
-    if (titleEl) titleEl.textContent = `KEY COMBINATION — EDIT: ${(preset.name || preset.label || 'COMBO').toUpperCase()}`;
+    if (titleEl) titleEl.textContent = `KEY COMBINATION â€” EDIT: ${(preset.name || preset.label || 'COMBO').toUpperCase()}`;
     const metaEl = document.getElementById('modalTargetMeta');
-    if (metaEl) metaEl.textContent = `Custom Presets Library • Keystroke Combination`;
+    if (metaEl) metaEl.textContent = `Custom Presets Library â€¢ Keystroke Combination`;
 
     const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
     if (btnAssignShift) btnAssignShift.style.display = 'none';
@@ -3296,17 +3340,17 @@ function updateModeExplanation(mode, elementId) {
     switch (mode) {
         case 'NoRepeat':
             el.textContent = isSingle
-                ? '• Direct Passthrough: Holds button down while physically held, and releases on release (no repeating).'
-                : '• Standard macro: Plays the recorded sequence once when pressed.';
+                ? 'â€¢ Direct Passthrough: Holds button down while physically held, and releases on release (no repeating).'
+                : 'â€¢ Standard macro: Plays the recorded sequence once when pressed.';
             break;
         case 'RepeatWhileHolding':
-            el.textContent = '• Auto-repeat / Rapid-fire: continuously repeats the action while the mouse button is held down.';
+            el.textContent = 'â€¢ Auto-repeat / Rapid-fire: continuously repeats the action while the mouse button is held down.';
             break;
         case 'Toggle':
-            el.textContent = '• Toggle loop: press once to start continuously repeating, press again to stop.';
+            el.textContent = 'â€¢ Toggle loop: press once to start continuously repeating, press again to stop.';
             break;
         case 'Sequence':
-            el.textContent = '• 3-Phase sequence: plays ON PRESS once, loops WHILE HOLDING continuously, and finishes with ON RELEASE.';
+            el.textContent = 'â€¢ 3-Phase sequence: plays ON PRESS once, loops WHILE HOLDING continuously, and finishes with ON RELEASE.';
             break;
     }
 }
@@ -4112,10 +4156,10 @@ function setGhubMacroType(type) {
     const explainEl = document.getElementById('macroExplainText');
     if (explainEl) {
         const explanations = {
-            NoRepeat: '• No Repeat: Plays through the recorded macro actions once per button press.',
-            RepeatWhileHolding: '• Repeat While Holding: Repeats the macro sequence continuously while the button is held down.',
-            Toggle: '• Toggle (Loop): Press once to start looping the macro continuously; press again to stop.',
-            Sequence: '• Sequence: Executes separate actions On Press, while Holding, and on Release.'
+            NoRepeat: 'â€¢ No Repeat: Plays through the recorded macro actions once per button press.',
+            RepeatWhileHolding: 'â€¢ Repeat While Holding: Repeats the macro sequence continuously while the button is held down.',
+            Toggle: 'â€¢ Toggle (Loop): Press once to start looping the macro continuously; press again to stop.',
+            Sequence: 'â€¢ Sequence: Executes separate actions On Press, while Holding, and on Release.'
         };
         explainEl.textContent = explanations[state.modal.macroType] || '';
     }
@@ -4364,7 +4408,7 @@ function renderMacroSteps() {
                 } else {
                     block.classList.add(isUp ? 'is-up' : 'is-down');
                     const actLabel = isUp ? 'KEY UP' : 'KEY DOWN';
-                    block.setAttribute('title', `${formatKeyNice(step.Key)}: ${actLabel}\nSingle-click to toggle Down/Up • Drag to reorder`);
+                    block.setAttribute('title', `${formatKeyNice(step.Key)}: ${actLabel}\nSingle-click to toggle Down/Up â€¢ Drag to reorder`);
                 }
 
                 block.addEventListener('dragstart', (e) => {
@@ -4721,7 +4765,7 @@ function updateTextBlockStats() {
     const wordCount = trimmed ? trimmed.split(/\s+/).length : 0;
     const lineCount = val ? val.split('\n').length : 1;
 
-    statsEl.textContent = `${charCount} ${charCount === 1 ? 'character' : 'characters'} • ${wordCount} ${wordCount === 1 ? 'word' : 'words'} • ${lineCount} ${lineCount === 1 ? 'line' : 'lines'}`;
+    statsEl.textContent = `${charCount} ${charCount === 1 ? 'character' : 'characters'} â€¢ ${wordCount} ${wordCount === 1 ? 'word' : 'words'} â€¢ ${lineCount} ${lineCount === 1 ? 'line' : 'lines'}`;
 }
 
 // ============================================================================
@@ -4947,9 +4991,9 @@ function openTextBlockPresetEditor(preset) {
     }
 
     const titleEl = document.getElementById('modalTargetTitle');
-    if (titleEl) titleEl.textContent = `TEXT BLOCK — EDIT: ${(preset.name || preset.label || 'TEXT').toUpperCase()}`;
+    if (titleEl) titleEl.textContent = `TEXT BLOCK â€” EDIT: ${(preset.name || preset.label || 'TEXT').toUpperCase()}`;
     const metaEl = document.getElementById('modalTargetMeta');
-    if (metaEl) metaEl.textContent = `Text Blocks Library • Literal Text Insertion`;
+    if (metaEl) metaEl.textContent = `Text Blocks Library â€¢ Literal Text Insertion`;
 
     const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
     if (btnAssignShift) btnAssignShift.style.display = 'none';
@@ -5472,9 +5516,9 @@ function setCalibMoveMode(mode) {
 
     if (hintText) {
         if (state.calibMoveAll) {
-            hintText.textContent = 'Move Everything: Drag mouse visual or stage canvas to move everything together • Or use Arrow keys (Shift for 5x)';
+            hintText.textContent = 'Move Everything: Drag mouse visual or stage canvas to move everything together â€¢ Or use Arrow keys (Shift for 5x)';
         } else {
-            hintText.textContent = 'Drag any target dot directly on the mouse • Or click to reposition • Fine-tune with Arrow keys';
+            hintText.textContent = 'Drag any target dot directly on the mouse â€¢ Or click to reposition â€¢ Fine-tune with Arrow keys';
         }
     }
 
@@ -6876,7 +6920,7 @@ function openProfileModal(mode, profData) {
         // Trigger open windows scan
         sendToAhk({ action: 'getRunningApps' });
     } else {
-        if (title) title.textContent = `EDIT PROFILE — ${profData ? profData.name : state.currentProfile}`;
+        if (title) title.textContent = `EDIT PROFILE â€” ${profData ? profData.name : state.currentProfile}`;
         if (modalSubtitle) modalSubtitle.textContent = 'Configure auto-switching application targets, icon branding, and open window bindings';
         if (hotkeyNotice) hotkeyNotice.style.display = 'none';
         if (inputName) {
@@ -7389,7 +7433,7 @@ function openButtonContextMenu(e, btnId) {
         if (ctxPasteText) {
             const fromProf = state.copiedButtonMapping.fromProfile || state.currentProfile;
             const isOtherProf = (fromProf !== state.currentProfile);
-            const profLabel = isOtherProf ? ` • ${fromProf}` : '';
+            const profLabel = isOtherProf ? ` â€¢ ${fromProf}` : '';
             ctxPasteText.textContent = `Paste Mapping (from ${state.copiedButtonMapping.btnName}${profLabel})`;
         }
     } else {
@@ -7855,7 +7899,7 @@ function openButtonRenameModal(btnId) {
     const subEl = document.getElementById('renameModalSubtitle');
     const input = document.getElementById('txtButtonCustomName');
 
-    if (titleEl) titleEl.textContent = `RENAME BUTTON — ${defInfo.tag || btnId}`;
+    if (titleEl) titleEl.textContent = `RENAME BUTTON â€” ${defInfo.tag || btnId}`;
     if (subEl) subEl.textContent = `Original: ${defInfo.name}`;
     if (input) {
         input.value = currentCustom;
@@ -8501,11 +8545,11 @@ function openButtonConfigModal(btnId) {
                 }
                 if (inUseBy && inUseBy !== btnId) {
                     const otherTagName = DIAGRAM_POINTS[inUseBy]?.tag || inUseBy;
-                    el.textContent = `${opt.val} — [In use: ${otherTagName}] (Will reassign)`;
+                    el.textContent = `${opt.val} â€” [In use: ${otherTagName}] (Will reassign)`;
                 } else if (inUseBy === btnId) {
-                    el.textContent = `${opt.val} — (Current)`;
+                    el.textContent = `${opt.val} â€” (Current)`;
                 } else {
-                    el.textContent = `${opt.val} — (Available)`;
+                    el.textContent = `${opt.val} â€” (Available)`;
                 }
             }
             keyEl.appendChild(el);
@@ -8893,9 +8937,9 @@ function handleLoadedBackupFile(fileName, content) {
                 <div><strong>${getSvgIcon('folder', 'svg-icon-xs')} Profiles:</strong> ${profCount} app profile(s)</div>
                 <div><strong>${getSvgIcon('mouse', 'svg-icon-xs')} Buttons:</strong> ${btnCount} mouse controls</div>
                 <div><strong>${getSvgIcon('zap', 'svg-icon-xs')} Hardware Keys:</strong> ${hasHardwareFKeys} F-keys mapped</div>
-                <div><strong>${getSvgIcon('image', 'svg-icon-xs')} Presets:</strong> ${presetsCount} models • ${actionPresetsCount} macros • ${textBlocksCount} text blocks</div>
+                <div><strong>${getSvgIcon('image', 'svg-icon-xs')} Presets:</strong> ${presetsCount} models â€¢ ${actionPresetsCount} macros â€¢ ${textBlocksCount} text blocks</div>
                 <div style="grid-column: span 2; color: var(--text-muted); font-size: 11px; margin-top: 4px;">
-                    <strong>${getSvgIcon('clock', 'svg-icon-xs')} Created:</strong> ${backupTime} • <strong>App:</strong> ${parsedJson.app || 'OBM Studio'} v${parsedJson.version || '2.0'}
+                    <strong>${getSvgIcon('clock', 'svg-icon-xs')} Created:</strong> ${backupTime} â€¢ <strong>App:</strong> ${parsedJson.app || 'OBM Studio'} v${parsedJson.version || '2.0'}
                 </div>
             `;
         }
@@ -9129,9 +9173,12 @@ function openStudioSettingsModal() {
     if (chkOSD) chkOSD.checked = document.getElementById('chkShowOSD')?.checked ?? true;
     const chkTop = document.getElementById('chkSettingsTop');
     if (chkTop) chkTop.checked = !!state.isAlwaysOnTop;
+    const chkStartup = document.getElementById('chkSettingsStartup');
+    if (chkStartup) chkStartup.checked = !!state.runAtStartup;
 
     updateGameKeyDelayUI();
     updateHoverFocusUI();
+    updateInterceptionDriverUI();
 
     modal.style.display = 'flex';
 }
@@ -9232,6 +9279,36 @@ function initStudioSettingsModal() {
         });
     }
 
+    const chkSettingsStartup = document.getElementById('chkSettingsStartup');
+    if (chkSettingsStartup) {
+        chkSettingsStartup.addEventListener('change', (e) => {
+            state.runAtStartup = e.target.checked;
+            sendToAhk({ action: 'toggleRunAtStartup', enabled: state.runAtStartup });
+        });
+    }
+
+    const chkSettingsInterceptionDriver = document.getElementById('chkSettingsInterceptionDriver');
+    if (chkSettingsInterceptionDriver) {
+        chkSettingsInterceptionDriver.addEventListener('change', async (e) => {
+            const wantsEnabled = e.target.checked;
+            if (wantsEnabled && !state.isAdmin) {
+                e.target.checked = false;
+                await promptAdminRestartForDriver();
+                return;
+            }
+            state.useInterceptionDriver = wantsEnabled;
+            sendToAhk({ action: 'toggleInterceptionDriver', enabled: state.useInterceptionDriver });
+            updateInterceptionDriverUI();
+        });
+    }
+
+    const btnInstallDriver = document.getElementById('btnInstallInterceptionDriver');
+    if (btnInstallDriver) {
+        btnInstallDriver.addEventListener('click', () => {
+            sendToAhk({ action: 'installInterceptionDriver' });
+        });
+    }
+
     // Wire up Game Key Delay input and preset pills
     const inputGameDelay = document.getElementById('inputGameKeyDelay');
     if (inputGameDelay) {
@@ -9308,6 +9385,66 @@ function setGameKeyDelay(val) {
     updateGameKeyDelayUI();
     sendToAhk({ action: 'setGameKeyDelay', delay: num });
     showToast('Game Key Delay', `Keystroke hold & pacing set to ${num} ms`);
+}
+
+function updateInterceptionDriverUI() {
+    const chk = document.getElementById('chkSettingsInterceptionDriver');
+    const badge = document.getElementById('badgeInterceptionDriver');
+    const note = document.getElementById('noteInterceptionDriver');
+    const btnInstall = document.getElementById('btnInstallInterceptionDriver');
+
+    if (chk) {
+        chk.checked = !!state.useInterceptionDriver;
+    }
+
+    if (badge) {
+        if (state.useInterceptionDriver && state.interceptionDriverAvailable) {
+            badge.textContent = 'ACTIVE (KERNEL)';
+            badge.className = 'driver-status-badge connected';
+        } else if (state.useInterceptionDriver && !state.interceptionDriverAvailable) {
+            badge.textContent = 'NEEDS REBOOT';
+            badge.className = 'driver-status-badge warning';
+        } else if (state.interceptionDriverInstalled) {
+            badge.textContent = 'DRIVER READY';
+            badge.className = 'driver-status-badge ready';
+        } else {
+            badge.textContent = 'NOT INSTALLED';
+            badge.className = 'driver-status-badge inactive';
+        }
+    }
+
+    if (btnInstall) {
+        if (state.interceptionDriverInstalled) {
+            btnInstall.style.display = 'none';
+        } else {
+            btnInstall.style.display = 'inline-flex';
+        }
+    }
+
+    if (note) {
+        if (state.interceptionDriverInstalled) {
+            note.innerHTML = 'Kernel filter active (<code>mouclass.sys</code> & <code>kbdclass.sys</code>). Hardware-level injection active.';
+        } else {
+            note.innerHTML = 'Driver not installed. Click <b>Install Driver</b> and reboot Windows once.';
+        }
+    }
+}
+
+async function promptAdminRestartForDriver() {
+    const chk = document.getElementById('chkSettingsInterceptionDriver');
+    if (chk) chk.checked = false;
+    const confirmed = await showConfirmDialog({
+        title: 'Administrator Privileges Required',
+        message: 'The Interception Kernel Driver requires Administrator privileges to communicate with the low-level keyboard and mouse filter drivers (kbdclass.sys & mouclass.sys).',
+        details: 'Would you like to restart My Mouse My Choice with Administrator privileges now? Windows will prompt you to confirm elevation (UAC).',
+        confirmText: 'Restart as Admin',
+        cancelText: 'Cancel',
+        type: 'warning',
+        icon: 'shield'
+    });
+    if (confirmed) {
+        sendToAhk({ action: 'restartAsAdmin', enableDriver: true });
+    }
 }
 
 function updateHoverFocusUI() {
@@ -9523,11 +9660,11 @@ function updateVisualizerKey(vkeyId, isDown, displayName) {
         if (isDown) {
             el.classList.add('was-pressed');
             el.classList.add('is-down');
-            if (statusEl) statusEl.textContent = '↓';
+            if (statusEl) statusEl.textContent = 'â†“';
         } else {
             el.classList.add('was-pressed'); // Retains the different pressed color from the screenshot!
             el.classList.remove('is-down');
-            if (statusEl) statusEl.textContent = '↑';
+            if (statusEl) statusEl.textContent = 'â†‘';
         }
     }
 
@@ -9570,7 +9707,7 @@ function addVisualizerRibbonChip(name, isDown) {
     chip.className = `vribbon-chip ${isDown ? '' : 'chip-up'}`;
     chip.innerHTML = `
         <span class="chip-name">${escapeHtml(name)}</span>
-        <span class="vchip-arrow">${isDown ? '↓' : '↑'}</span>
+        <span class="vchip-arrow">${isDown ? 'â†“' : 'â†‘'}</span>
     `;
 
     ribbon.appendChild(chip);
@@ -9613,7 +9750,7 @@ function onVisualizerNativeKeyDown(e) {
     const vkey = mapDomCodeToVKey(e.code);
     const name = getReadableDomKeyName(e);
     updateVisualizerKey(vkey, true, name);
-    logVisualizerEvent('KEY', `Press (Down) ▾ ${name}`, `Key: ${e.code || vkey} | Focused`);
+    logVisualizerEvent('KEY', `Press (Down) â–¾ ${name}`, `Key: ${e.code || vkey} | Focused`);
 }
 
 function onVisualizerNativeKeyUp(e) {
@@ -9621,7 +9758,7 @@ function onVisualizerNativeKeyUp(e) {
     const vkey = mapDomCodeToVKey(e.code);
     const name = getReadableDomKeyName(e);
     updateVisualizerKey(vkey, false, name);
-    logVisualizerEvent('KEY', `Release (Up) ▴ ${name}`, `Key: ${e.code || vkey} | Focused`);
+    logVisualizerEvent('KEY', `Release (Up) â–´ ${name}`, `Key: ${e.code || vkey} | Focused`);
 }
 
 const activeVisualizerMouseButtons = new Set();
@@ -9642,7 +9779,7 @@ function onVisualizerNativeMouseDown(e) {
     if (btn) {
         activeVisualizerMouseButtons.add(e.button);
         updateVisualizerKey(btn.vkey, true, btn.name);
-        logVisualizerEvent('BUTTON', `Press (Down) ▾ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
+        logVisualizerEvent('BUTTON', `Press (Down) â–¾ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
     }
 }
 
@@ -9662,7 +9799,7 @@ function onVisualizerNativeMouseUp(e) {
     const btn = mapping[e.button];
     if (btn) {
         updateVisualizerKey(btn.vkey, false, btn.name);
-        logVisualizerEvent('BUTTON', `Release (Up) ▴ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
+        logVisualizerEvent('BUTTON', `Release (Up) â–´ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
     }
 }
 
@@ -9715,7 +9852,7 @@ function parseAndDispatchAhkToVisualizer(entry) {
     if (cat === 'BUTTON') {
         const isDown = txt.includes('Down') || txt.includes('Press');
         let btnId = '';
-        const match = txt.match(/▾\s*([a-zA-Z0-9_]+)|▴\s*([a-zA-Z0-9_]+)/);
+        const match = txt.match(/â–¾\s*([a-zA-Z0-9_]+)|â–´\s*([a-zA-Z0-9_]+)/);
         if (match) {
             btnId = match[1] || match[2] || '';
         }
@@ -9758,7 +9895,7 @@ function parseAndDispatchAhkToVisualizer(entry) {
 
     // 3. Shift layer hold / release
     if (cat === 'SHIFT') {
-        const isDown = txt.includes('Hold') || txt.includes('▾');
+        const isDown = txt.includes('Hold') || txt.includes('â–¾');
         updateVisualizerKey('MouseBack', isDown, 'B-Shift');
     }
 }

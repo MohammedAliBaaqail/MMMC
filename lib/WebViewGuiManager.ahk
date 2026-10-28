@@ -11,6 +11,7 @@
 #Include "Profiles.ahk"
 #Include "OSD.ahk"
 #Include "OMMHelper.ahk"
+#Include "StartupManager.ahk"
 
 class WebViewGuiManager {
     static MainGui := ""
@@ -524,6 +525,84 @@ class WebViewGuiManager {
                     OSD.Show("Test in Focus: " . (ProfileEngine.MuteWhenStudioFocused ? "ACTIVE" : "OFF"), ProfileEngine.MuteWhenStudioFocused ? "Buttons highlight without executing actions" : "Normal button actions active")
                 }
 
+            case "toggleInterceptionDriver":
+                enabled := req.Has("enabled") ? req["enabled"] : !InterceptionDriver.Enabled
+                if (enabled && !A_IsAdmin) {
+                    ; Prompt the user that restarting as administrator is required
+                    this.PostMessage(Map(
+                        "type", "requireAdminRestart",
+                        "feature", "Interception Kernel Driver"
+                    ))
+                    return
+                }
+
+                InterceptionDriver.SetEnabled(enabled, ProfileEngine.ConfigPath)
+                this.PostMessage(Map(
+                    "type", "interceptionDriverChanged",
+                    "enabled", InterceptionDriver.Enabled ? true : false,
+                    "available", InterceptionDriver.IsAvailable ? true : false,
+                    "installed", InterceptionDriver.IsInstalled ? true : false
+                ))
+                if (OSD.Enabled) {
+                    if (InterceptionDriver.Enabled) {
+                        if (InterceptionDriver.IsAvailable)
+                            OSD.Show("Kernel Driver Mode: ON", "Interception kernel filter active (kbdclass.sys & mouclass.sys)")
+                        else
+                            OSD.Show("Interception Driver: Not Active", "Driver not installed. Click Install in Settings.")
+                    } else {
+                        OSD.Show("Kernel Driver Mode: OFF", "Standard SendInput active")
+                    }
+                }
+
+            case "restartAsAdmin":
+                enableDriver := req.Has("enableDriver") ? req["enableDriver"] : false
+                if (enableDriver) {
+                    try IniWrite("1", ProfileEngine.ConfigPath, "General", "UseInterceptionDriver")
+                }
+                try {
+                    if (A_IsCompiled)
+                        Run('*RunAs "' . A_ScriptFullPath . '" /restart')
+                    else
+                        Run('*RunAs "' . A_AhkPath . '" /restart "' . A_ScriptFullPath . '"')
+                    ExitApp()
+                } catch {
+                    ; User cancelled UAC prompt
+                    if (enableDriver)
+                        try IniWrite("0", ProfileEngine.ConfigPath, "General", "UseInterceptionDriver")
+                    this.PostMessage(Map(
+                        "type", "interceptionDriverChanged",
+                        "enabled", false,
+                        "available", InterceptionDriver.IsAvailable ? true : false,
+                        "installed", InterceptionDriver.IsInstalled ? true : false
+                    ))
+                }
+
+            case "toggleRunAtStartup":
+                enabled := req.Has("enabled") ? req["enabled"] : !StartupManager.IsEnabled()
+                StartupManager.SetEnabled(enabled, ProfileEngine.ConfigPath)
+                this.PostMessage(Map(
+                    "type", "runAtStartupChanged",
+                    "enabled", StartupManager.IsEnabled() ? true : false
+                ))
+                if (OSD.Enabled) {
+                    OSD.Show("Windows Startup", enabled ? "Enabled (Runs at Login)" : "Disabled")
+                }
+
+            case "installInterceptionDriver":
+                installerPath := A_ScriptDir . "\tools\install-interception.exe"
+                if (!FileExist(installerPath)) {
+                    installerPath := A_ScriptDir . "\tools\Interception\Interception\command line installer\install-interception.exe"
+                }
+                if (FileExist(installerPath)) {
+                    try {
+                        Run('*RunAs cmd.exe /c ""' . installerPath . '" /install & echo. & echo ======================================== & echo Installation finished! Please REBOOT your computer. & echo ======================================== & echo. & pause"')
+                    } catch as err {
+                        OSD.Show("Driver Install Cancelled", err.Message)
+                    }
+                } else {
+                    OSD.Show("Installer Not Found", "install-interception.exe was not found in tools folder")
+                }
+
             case "setGameKeyDelay":
                 delayVal := req.Has("delay") ? Integer(req["delay"]) : 20
                 if (delayVal < 0)
@@ -915,6 +994,11 @@ class WebViewGuiManager {
                 "gameKeyDelay", ProfileEngine.GameKeyDelay,
                 "focusOnHoverMode", FocusFollowsMouse.Mode,
                 "focusOnHoverDelay", FocusFollowsMouse.Delay,
+                "isAdmin", A_IsAdmin ? true : false,
+                "runAtStartup", StartupManager.IsEnabled() ? true : false,
+                "useInterceptionDriver", (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled) ? true : false,
+                "interceptionDriverInstalled", (HasProp(InterceptionDriver, "IsInstalled") && InterceptionDriver.IsInstalled) ? true : false,
+                "interceptionDriverAvailable", (HasProp(InterceptionDriver, "IsAvailable") && InterceptionDriver.IsAvailable) ? true : false,
                 "mappings", mappings,
                 "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport(),
                 "diagramPoints", diagPoints,

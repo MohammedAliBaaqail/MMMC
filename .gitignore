@@ -1,6 +1,15 @@
 # Application settings (user-specific mappings and profiles)
 settings.ini
+*.ini
+!settings.default.ini
 *.ini.bak
+*.bak
+*.backup
+
+# Old and backup executables
+*.old
+*.old.exe
+*.orig
 
 # Windows Installer Setup & Distribution Packages
 *_Setup.exe
@@ -8,6 +17,7 @@ settings.ini
 MyMouseMyChoice_Setup.exe
 dist/
 Output/
+build/
 *.iss.bak
 
 # Temporary compiler, build, and test outputs
@@ -15,12 +25,28 @@ ahk_stdout.txt
 ahk_stderr.txt
 manager_test_res.txt
 *.tmp
+*.temp
 
-# Runtime logs
+# Runtime logs and crash dumps
 *.log
 webview_debug.log
 startup.log
 error.log
+*.dmp
 
-# Scratch / temporary test files
+# Scratch, test scripts, and verifiers
 scratch/
+test_*
+*Verifier*
+probe_*
+
+# Temporary installer bloat
+tools/Interception/
+
+# IDE, OS, and editor junk
+.vscode/
+.idea/
+.vs/
+Thumbs.db
+Desktop.ini
+.DS_Store

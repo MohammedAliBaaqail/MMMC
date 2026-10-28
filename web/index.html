@@ -494,14 +494,6 @@
     <div class="lgs-profiles-bar" id="lgsProfilesBar">
         <!-- Left Controls: Header, Filter, Action Buttons -->
         <div class="lgs-bar-controls">
-            <div class="lgs-title-row">
-                <span class="lgs-title">PROFILES</span>
-                <button class="lgs-autoswitch-badge active" id="btnToggleAutoSwitch"
-                    title="Toggle Automatic Profile Switching by Focused App">
-                    <span class="auto-dot" id="autoSwitchDot"></span>
-                    <span id="autoSwitchLabel">AUTO: ON</span>
-                </button>
-            </div>
 
             <div class="lgs-search-row">
                 <div class="lgs-search-wrap">
@@ -2259,6 +2251,13 @@
                                         <use href="#icon-pin"></use>
                                     </svg> Always On Top</span>
                             </label>
+                            <label class="settings-pill-toggle" title="Automatically start My Mouse My Choice when Windows logs in">
+                                <input type="checkbox" id="chkSettingsStartup">
+                                <span class="pill-dot"></span>
+                                <span><svg class="svg-icon svg-icon-xs">
+                                        <use href="#icon-zap"></use>
+                                    </svg> Run at Startup</span>
+                            </label>
                         </div>
                     </div>
 
@@ -2330,6 +2329,36 @@
                                         <button type="button" class="preset-pill" data-delay="250">250 ms (Safe)</button>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tile 9: Kernel Driver Mode (Interception Filter) -->
+                    <div class="settings-card driver-tile" id="cardSettingsInterceptionDriver">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon driver-icon"><svg class="svg-icon">
+                                    <use href="#icon-zap"></use>
+                                </svg></div>
+                            <div class="settings-card-content" style="flex: 1;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                    <div class="settings-card-title">Interception Kernel Driver Mode</div>
+                                    <span class="driver-status-badge inactive" id="badgeInterceptionDriver">Checking...</span>
+                                </div>
+                                <div class="settings-card-desc">Routes simulated mouse clicks and keyboard keystrokes directly through low-level Windows kernel filter drivers (<code>mouclass.sys</code> & <code>kbdclass.sys</code>). Injects true hardware-level input with zero synthetic flags (<code>flags = 0</code>), ensuring seamless compatibility with elevated windows, protected applications, anti-cheat systems, and games using raw input.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-driver-row">
+                            <label class="settings-pill-toggle" title="Enable hardware-level input injection via Interception kernel driver">
+                                <input type="checkbox" id="chkSettingsInterceptionDriver">
+                                <span class="pill-dot"></span>
+                                <span><svg class="svg-icon svg-icon-xs"><use href="#icon-zap"></use></svg> Enable Kernel Mode</span>
+                            </label>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <button type="button" class="preset-pill driver-install-btn" id="btnInstallInterceptionDriver" title="Install the signed Interception kernel filter driver (requires 1-time reboot)">
+                                    <svg class="svg-icon svg-icon-xs"><use href="#icon-download"></use></svg> Install Driver
+                                </button>
+                                <span class="settings-driver-note" id="noteInterceptionDriver">Requires 1-time driver installation & reboot.</span>
                             </div>
                         </div>
                     </div>

@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    MY MOUSE MY CHOICE — ADVANCED STUDIO STYLESHEET
    Aesthetics: Deep Obsidian / Cyber Slate / Electric Cyan & Amber Accents
    ========================================================================== */
@@ -126,10 +126,15 @@ body {
     to { transform: rotate(360deg); }
 }
 
-.lgs-mini-btn .svg-icon,
 .modal-close-btn .svg-icon {
     width: 14px;
     height: 14px;
+    vertical-align: middle;
+}
+
+.lgs-mini-btn .svg-icon {
+    width: 18px;
+    height: 18px;
     vertical-align: middle;
 }
 
@@ -2741,7 +2746,7 @@ body.calibrating-mode .btn-card.calib-selected::after {
     fill: #89b4fa;
     pointer-events: none;
     user-select: none;
-    transition: font-size 0.2s cubic-bezier(0.16, 1, 0.3, 1), fill 0.2s, filter 0.2s;
+    transition: font-size 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), fill 0.2s, filter 0.2s;
 }
 
 .svg-hotspot-text.active {
@@ -2750,6 +2755,7 @@ body.calibrating-mode .btn-card.calib-selected::after {
     fill: #ffffff !important;
     filter: drop-shadow(0 0 6px #00d2ff) drop-shadow(0 0 14px rgba(0, 210, 255, 0.95)) !important;
     letter-spacing: 0.5px;
+    transform: translateY(-8px);
 }
 
 .svg-hotspot-text.btn-hover {
@@ -2759,6 +2765,7 @@ body.calibrating-mode .btn-card.calib-selected::after {
     filter: drop-shadow(0 0 6px #00d2ff) drop-shadow(0 0 14px rgba(0, 210, 255, 0.95)) !important;
     letter-spacing: 0.5px;
     animation: none !important;
+    transform: translateY(-8px);
 }
 
 .svg-hotspot-text.flash-pressed {
@@ -2767,6 +2774,7 @@ body.calibrating-mode .btn-card.calib-selected::after {
     fill: #ffffff !important;
     filter: drop-shadow(0 0 10px #00d2ff) drop-shadow(0 0 24px #00d2ff) !important;
     letter-spacing: 0.8px;
+    transform: translateY(-10px);
 }
 
 /* Drag-and-Drop Green Highlights for Leader Line, Anchor Dot, and Pointing Circle */
@@ -5428,67 +5436,20 @@ body.calibrating-mode .btn-card.calib-selected::after {
 }
 
 .lgs-bar-controls {
-    width: 220px;
+    width: 290px;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 7px;
     flex-shrink: 0;
     border-right: 1px solid rgba(255, 255, 255, 0.08);
     padding-right: 14px;
 }
 
-.lgs-title-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.lgs-title {
-    font-family: var(--font-heading);
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
-    color: #e2e8f0;
-}
-
-.lgs-autoswitch-badge {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 9.5px;
-    font-weight: 700;
-    background: rgba(16, 185, 129, 0.15);
-    border: 1px solid rgba(16, 185, 129, 0.4);
-    color: #10b981;
-    cursor: pointer;
-    transition: var(--transition-fast);
-}
-
-.lgs-autoswitch-badge.paused {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #ef4444;
-}
-
-.auto-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #10b981;
-    box-shadow: 0 0 8px #10b981;
-}
-
-.lgs-autoswitch-badge.paused .auto-dot {
-    background: #ef4444;
-    box-shadow: 0 0 8px #ef4444;
-}
-
 .lgs-search-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .lgs-search-wrap {
@@ -5500,21 +5461,21 @@ body.calibrating-mode .btn-card.calib-selected::after {
 
 .search-mini-icon {
     position: absolute;
-    left: 7px;
-    width: 12px;
-    height: 12px;
+    left: 8px;
+    width: 13px;
+    height: 13px;
     stroke: #64748b;
     pointer-events: none;
 }
 
 .lgs-search-wrap input {
     width: 100%;
-    height: 26px;
+    height: 34px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
-    padding: 0 6px 0 24px;
-    font-size: 11px;
+    border-radius: 6px;
+    padding: 0 8px 0 28px;
+    font-size: 11.5px;
     color: #fff;
     outline: none;
     transition: var(--transition-fast);
@@ -5527,13 +5488,14 @@ body.calibrating-mode .btn-card.calib-selected::after {
 
 .lgs-action-btns {
     display: flex;
-    gap: 4px;
+    gap: 5px;
+    align-items: center;
 }
 
 .lgs-mini-btn {
-    width: 25px;
-    height: 25px;
-    border-radius: 4px;
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.05);
     color: #cbd5e1;
@@ -5541,8 +5503,9 @@ body.calibrating-mode .btn-card.calib-selected::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: 15px;
     transition: var(--transition-fast);
+    flex-shrink: 0;
 }
 
 .lgs-mini-btn:hover {
@@ -7691,6 +7654,93 @@ body.calibrating-mode .btn-card.calib-selected::after {
     border-color: rgba(6, 182, 212, 0.6);
     color: #fff;
     box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+}
+
+/* Logitech Kernel Driver Settings Tile */
+.settings-card.driver-tile {
+    border-color: rgba(0, 230, 255, 0.25);
+    background: rgba(16, 24, 40, 0.75);
+}
+
+.settings-card-icon.driver-icon {
+    background: linear-gradient(135deg, rgba(0, 210, 255, 0.25), rgba(16, 185, 129, 0.25));
+    border: 1px solid rgba(0, 230, 255, 0.45);
+    color: var(--accent-cyan, #00d2ff);
+}
+
+.driver-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.driver-status-badge.connected {
+    background: rgba(16, 185, 129, 0.16);
+    border: 1px solid rgba(16, 185, 129, 0.6);
+    color: #10b981;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+}
+
+.driver-status-badge.ready {
+    background: rgba(0, 210, 255, 0.14);
+    border: 1px solid rgba(0, 210, 255, 0.5);
+    color: var(--accent-cyan, #00d2ff);
+}
+
+.driver-status-badge.warning {
+    background: rgba(245, 158, 11, 0.16);
+    border: 1px solid rgba(245, 158, 11, 0.6);
+    color: #f59e0b;
+}
+
+.driver-status-badge.inactive {
+    background: rgba(148, 163, 184, 0.12);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: #94a3b8;
+}
+
+.settings-driver-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+
+.settings-driver-note {
+    font-size: 11.5px;
+    color: var(--text-muted, #94a3b8);
+    font-style: italic;
+}
+
+.driver-install-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    cursor: pointer;
+    background: rgba(0, 210, 255, 0.12);
+    border: 1px solid rgba(0, 210, 255, 0.4);
+    color: var(--accent-cyan, #00d2ff);
+    transition: all 0.18s ease;
+}
+
+.driver-install-btn:hover {
+    background: rgba(0, 210, 255, 0.22);
+    border-color: rgba(0, 210, 255, 0.8);
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+    color: #fff;
 }
 
 /* ==========================================================================
