@@ -51,18 +51,29 @@ class WebViewGuiManager {
     static Toggle() {
         if (this.MainGui != "" && WinExist(this.MainGui.Hwnd)) {
             if (DllCall("IsWindowVisible", "Ptr", this.MainGui.Hwnd)) {
-                this.StopRecording()
-                this.MainGui.Hide()
+                this.OnWindowCloseOrHide()
             } else {
                 this.MainGui.Show()
                 this.ApplyThemeToTitleBar(this.MainGui.Hwnd)
                 this.SetWindowIcon(this.MainGui.Hwnd)
                 if (this.wvc != "") {
+                    try this.wvc.IsVisible := true
                     try this.wvc.Fill()
                 }
             }
         } else {
             this.Show()
+        }
+    }
+
+    static OnWindowCloseOrHide() {
+        this.SaveWindowGeometry()
+        this.StopRecording()
+        if (this.wvc != "") {
+            try this.wvc.IsVisible := false
+        }
+        if (this.MainGui && WinExist(this.MainGui.Hwnd)) {
+            this.MainGui.Hide()
         }
     }
 
@@ -107,8 +118,8 @@ class WebViewGuiManager {
 
         ; Sizing & window events
         g.OnEvent("Size", (guiObj, minMax, w, h) => WebViewGuiManager.OnSize(minMax, w, h))
-        g.OnEvent("Close", (*) => (WebViewGuiManager.SaveWindowGeometry(), WebViewGuiManager.StopRecording(), g.Hide()))
-        g.OnEvent("Escape", (*) => (WebViewGuiManager.IsRecordingActive ? "" : (WebViewGuiManager.SaveWindowGeometry(), WebViewGuiManager.StopRecording(), g.Hide())))
+        g.OnEvent("Close", (*) => WebViewGuiManager.OnWindowCloseOrHide())
+        g.OnEvent("Escape", (*) => (WebViewGuiManager.IsRecordingActive ? "" : WebViewGuiManager.OnWindowCloseOrHide()))
 
         ; Load saved window geometry from settings.ini
         savedW := 1360
@@ -192,7 +203,7 @@ class WebViewGuiManager {
             ; 1. Clean orphaned msedgewebview2 processes
             for proc in ComObjGet("winmgmts:").ExecQuery("Select ProcessId, CommandLine from Win32_Process where Name like 'msedgewebview2%'") {
                 cmd := proc.CommandLine
-                if (RegExMatch(cmd, "OBM_WV_(\d+)", &m) || RegExMatch(cmd, "OBM_G502X_WV_(\d+)", &m)) {
+                if (RegExMatch(cmd, "(?:OBM_WebView2|OBM_WV|WV)_(\d+)", &m)) {
                     ownerPid := Integer(m[1])
                     if (ownerPid != currentPid && !ProcessExist(ownerPid)) {
                         try ProcessClose(proc.ProcessId)
@@ -315,10 +326,15 @@ class WebViewGuiManager {
     static _saveGeometryTimer := () => WebViewGuiManager.SaveWindowGeometry()
 
     static OnSize(minMax, w, h) {
-        if (minMax = -1) ; Minimized
+        if (minMax = -1) { ; Minimized
+            if (this.wvc != "") {
+                try this.wvc.IsVisible := false
+            }
             return
+        }
         if (this.wvc != "") {
             try {
+                this.wvc.IsVisible := true
                 RECT := Buffer(16, 0)
                 NumPut("int", 0, RECT, 0)
                 NumPut("int", 0, RECT, 4)

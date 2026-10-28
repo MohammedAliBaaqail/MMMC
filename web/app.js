@@ -447,17 +447,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Comprehensive ResizeObserver: observes container, columns, mouse render wrap, and stage
+    // High-performance debounced ResizeObserver: observes container bounds without layout thrashing
     if (window.ResizeObserver) {
+        let roRafId = null;
+        let lastObsW = 0;
+        let lastObsH = 0;
+
         const ro = new ResizeObserver(() => {
-            syncCardMinWidthWithRightClick();
-            updateSvgLines();
+            if (roRafId) cancelAnimationFrame(roRafId);
+            roRafId = requestAnimationFrame(() => {
+                roRafId = null;
+                const container = document.getElementById('mouseContainer');
+                if (container) {
+                    const rect = container.getBoundingClientRect();
+                    const curW = Math.round(rect.width);
+                    const curH = Math.round(rect.height);
+                    if (Math.abs(curW - lastObsW) < 2 && Math.abs(curH - lastObsH) < 2) {
+                        return; // Zero meaningful size delta, skip expensive SVG redraw
+                    }
+                    lastObsW = curW;
+                    lastObsH = curH;
+                }
+                updateSvgLines();
+            });
         });
-        const observedIds = ['mouseContainer', 'leftCallouts', 'rightCallouts', 'mouseRenderWrap', 'mouseStage', 'sidebarCatalog'];
-        observedIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) ro.observe(el);
-        });
+
+        const containerEl = document.getElementById('mouseContainer');
+        if (containerEl) ro.observe(containerEl);
     }
 
     const mouseStage = document.getElementById('mouseStage');
@@ -2458,19 +2474,21 @@ function syncCardMinWidthWithRightClick() {
     if (!state.currentLayer || state.currentLayer === 'Normal') {
         const rightClickCard = document.getElementById('card_RightClick');
         if (rightClickCard) {
-            const prevMin = rightClickCard.style.minWidth;
-            rightClickCard.style.minWidth = '0px';
-            const rectWidth = Math.ceil(rightClickCard.getBoundingClientRect().width);
-            rightClickCard.style.minWidth = prevMin;
-
-            if (rectWidth >= 120) {
+            // Read scrollWidth directly without mutating style.minWidth to eliminate layout thrashing loops
+            const rectWidth = Math.ceil(rightClickCard.scrollWidth || rightClickCard.getBoundingClientRect().width);
+            if (rectWidth >= 120 && rectWidth !== state.originalCardMinWidth) {
                 state.originalCardMinWidth = Math.max(150, rectWidth);
+                document.documentElement.style.setProperty('--btn-card-min-width', `${state.originalCardMinWidth}px`);
             }
+            return;
         }
     }
 
     const baselineWidth = state.originalCardMinWidth || 150;
-    document.documentElement.style.setProperty('--btn-card-min-width', `${baselineWidth}px`);
+    const currentProp = getComputedStyle(document.documentElement).getPropertyValue('--btn-card-min-width').trim();
+    if (currentProp !== `${baselineWidth}px`) {
+        document.documentElement.style.setProperty('--btn-card-min-width', `${baselineWidth}px`);
+    }
 }
 
 // Flash hardware feedback when a physical mouse button is clicked

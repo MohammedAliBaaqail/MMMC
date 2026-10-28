@@ -300,18 +300,6 @@ body {
     border-radius: 50%;
     background: #00e676;
     box-shadow: 0 0 8px #00e676;
-    animation: masterPulseGreen 2s infinite ease-in-out;
-}
-
-@keyframes masterPulseGreen {
-    0%, 100% {
-        box-shadow: 0 0 6px #00e676;
-        transform: scale(1);
-    }
-    50% {
-        box-shadow: 0 0 12px #00e676, 0 0 18px rgba(0, 230, 118, 0.5);
-        transform: scale(1.15);
-    }
 }
 
 .master-power-label {
@@ -354,18 +342,6 @@ body {
 .master-power-btn.is-suspended .master-power-indicator {
     background: #f38ba8;
     box-shadow: 0 0 8px #f38ba8;
-    animation: masterPulseRed 1.6s infinite ease-in-out;
-}
-
-@keyframes masterPulseRed {
-    0%, 100% {
-        box-shadow: 0 0 6px #f38ba8;
-        transform: scale(1);
-    }
-    50% {
-        box-shadow: 0 0 14px #f38ba8, 0 0 20px rgba(243, 139, 168, 0.6);
-        transform: scale(1.18);
-    }
 }
 
 .master-power-btn.is-suspended .master-power-state {
@@ -644,8 +620,7 @@ body.layer-gshift1 .svg-leader-line.active:hover {
     stroke: #fbbf24 !important;
     stroke-width: 2.8px !important;
     stroke-dasharray: 6, 3 !important;
-    filter: drop-shadow(0 0 8px #f59e0b) drop-shadow(0 0 14px rgba(245, 158, 11, 0.7)) !important;
-    animation: leaderDashFlow 1.2s linear infinite !important;
+    filter: drop-shadow(0 0 8px #f59e0b) !important;
     cursor: pointer;
 }
 
@@ -780,8 +755,7 @@ body.layer-gshift2 .svg-leader-line.active:hover {
     stroke: #d946ef !important;
     stroke-width: 2.8px !important;
     stroke-dasharray: 6, 3 !important;
-    filter: drop-shadow(0 0 8px #d946ef) drop-shadow(0 0 14px rgba(217, 70, 239, 0.7)) !important;
-    animation: leaderDashFlow 1.2s linear infinite !important;
+    filter: drop-shadow(0 0 8px #d946ef) !important;
     cursor: pointer;
 }
 
@@ -2662,8 +2636,7 @@ body.calibrating-mode .btn-card.calib-selected::after {
     stroke: var(--accent-cyan) !important;
     stroke-width: 2.8px !important;
     stroke-dasharray: 6, 3 !important;
-    filter: drop-shadow(0 0 6px var(--accent-cyan)) drop-shadow(0 0 12px rgba(0, 210, 255, 0.65)) !important;
-    animation: leaderDashFlow 1.2s linear infinite !important;
+    filter: drop-shadow(0 0 6px var(--accent-cyan)) !important;
     cursor: pointer;
 }
 
