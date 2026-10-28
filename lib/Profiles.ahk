@@ -55,6 +55,8 @@ class ProfileEngine {
     static ActiveHeldButtons := Map()
     static ActiveHeldPressTimes := Map()
     static GameKeyDelay := 20
+    static ExecutingMacroCount := 0
+    static IsExecutingMacro := false
 
     ; Callback for GUI updates
     static OnProfileChanged := ""
@@ -640,7 +642,7 @@ class ProfileEngine {
 
         ; If any sequence macro is actively running or a button is currently dispatched on shift,
         ; do NOT prematurely deactivate shift layers!
-        if (this.ActiveSequences.Count > 0 || this.ButtonDispatchedLayer.Count > 0)
+        if (this.ActiveSequences.Count > 0 || this.ButtonDispatchedLayer.Count > 0 || this.IsExecutingMacro)
             return
 
         ; Verify all buttons in ShiftHolders are actually physically held
@@ -670,18 +672,17 @@ class ProfileEngine {
 
     static SyncActiveHeldButtons() {
         ; If any sequence macro is actively running, it manages its own held keys and must not be interrupted!
-        if (this.ActiveSequences.Count > 0)
+        if (this.ActiveSequences.Count > 0 || this.IsExecutingMacro)
             return
 
         if (this.ActiveHeldButtons.Count = 0) {
-            ; Check if logical LButton/RButton is stuck down when physically up
-            if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
-                try Send("{Blind}{LButton up}")
-            if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
-                try Send("{Blind}{RButton up}")
-            ; Check if logical Shift is stuck down when physically up
+            ; Check if logical Shift, Ctrl, Alt is stuck down when physically up
             if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
                 try Send("{Blind}{Shift up}")
+            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+                try Send("{Blind}{Ctrl up}")
+            if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+                try Send("{Blind}{Alt up}")
             return
         }
 
@@ -717,6 +718,8 @@ class ProfileEngine {
     }
 
     static PeriodicMaintenance() {
+        if (this.IsExecutingMacro || this.ActiveSequences.Count > 0)
+            return
         this.SyncShiftState()
         this.SyncActiveHeldButtons()
         this.CheckActiveWindow()
@@ -1961,16 +1964,18 @@ class ProfileEngine {
         }
 
         ; 5. Failsafe modifier unstick: if Shift, Ctrl, or Alt is logically down but physically not held on keyboard
-        if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
-            try Send("{Blind}{Shift up}")
-        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
-            try Send("{Blind}{Ctrl up}")
-        if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
-            try Send("{Blind}{Alt up}")
-        if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
-            try Send("{Blind}{LButton up}")
-        if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
-            try Send("{Blind}{RButton up}")
+        if (!this.IsExecutingMacro) {
+            if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+                try Send("{Blind}{Shift up}")
+            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+                try Send("{Blind}{Ctrl up}")
+            if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+                try Send("{Blind}{Alt up}")
+            if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+                try Send("{Blind}{LButton up}")
+            if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+                try Send("{Blind}{RButton up}")
+        }
     }
 
     static ExecuteButtonEvent(btnId, layer, isDown) {
@@ -2192,46 +2197,56 @@ class ProfileEngine {
     static PlaySteps(steps, btnId := "", token := 0, isRelease := false) {
         if (!IsObject(steps) || steps.Length = 0)
             return
-        totalSteps := steps.Length
-        for idx, step in steps {
-            ; Check sequence token before executing step
-            if (btnId != "" && token != 0) {
-                if (!this.SequenceTokens.Has(btnId) || this.SequenceTokens[btnId] != token)
-                    return
-            }
+        this.ExecutingMacroCount++
+        this.IsExecutingMacro := true
+        try {
+            totalSteps := steps.Length
+            for idx, step in steps {
+                ; Check sequence token before executing step
+                if (btnId != "" && token != 0) {
+                    if (!this.SequenceTokens.Has(btnId) || this.SequenceTokens[btnId] != token)
+                        return
+                }
 
-            k := step.Key
-            if (k = "DoubleClick") {
-                Click(2)
-                WebViewGuiManager.LogActivity("STEP", "Double Click", "")
-                continue
-            } else if (k = "TripleClick") {
-                Click(3)
-                WebViewGuiManager.LogActivity("STEP", "Triple Click", "")
-                continue
-            }
-            if (StrLen(k) = 1 && !InStr(k, "+")) {
-                k := StrLower(k)
-            }
-            if (step.Action = "Down") {
-                Send("{Blind}{" . k . " down}")
-                WebViewGuiManager.LogActivity("STEP", "{" . k . " down}", (!isRelease && step.HasOwnProp("Delay") && step.Delay > 0) ? (step.Delay . "ms delay") : "")
-            } else if (step.Action = "Up") {
-                Send("{Blind}{" . k . " up}")
-                WebViewGuiManager.LogActivity("STEP", "{" . k . " up}", (!isRelease && step.HasOwnProp("Delay") && step.Delay > 0) ? (step.Delay . "ms delay") : "")
-            }
+                k := step.Key
+                if (k = "DoubleClick") {
+                    Click(2)
+                    WebViewGuiManager.LogActivity("STEP", "Double Click", "")
+                    continue
+                } else if (k = "TripleClick") {
+                    Click(3)
+                    WebViewGuiManager.LogActivity("STEP", "Triple Click", "")
+                    continue
+                }
+                if (StrLen(k) = 1 && !InStr(k, "+")) {
+                    k := StrLower(k)
+                }
+                if (step.Action = "Down") {
+                    Send("{Blind}{" . k . " down}")
+                    WebViewGuiManager.LogActivity("STEP", "{" . k . " down}", (!isRelease && step.HasOwnProp("Delay") && step.Delay > 0) ? (step.Delay . "ms delay") : "")
+                } else if (step.Action = "Up") {
+                    Send("{Blind}{" . k . " up}")
+                    WebViewGuiManager.LogActivity("STEP", "{" . k . " up}", (!isRelease && step.HasOwnProp("Delay") && step.Delay > 0) ? (step.Delay . "ms delay") : "")
+                }
 
-            ; Delays: only sleep between intermediate steps (no useless sleep after the final step!)
-            if (idx < totalSteps && step.HasOwnProp("Delay") && step.Delay > 0) {
-                sleepMs := isRelease ? Min(step.Delay, 30) : step.Delay
-                if (sleepMs > 0) {
-                    Sleep(sleepMs)
-                    ; Check sequence token again after sleep — if released during sleep, abort immediately!
-                    if (btnId != "" && token != 0) {
-                        if (!this.SequenceTokens.Has(btnId) || this.SequenceTokens[btnId] != token)
-                            return
+                ; Delays: only sleep between intermediate steps (no useless sleep after the final step!)
+                if (idx < totalSteps && step.HasOwnProp("Delay") && step.Delay > 0) {
+                    sleepMs := isRelease ? Min(step.Delay, 30) : step.Delay
+                    if (sleepMs > 0) {
+                        Sleep(sleepMs)
+                        ; Check sequence token again after sleep — if released during sleep, abort immediately!
+                        if (btnId != "" && token != 0) {
+                            if (!this.SequenceTokens.Has(btnId) || this.SequenceTokens[btnId] != token)
+                                return
+                        }
                     }
                 }
+            }
+        } finally {
+            this.ExecutingMacroCount--
+            if (this.ExecutingMacroCount <= 0) {
+                this.ExecutingMacroCount := 0
+                this.IsExecutingMacro := false
             }
         }
     }
@@ -2355,16 +2370,18 @@ class ProfileEngine {
 
         ; 4. Failsafe modifier cleanup: if any modifier was logically stuck down by an interrupted macro
         ; but is physically not held on the keyboard, release it now.
-        if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
-            try Send("{Blind}{Shift up}")
-        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
-            try Send("{Blind}{Ctrl up}")
-        if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
-            try Send("{Blind}{Alt up}")
-        if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
-            try Send("{Blind}{LButton up}")
-        if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
-            try Send("{Blind}{RButton up}")
+        if (!this.IsExecutingMacro) {
+            if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+                try Send("{Blind}{Shift up}")
+            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+                try Send("{Blind}{Ctrl up}")
+            if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+                try Send("{Blind}{Alt up}")
+            if (btnId != "LeftClick" && !GetKeyState("LButton", "P") && GetKeyState("LButton"))
+                try Send("{Blind}{LButton up}")
+            if (btnId != "RightClick" && !GetKeyState("RButton", "P") && GetKeyState("RButton"))
+                try Send("{Blind}{RButton up}")
+        }
     }
 
     ; --- Button Event Handlers (F13 - F21) ---
@@ -2433,6 +2450,10 @@ class ProfileEngine {
         if (this.ButtonDispatchedLayer.Has("LeftClick") || this.ActiveSequences.Has("LeftClick"))
             return true
 
+        ; If a macro is actively executing synthetic clicks, do not intercept non-dispatched clicks
+        if (this.IsExecutingMacro)
+            return false
+
         if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active)
             return false
 
@@ -2449,6 +2470,10 @@ class ProfileEngine {
         ; we MUST intercept the release so the macro's OnRelease steps and cleanup execute reliably!
         if (this.ButtonDispatchedLayer.Has("RightClick") || this.ActiveSequences.Has("RightClick"))
             return true
+
+        ; If a macro is actively executing synthetic clicks, do not intercept non-dispatched clicks
+        if (this.IsExecutingMacro)
+            return false
 
         if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active)
             return false
@@ -2473,11 +2498,27 @@ class ProfileEngine {
     static HandleLeftClick(isDown) {
         if (this.IsMasterSuspended)
             return
+        ; Decouple execution from OS low-level mouse hook (WH_MOUSE_LL)
+        ; Returns to Windows immediately in < 0.05ms to prevent cursor lag & OS hook watchdog timeouts
+        SetTimer(() => ProfileEngine._DoHandleLeftClick(isDown), -1)
+    }
+
+    static _DoHandleLeftClick(isDown) {
+        if (this.IsMasterSuspended)
+            return
         this.NotifyButton("LeftClick", isDown)
         this.DispatchButton("LeftClick", isDown)
     }
 
     static HandleRightClick(isDown) {
+        if (this.IsMasterSuspended)
+            return
+        ; Decouple execution from OS low-level mouse hook (WH_MOUSE_LL)
+        ; Returns to Windows immediately in < 0.05ms to prevent cursor lag & OS hook watchdog timeouts
+        SetTimer(() => ProfileEngine._DoHandleRightClick(isDown), -1)
+    }
+
+    static _DoHandleRightClick(isDown) {
         if (this.IsMasterSuspended)
             return
         this.NotifyButton("RightClick", isDown)

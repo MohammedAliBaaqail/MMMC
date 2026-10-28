@@ -2,6 +2,20 @@
 settings.ini
 *.ini.bak
 
+# Windows Installer Setup & Distribution Packages
+*_Setup.exe
+*_Setup_*.exe
+MyMouseMyChoice_Setup.exe
+dist/
+Output/
+*.iss.bak
+
+# Temporary compiler, build, and test outputs
+ahk_stdout.txt
+ahk_stderr.txt
+manager_test_res.txt
+*.tmp
+
 # Runtime logs
 *.log
 webview_debug.log

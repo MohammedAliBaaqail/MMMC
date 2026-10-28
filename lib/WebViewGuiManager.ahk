@@ -57,7 +57,6 @@ class WebViewGuiManager {
                 this.ApplyThemeToTitleBar(this.MainGui.Hwnd)
                 this.SetWindowIcon(this.MainGui.Hwnd)
                 if (this.wvc != "") {
-                    try this.wvc.IsVisible := true
                     try this.wvc.Fill()
                 }
             }
@@ -69,9 +68,6 @@ class WebViewGuiManager {
     static OnWindowCloseOrHide() {
         this.SaveWindowGeometry()
         this.StopRecording()
-        if (this.wvc != "") {
-            try this.wvc.IsVisible := false
-        }
         if (this.MainGui && WinExist(this.MainGui.Hwnd)) {
             this.MainGui.Hide()
         }
@@ -326,15 +322,10 @@ class WebViewGuiManager {
     static _saveGeometryTimer := () => WebViewGuiManager.SaveWindowGeometry()
 
     static OnSize(minMax, w, h) {
-        if (minMax = -1) { ; Minimized
-            if (this.wvc != "") {
-                try this.wvc.IsVisible := false
-            }
+        if (minMax = -1) ; Minimized
             return
-        }
         if (this.wvc != "") {
             try {
-                this.wvc.IsVisible := true
                 RECT := Buffer(16, 0)
                 NumPut("int", 0, RECT, 0)
                 NumPut("int", 0, RECT, 4)
@@ -2222,8 +2213,18 @@ class WebViewGuiManager {
     ; =========================================================================
     ; OUTBOUND IPC TO WEBVIEW2
     ; =========================================================================
+    static IsStudioVisible() {
+        return (this.MainGui != "" && WinExist(this.MainGui.Hwnd) && DllCall("IsWindowVisible", "ptr", this.MainGui.Hwnd))
+    }
+
     static PostMessage(obj) {
         try {
+            ; Guard: drop high-frequency UI updates if Studio window is hidden or minimized
+            if (!this.IsStudioVisible() && obj.Has("type")) {
+                t := obj["type"]
+                if (t == "activityLog" || t == "buttonStateChanged" || t == "shiftStateChanged")
+                    return
+            }
             jsonStr := JSON.stringify(obj)
             if (this.wv != "") {
                 this.wv.PostWebMessageAsString(jsonStr)
@@ -2258,6 +2259,8 @@ class WebViewGuiManager {
     }
 
     static OnButtonStateChangedHandler(btnId, isDown) {
+        if (!this.IsStudioVisible())
+            return
         this.PostMessage(Map(
             "type", "buttonStateChanged",
             "btnId", btnId,
@@ -2266,6 +2269,8 @@ class WebViewGuiManager {
     }
 
     static OnShiftStateChangedHandler(isActive, shiftName) {
+        if (!this.IsStudioVisible())
+            return
         this.PostMessage(Map(
             "type", "shiftStateChanged",
             "isShift", isActive ? true : false,
@@ -2274,6 +2279,8 @@ class WebViewGuiManager {
     }
 
     static LogActivity(category, eventText, details := "") {
+        if (!this.IsStudioVisible())
+            return
         timeStr := FormatTime(, "HH:mm:ss") . "." . SubStr(A_MSec, 1, 3)
         this.PostMessage(Map(
             "type", "activityLog",

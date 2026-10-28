@@ -66,11 +66,13 @@ if not defined ISCC (
 "%ISCC%" /Q "%~dp0installer.iss"
 
 if %ERRORLEVEL% EQU 0 (
+    copy /y "dist\MyMouseMyChoice_Setup.exe" "%~dp0MyMouseMyChoice_Setup.exe" >nul 2>&1
     echo.
     echo ========================================================
     echo  SUCCESS! Build Complete:
-    echo   1. Standalone EXE: MyMouseMyChoice.exe
-    echo   2. Setup Installer: dist\MyMouseMyChoice_Setup_v2.0.exe
+    echo   1. Standalone Binary: MyMouseMyChoice.exe
+    echo   2. Setup Installer:   MyMouseMyChoice_Setup.exe
+    echo      [Also saved in:    dist\MyMouseMyChoice_Setup.exe]
     echo ========================================================
 ) else (
     echo.
@@ -78,4 +80,4 @@ if %ERRORLEVEL% EQU 0 (
 )
 
 echo.
-pause
+if "%~1" NEQ "/nopause" pause

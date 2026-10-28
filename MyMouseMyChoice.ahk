@@ -1,14 +1,19 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
-#MaxThreadsPerHotkey 2
+#MaxThreadsPerHotkey 10
 #UseHook true
-KeyHistory 100
+KeyHistory 0
+SendMode("Input")
+A_MenuMaskKey := "vkE8"
+SetKeyDelay(-1, -1)
+SetMouseDelay(-1)
+SetDefaultMouseSpeed(0)
 InstallKeybdHook()
 InstallMouseHook()
 Persistent(true)
 ; Elevate Windows system timer resolution to 1ms for ultra-responsive macro execution
 DllCall("winmm\timeBeginPeriod", "uint", 1)
-A_MaxHotkeysPerInterval := 2000
+A_MaxHotkeysPerInterval := 5000
 A_HotkeyInterval := 2000
 OnError(LogError)
 LogError(thrown, mode) {
@@ -56,6 +61,9 @@ if FileExist(iconFile) {
     try TraySetIcon(iconFile)
 }
 ConfigFile := A_ScriptDir . "\settings.ini"
+if (!FileExist(ConfigFile) && FileExist(A_ScriptDir . "\settings.default.ini")) {
+    try FileCopy(A_ScriptDir . "\settings.default.ini", ConfigFile)
+}
 
 ; Initialize profile mappings from settings
 ProfileEngine.Init(ConfigFile)
@@ -342,13 +350,29 @@ OnResetMouseVisual() {
 ; ========================================================
 #HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsLeftClickIntercept() && !ProfileEngine.RapidFireEnabled
 
-~*LButton::ProfileEngine.NotifyButton("LeftClick", true)
-~*LButton Up::ProfileEngine.NotifyButton("LeftClick", false)
+~*LButton::
+{
+    if (!ProfileEngine.IsExecutingMacro)
+        ProfileEngine.NotifyButton("LeftClick", true)
+}
+~*LButton Up::
+{
+    if (!ProfileEngine.IsExecutingMacro)
+        ProfileEngine.NotifyButton("LeftClick", false)
+}
 
 #HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsRightClickIntercept()
 
-~*RButton::ProfileEngine.NotifyButton("RightClick", true)
-~*RButton Up::ProfileEngine.NotifyButton("RightClick", false)
+~*RButton::
+{
+    if (!ProfileEngine.IsExecutingMacro)
+        ProfileEngine.NotifyButton("RightClick", true)
+}
+~*RButton Up::
+{
+    if (!ProfileEngine.IsExecutingMacro)
+        ProfileEngine.NotifyButton("RightClick", false)
+}
 
 #HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsWheelIntercept()
 

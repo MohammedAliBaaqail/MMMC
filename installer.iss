@@ -21,7 +21,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=dist
-OutputBaseFilename=MyMouseMyChoice_Setup_v2.0
+OutputBaseFilename=MyMouseMyChoice_Setup
 SetupIconFile=assets\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/ultra64
@@ -49,8 +49,9 @@ Source: "assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs
 ; AHK backend libraries and loaders
 Source: "lib\*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion
-; User configurations: only write default settings.ini on a clean install so existing user bindings/profiles are never lost on updates
-Source: "settings.ini"; DestDir: "{app}"; Flags: onlyifdoesntexist uninsneveruninstall
+; User configurations: clean default settings template
+Source: "settings.default.ini"; DestDir: "{app}"; Flags: ignoreversion
+Source: "settings.default.ini"; DestDir: "{app}"; DestName: "settings.ini"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -60,3 +61,16 @@ Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: st
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+Filename: "taskkill.exe"; Parameters: "/f /im {#MyAppExeName}"; Flags: runhidden; RunOnceId: "CloseRunningBeforeUninstall"
+
+[Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  // Terminate any running instance so files are not locked during install/update
+  Exec('taskkill.exe', '/f /im {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
+end;
