@@ -27,6 +27,7 @@ class ProfileEngine {
     static IsGShift2Active := false
     static ShiftHolders := Map()
     static ButtonDispatchedLayer := Map()
+    static DeactivatedWhileHeld := Map()
     static CurrentLayer => (this.IsGShift2Active ? "GShift2" : ((this.IsGShift1Active || this.IsGShiftActive) ? "GShift" : "Normal"))
     static OnShiftStateChanged := ""
     static RapidFireEnabled := false
@@ -546,6 +547,7 @@ class ProfileEngine {
         this.PhysicalButtonStates.Clear()
         this.ShiftHolders.Clear()
         this.ButtonDispatchedLayer.Clear()
+        this.DeactivatedWhileHeld.Clear()
     }
 
     static ReleaseAllHeldButtons() {
@@ -1791,8 +1793,14 @@ class ProfileEngine {
 
         ; Filter Windows OS typematic auto-repeat on hold (for F-key mapped mouse buttons)
         if (isDown) {
-            if (this.PhysicalButtonStates.Has(btnId) && this.PhysicalButtonStates[btnId])
+            ; LeftClick and RightClick are physical mouse clicks and never have OS typematic repeats.
+            ; If a down event arrives for LeftClick/RightClick, clear any lingering stale state so the click is never ignored.
+            if (btnId = "LeftClick" || btnId = "RightClick") {
+                if (this.DeactivatedWhileHeld.Has(btnId))
+                    this.DeactivatedWhileHeld.Delete(btnId)
+            } else if (this.PhysicalButtonStates.Has(btnId) && this.PhysicalButtonStates[btnId]) {
                 return ; Ignore typematic repeat event while button is physically held
+            }
             this.PhysicalButtonStates[btnId] := true
         } else {
             if (this.PhysicalButtonStates.Has(btnId))
@@ -1805,7 +1813,7 @@ class ProfileEngine {
         ; 1. HANDLE BUTTON RELEASE (isDown = false)
         ; -------------------------------------------------------------
         if (!isDown) {
-            relLayer := this.ButtonDispatchedLayer.Has(btnId) ? this.ButtonDispatchedLayer[btnId] : (this.IsGShift2Active ? "GShift2" : ((this.IsGShift1Active || this.IsGShiftActive) ? "GShift" : "Normal"))
+            relLayer := this.ButtonDispatchedLayer.Has(btnId) ? this.ButtonDispatchedLayer[btnId] : (this.DeactivatedWhileHeld.Has(btnId) ? this.DeactivatedWhileHeld[btnId] : (this.IsGShift2Active ? "GShift2" : ((this.IsGShift1Active || this.IsGShiftActive) ? "GShift" : "Normal")))
             WebViewGuiManager.LogActivity("BUTTON", "Release (Up) ▴ " . btnId, "Layer: " . relLayer . " | Profile: " . this.CurrentProfile)
 
             ; Check if this button was currently holding a Shift layer
@@ -1819,6 +1827,12 @@ class ProfileEngine {
                     if (!this.HasShift1Holder())
                         this.HandleShift1Modifier(btnId, false)
                 }
+                return
+            }
+
+            ; Check if this button was already released early when its shift layer deactivated while held
+            if (this.DeactivatedWhileHeld.Has(btnId)) {
+                this.DeactivatedWhileHeld.Delete(btnId)
                 return
             }
 
@@ -1960,6 +1974,7 @@ class ProfileEngine {
         this.OnShiftLayerDeactivated("All")
         this.ShiftHolders.Clear()
         this.ButtonDispatchedLayer.Clear()
+        this.DeactivatedWhileHeld.Clear()
         this.IsGShiftActive := false
         this.IsGShift1Active := false
         this.IsGShift2Active := false
@@ -1983,6 +1998,23 @@ class ProfileEngine {
         for item in buttonsToRelease {
             if (this.ButtonDispatchedLayer.Has(item.btnId)) {
                 this.ButtonDispatchedLayer.Delete(item.btnId)
+            }
+            ; If button is still physically held down by the user, remember that its shift action
+            ; was already released so its subsequent physical release does not misfire or stay stuck.
+            isStillHeld := false
+            if (item.btnId = "LeftClick") {
+                isStillHeld := GetKeyState("LButton", "P")
+            } else if (item.btnId = "RightClick") {
+                isStillHeld := GetKeyState("RButton", "P")
+            } else if (this.PhysicalButtonStates.Has(item.btnId) && this.PhysicalButtonStates[item.btnId]) {
+                isStillHeld := true
+            }
+
+            if (isStillHeld) {
+                this.DeactivatedWhileHeld[item.btnId] := item.layer
+            } else {
+                if (this.PhysicalButtonStates.Has(item.btnId))
+                    this.PhysicalButtonStates.Delete(item.btnId)
             }
             this.ExecuteButtonEvent(item.btnId, item.layer, false)
         }
@@ -2534,9 +2566,10 @@ class ProfileEngine {
         if (this.IsMasterSuspended)
             return false
 
-        ; If this button is currently dispatched on a custom layer or has an active sequence,
-        ; we MUST intercept the release so the macro's OnRelease steps and cleanup execute reliably!
-        if (this.ButtonDispatchedLayer.Has("LeftClick") || this.ActiveSequences.Has("LeftClick"))
+        ; If this button is currently dispatched on a custom layer, has an active sequence,
+        ; or was pressed while intercepted (is physically down or was deactivated while held),
+        ; we MUST intercept the release so physical state is cleaned up and Windows does not receive a native Up!
+        if (this.ButtonDispatchedLayer.Has("LeftClick") || this.PhysicalButtonStates.Has("LeftClick") || this.DeactivatedWhileHeld.Has("LeftClick") || this.ActiveSequences.Has("LeftClick"))
             return true
 
         ; If a macro is actively executing synthetic clicks, do not intercept non-dispatched clicks
@@ -2555,9 +2588,10 @@ class ProfileEngine {
         if (this.IsMasterSuspended)
             return false
 
-        ; If this button is currently dispatched on a custom layer or has an active sequence,
-        ; we MUST intercept the release so the macro's OnRelease steps and cleanup execute reliably!
-        if (this.ButtonDispatchedLayer.Has("RightClick") || this.ActiveSequences.Has("RightClick"))
+        ; If this button is currently dispatched on a custom layer, has an active sequence,
+        ; or was pressed while intercepted (is physically down or was deactivated while held),
+        ; we MUST intercept the release so physical state is cleaned up and Windows does not receive a native Up!
+        if (this.ButtonDispatchedLayer.Has("RightClick") || this.PhysicalButtonStates.Has("RightClick") || this.DeactivatedWhileHeld.Has("RightClick") || this.ActiveSequences.Has("RightClick"))
             return true
 
         ; If a macro is actively executing synthetic clicks, do not intercept non-dispatched clicks
@@ -2729,15 +2763,17 @@ class ProfileEngine {
         if (this.IsMasterSuspended)
             return
 
-        ; Suppress redundant UI flash on OS typematic repeats
-        if (isPressed && this.PhysicalButtonStates.Has(btnName) && this.PhysicalButtonStates[btnName])
+        ; Suppress redundant UI flash on OS typematic repeats (F-keys only; mouse clicks do not repeat)
+        if (isPressed && btnName != "LeftClick" && btnName != "RightClick" && this.PhysicalButtonStates.Has(btnName) && this.PhysicalButtonStates[btnName])
             return
 
         ; If this is a pass-through click or scroll on normal layer, log it for complete visibility
         if (btnName = "LeftClick" || btnName = "RightClick" || btnName = "WheelUp" || btnName = "WheelDown") {
             if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active) {
-                if (WebViewGuiManager.ShouldDispatchVisuals()) {
-                    WebViewGuiManager.LogActivity("BUTTON", (isPressed ? "Press (Down) ▾ " : "Release (Up) ▴ ") . btnName . " (Native)", "Layer: Normal | Profile: " . this.CurrentProfile)
+                if (!this.ButtonDispatchedLayer.Has(btnName) && !this.DeactivatedWhileHeld.Has(btnName) && !(isPressed == false && this.PhysicalButtonStates.Has(btnName))) {
+                    if (WebViewGuiManager.ShouldDispatchVisuals()) {
+                        WebViewGuiManager.LogActivity("BUTTON", (isPressed ? "Press (Down) ▾ " : "Release (Up) ▴ ") . btnName . " (Native)", "Layer: Normal | Profile: " . this.CurrentProfile)
+                    }
                 }
             }
         }
