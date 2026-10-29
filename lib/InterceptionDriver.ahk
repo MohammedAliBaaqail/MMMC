@@ -65,16 +65,16 @@ class InterceptionDriver {
             for id, dev in devList {
                 if (dev.IsMouse) {
                     this.MouseDevices.Push(dev.ID)
-                    ; Prioritize Logitech hardware (VID 0x046D = 1133)
-                    if (dev.VID = 0x046D || dev.VID = 1133) {
+                    ; Prioritize Logitech hardware (VID 0x046D = 1133), picking first primary endpoint
+                    if ((dev.VID = 0x046D || dev.VID = 1133) && primaryMouse = 0) {
                         primaryMouse := dev.ID
                     } else if (primaryMouse = 0) {
                         primaryMouse := dev.ID
                     }
                 } else {
                     this.KeyboardDevices.Push(dev.ID)
-                    ; Prioritize Logitech hardware (VID 0x046D = 1133)
-                    if (dev.VID = 0x046D || dev.VID = 1133) {
+                    ; Prioritize Logitech hardware (VID 0x046D = 1133), picking first primary endpoint
+                    if ((dev.VID = 0x046D || dev.VID = 1133) && primaryKb = 0) {
                         primaryKb := dev.ID
                     } else if (primaryKb = 0) {
                         primaryKb := dev.ID
@@ -142,21 +142,23 @@ class InterceptionDriver {
         if (!this.Enabled || !this.IsAvailable || !this.AHI)
             return false
 
-        success := false
-        if (this.MouseDevices.Length > 0) {
+        targetId := (this.MouseId != 0) ? this.MouseId : ((this.MouseDevices.Length > 0) ? this.MouseDevices[1] : 11)
+        try {
+            this.AHI.SendMouseButtonEvent(targetId, btnIndex, state)
+            return true
+        } catch {
+            ; Fallback: try other detected mouse devices one by one until one succeeds
             for devId in this.MouseDevices {
-                try {
-                    this.AHI.SendMouseButtonEvent(devId, btnIndex, state)
-                    success := true
+                if (devId != targetId) {
+                    try {
+                        this.AHI.SendMouseButtonEvent(devId, btnIndex, state)
+                        this.MouseId := devId
+                        return true
+                    }
                 }
             }
-        } else {
-            try {
-                this.AHI.SendMouseButtonEvent(this.MouseId, btnIndex, state)
-                success := true
-            }
+            return false
         }
-        return success
     }
 
     static SendMouseDown(btnName) {
@@ -219,10 +221,20 @@ class InterceptionDriver {
         if (!this.Enabled || !this.IsAvailable || !this.AHI)
             return false
 
+        targetId := (this.KeyboardId != 0) ? this.KeyboardId : ((this.KeyboardDevices.Length > 0) ? this.KeyboardDevices[1] : 1)
         try {
-            this.AHI.SendKeyEvent(this.KeyboardId, sc, state)
+            this.AHI.SendKeyEvent(targetId, sc, state)
             return true
         } catch {
+            for devId in this.KeyboardDevices {
+                if (devId != targetId) {
+                    try {
+                        this.AHI.SendKeyEvent(devId, sc, state)
+                        this.KeyboardId := devId
+                        return true
+                    }
+                }
+            }
             return false
         }
     }

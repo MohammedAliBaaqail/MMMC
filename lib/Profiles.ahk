@@ -923,12 +923,18 @@ class ProfileEngine {
                 if (guiHwnd && (activeHwnd == guiHwnd || DllCall("IsChild", "ptr", guiHwnd, "ptr", activeHwnd)))
                     return
                     
-                activeProc := WinGetProcessName(activeHwnd)
+                activeProc := ""
+                winClass := ""
+                try {
+                    activeProc := WinGetProcessName(activeHwnd)
+                    winClass := WinGetClass(activeHwnd)
+                } catch {
+                    return
+                }
                 if (activeProc == "" || activeProc = "AutoHotkey64.exe" || activeProc = "msedgewebview2.exe")
                     return
 
                 ; Ignore transient shell and system navigation windows:
-                winClass := WinGetClass(activeHwnd)
                 if (winClass = "Shell_TrayWnd" || winClass = "Shell_SecondaryTrayWnd" || winClass = "Windows.UI.Core.CoreWindow" || winClass = "XamlExplorerHostIslandWindow")
                     return
 

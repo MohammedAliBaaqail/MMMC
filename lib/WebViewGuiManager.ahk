@@ -658,18 +658,19 @@ class WebViewGuiManager {
             case "toggleSnapTap":
                 enabled := req.Has("enabled") ? req["enabled"] : !SnapTap.Enabled
                 SnapTap.SetEnabled(enabled)
-                this.PostMessage(Map("type", "snapTapChanged", "enabled", SnapTap.Enabled ? true : false, "mode",
-                    SnapTap.Mode))
-                modeDesc := (SnapTap.Mode = "games") ? "Game Profiles" : "Always Active"
+                sMode := HasProp(SnapTap, "Mode") ? SnapTap.Mode : "games"
+                this.PostMessage(Map("type", "snapTapChanged", "enabled", SnapTap.Enabled ? true : false, "mode", sMode))
+                modeDesc := (sMode = "games") ? "Game Profiles" : "Always Active"
                 OSD.Show("Snap Tap", SnapTap.Enabled ? ("Enabled (" . modeDesc . ")") : "Disabled")
-                this.PostMessage(Map("type", "snapTapChanged", "enabled", SnapTap.Enabled ? true : false))
-                OSD.Show("Snap Tap", SnapTap.Enabled ? "Enabled (A/D SOCD Cleaner)" : "Disabled")
 
             case "setSnapTapMode":
                 mode := req.Has("mode") ? String(req["mode"]) : "games"
-                SnapTap.SetMode(mode)
-                this.PostMessage(Map("type", "snapTapModeChanged", "mode", SnapTap.Mode))
-                modeDesc := (SnapTap.Mode = "games") ? "Game Profiles" : "Always Active"
+                if (HasProp(SnapTap, "SetMode")) {
+                    SnapTap.SetMode(mode)
+                }
+                sMode := HasProp(SnapTap, "Mode") ? SnapTap.Mode : mode
+                this.PostMessage(Map("type", "snapTapModeChanged", "mode", sMode))
+                modeDesc := (sMode = "games") ? "Game Profiles" : "Always Active"
                 if (SnapTap.Enabled) {
                     OSD.Show("Snap Tap Mode", modeDesc)
                 }
@@ -1113,8 +1114,8 @@ class WebViewGuiManager {
                 "focusOnHoverDelay", FocusFollowsMouse.Delay,
                 "isAdmin", A_IsAdmin ? true : false,
                 "runAtStartup", StartupManager.IsEnabled() ? true : false,
-                "snapTap", SnapTap.Enabled ? true : false,
-                "snapTapMode", SnapTap.Mode,
+                "snapTap", (HasProp(SnapTap, "Enabled") && SnapTap.Enabled) ? true : false,
+                "snapTapMode", (HasProp(SnapTap, "Mode") ? SnapTap.Mode : "games"),
                 "useInterceptionDriver", (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled) ? true :
                     false,
                 "interceptionDriverInstalled", (HasProp(InterceptionDriver, "IsInstalled") && InterceptionDriver.IsInstalled

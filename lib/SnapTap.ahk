@@ -20,6 +20,7 @@
  */
 class SnapTap {
     static Enabled := false
+    static Mode := "games"   ; "games" (only active in game profiles) or "all" (always active)
     static MinDwellMs := 100 ; Distinguishes fast typing rollover taps (< 100ms) from sustained strafe holds
 
     ; Internal state tracking
@@ -34,11 +35,24 @@ class SnapTap {
         val := IniRead(iniPath, "Settings", "SnapTap", "0")
         this.Enabled := (val = "1" || val = "true")
         try {
+            this.Mode := IniRead(iniPath, "Settings", "SnapTapMode", "games")
+        } catch {
+            this.Mode := "games"
+        }
+        try {
             dwellVal := IniRead(iniPath, "Settings", "SnapTapDwellMs", "100")
             this.MinDwellMs := Integer(dwellVal)
         } catch {
             this.MinDwellMs := 100
         }
+    }
+
+    static SetMode(newMode) {
+        if (newMode != "games" && newMode != "all")
+            newMode := "games"
+        this.Mode := newMode
+        iniPath := A_ScriptDir . "\settings.ini"
+        try IniWrite(this.Mode, iniPath, "Settings", "SnapTapMode")
     }
 
     static SetEnabled(enable) {
@@ -57,7 +71,24 @@ class SnapTap {
         return this.Enabled
     }
 
-    static IsActive() => this.Enabled
+    static IsActive() {
+        if (!this.Enabled)
+            return false
+        if (this.Mode == "all")
+            return true
+        ; "games" mode: active if current profile is not Desktop or has a target exe
+        if (HasProp(ProfileEngine, "CurrentProfile")) {
+            prof := ProfileEngine.CurrentProfile
+            if (prof != "Desktop" && prof != "")
+                return true
+            if (HasProp(ProfileEngine, "ProfileMetadata") && ProfileEngine.ProfileMetadata.Has(prof)) {
+                meta := ProfileEngine.ProfileMetadata[prof]
+                if (meta.HasOwnProp("TargetExe") && meta.TargetExe != "")
+                    return true
+            }
+        }
+        return false
+    }
 
     static Reset() {
         this.ActiveKey := ""
