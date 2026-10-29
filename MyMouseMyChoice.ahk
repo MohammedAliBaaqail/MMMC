@@ -462,6 +462,3 @@ OnResetMouseVisual() {
 ~*d::SnapTap.OnDDown()
 ~*d up::SnapTap.OnDUp()
 #HotIf
-
-; Quick Toggle: ScrollLock toggles Snap Tap anytime with instant OSD feedback
-ScrollLock::SnapTap.Toggle()
