@@ -405,6 +405,51 @@ class ProfileEngine {
         this.SaveMapping(profile, btnId, normalObj, gshiftObj, gshift2Obj)
     }
 
+    static UpdateMacroAcrossAllProfiles(originalName, presetId, newAct) {
+        updatedCount := 0
+        if (originalName = "" && presetId = "")
+            return 0
+
+        for profName, buttons in this.ActiveMappings {
+            for btnId, mapping in buttons {
+                for layerKey in ["Normal", "GShift", "GShift2"] {
+                    if (!mapping.HasOwnProp(layerKey))
+                        continue
+                    act := mapping.%layerKey%
+                    if (!IsObject(act) || !act.HasOwnProp("Type") || act.Type != "Macro")
+                        continue
+
+                    match := false
+                    if (originalName != "" && act.HasOwnProp("Label") && act.Label = originalName)
+                        match := true
+                    else if (presetId != "" && act.HasOwnProp("PresetId") && act.PresetId = presetId)
+                        match := true
+
+                    if (match) {
+                        act.Label := newAct.HasOwnProp("Label") ? newAct.Label : originalName
+                        act.Cmd := newAct.HasOwnProp("Cmd") ? newAct.Cmd : "Macro"
+                        act.PlayType := newAct.HasOwnProp("PlayType") ? newAct.PlayType : "Sequence"
+                        act.RepeatInterval := newAct.HasOwnProp("RepeatInterval") ? Integer(newAct.RepeatInterval) : 50
+                        act.Color := newAct.HasOwnProp("Color") ? newAct.Color : "none"
+
+                        for key in ["Steps", "SeqPress", "SeqHold", "SeqRelease"] {
+                            if (newAct.HasOwnProp(key) && IsObject(newAct.%key%))
+                                act.%key% := newAct.%key%
+                            else
+                                act.%key% := []
+                        }
+                        if (presetId != "")
+                            act.PresetId := presetId
+
+                        this.SaveButtonLayer(profName, btnId, layerKey, act)
+                        updatedCount++
+                    }
+                }
+            }
+        }
+        return updatedCount
+    }
+
     static GetButtonMapping(profile, btnId) {
         if (this.ActiveMappings.Has(profile) && this.ActiveMappings[profile].Has(btnId)) {
             m := this.ActiveMappings[profile][btnId]

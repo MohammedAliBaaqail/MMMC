@@ -1,5 +1,5 @@
 /**
- * My Mouse My Choice â€” Advanced Studio Frontend Controller
+ * My Mouse My Choice — Advanced Studio Frontend Controller
  * Complete bidirectional IPC, SVG leader line rendering, drag-and-drop,
  * and Button Studio modal with single/combo recording and macro sequencing.
  */
@@ -410,6 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initBackupModal();
     initStudioSettingsModal();
     initCustomConfirmModal();
+    initMacroUpdateChoiceModal();
     initActivityLogModal();
     
     // Draw initial SVG lines after layout stabilizes
@@ -568,10 +569,29 @@ function handleEngineMessage(msg) {
 
             // Custom action presets loading
             if (msg.customActionPresets && Array.isArray(msg.customActionPresets)) {
-                state.customActionPresets = msg.customActionPresets;
-                try {
-                    localStorage.setItem('obm_custom_action_presets', JSON.stringify(state.customActionPresets));
-                } catch (e) {}
+                if (msg.customActionPresets.length > 0) {
+                    state.customActionPresets = msg.customActionPresets;
+                    try {
+                        localStorage.setItem('obm_custom_action_presets', JSON.stringify(state.customActionPresets));
+                    } catch (e) {}
+                } else {
+                    let localPresets = [];
+                    try {
+                        const raw = localStorage.getItem('obm_custom_action_presets');
+                        if (raw) localPresets = JSON.parse(raw);
+                    } catch (e) {}
+                    if (Array.isArray(localPresets) && localPresets.length > 0) {
+                        state.customActionPresets = localPresets;
+                        for (const lp of localPresets) {
+                            sendToAhk({
+                                action: 'saveCustomActionPreset',
+                                preset: lp
+                            });
+                        }
+                    } else {
+                        state.customActionPresets = [];
+                    }
+                }
                 if (typeof initCatalog === 'function') {
                     initCatalog();
                 }
@@ -579,10 +599,29 @@ function handleEngineMessage(msg) {
 
             // Text block presets loading
             if (msg.textBlockPresets && Array.isArray(msg.textBlockPresets)) {
-                state.textBlockPresets = msg.textBlockPresets;
-                try {
-                    localStorage.setItem('obm_text_block_presets', JSON.stringify(state.textBlockPresets));
-                } catch (e) {}
+                if (msg.textBlockPresets.length > 0) {
+                    state.textBlockPresets = msg.textBlockPresets;
+                    try {
+                        localStorage.setItem('obm_text_block_presets', JSON.stringify(state.textBlockPresets));
+                    } catch (e) {}
+                } else {
+                    let localTextPresets = [];
+                    try {
+                        const raw = localStorage.getItem('obm_text_block_presets');
+                        if (raw) localTextPresets = JSON.parse(raw);
+                    } catch (e) {}
+                    if (Array.isArray(localTextPresets) && localTextPresets.length > 0) {
+                        state.textBlockPresets = localTextPresets;
+                        for (const tp of localTextPresets) {
+                            sendToAhk({
+                                action: 'saveTextBlockPreset',
+                                preset: tp
+                            });
+                        }
+                    } else {
+                        state.textBlockPresets = [];
+                    }
+                }
                 if (typeof initCatalog === 'function') {
                     initCatalog();
                 }
@@ -856,6 +895,14 @@ function handleEngineMessage(msg) {
 
         case 'runningAppsList':
             renderRunningAppsPicker(msg.apps || []);
+            break;
+
+        case 'allMappingsUpdated':
+            if (msg.mappings) {
+                state.mappings = msg.mappings;
+                refreshCardsAndStage();
+                updateSvgLines();
+            }
             break;
 
         case 'mappingsCopied':
@@ -3078,8 +3125,8 @@ function openButtonStudio(btnId) {
     state.modal.buttonId = btnId;
     const info = DIAGRAM_POINTS[btnId] || { name: btnId };
 
-    document.getElementById('modalTargetTitle').textContent = `BUTTON STUDIO â€” ${getButtonDisplayName(btnId).toUpperCase()}`;
-    document.getElementById('modalTargetMeta').textContent = `Profile: ${state.currentProfile} â€¢ Active Layer: ${state.currentLayer}`;
+    document.getElementById('modalTargetTitle').textContent = `BUTTON STUDIO — ${getButtonDisplayName(btnId).toUpperCase()}`;
+    document.getElementById('modalTargetMeta').textContent = `Profile: ${state.currentProfile} • Active Layer: ${state.currentLayer}`;
 
     const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
     if (btnAssignShift) {
@@ -3160,6 +3207,27 @@ function openButtonStudio(btnId) {
     state.modal.editingPresetId = null;
     state.modal.editingPresetOriginalName = null;
 
+    if (isExistingMacro && currentAction.Label) {
+        const matched = (state.customActionPresets || []).find(p => (p.name && p.name === currentAction.Label) || (p.id && currentAction.PresetId && p.id === currentAction.PresetId));
+        if (matched) {
+            state.modal.editingPresetId = matched.id;
+            state.modal.editingPresetOriginalName = matched.name;
+        } else {
+            state.modal.editingPresetOriginalName = currentAction.Label;
+        }
+    }
+
+    state.modal.originalMacroSnapshot = {
+        name: (isExistingMacro && currentAction.Label) ? currentAction.Label : (state.modal.macroName || ''),
+        playType: state.modal.macroType || 'Sequence',
+        repeatInterval: state.modal.macroRepeatDelay || 50,
+        color: state.modal.macroColor || 'none',
+        steps: JSON.stringify(rawSteps || []),
+        press: JSON.stringify(seqPress || []),
+        hold: JSON.stringify(seqHold || []),
+        release: JSON.stringify(seqRelease || [])
+    };
+
     // Populate Tab 3 Text Block inputs
     const textContentEl = document.getElementById('textBlockContent');
     const textLabelEl = document.getElementById('textBlockLabel');
@@ -3221,6 +3289,17 @@ function openMacroPresetEditor(preset) {
     state.modal.buttonId = null; // Decoupled from selected button: edits library preset only
     state.modal.editingPresetId = preset.id || preset.name;
     state.modal.editingPresetOriginalName = preset.name || preset.label || 'Macro';
+    state.modal.isExistingMacro = true;
+    state.modal.originalMacroSnapshot = {
+        name: preset.name || preset.label || 'Macro',
+        playType: preset.playType || preset.PlayType || 'Sequence',
+        repeatInterval: preset.repeatInterval || preset.RepeatInterval || 50,
+        color: preset.color || preset.Color || 'none',
+        steps: JSON.stringify(parseMacroSteps(preset.steps || preset.Steps) || []),
+        press: JSON.stringify(parseMacroSteps(preset.seqPress || preset.SeqPress) || []),
+        hold: JSON.stringify(parseMacroSteps(preset.seqHold || preset.SeqHold) || []),
+        release: JSON.stringify(parseMacroSteps(preset.seqRelease || preset.SeqRelease) || [])
+    };
 
     const modal = document.getElementById('studioModal');
     if (modal) {
@@ -3229,9 +3308,9 @@ function openMacroPresetEditor(preset) {
     }
 
     const titleEl = document.getElementById('modalTargetTitle');
-    if (titleEl) titleEl.textContent = `MACRO STUDIO â€” EDIT: ${(preset.name || preset.label || 'MACRO').toUpperCase()}`;
+    if (titleEl) titleEl.textContent = `MACRO STUDIO — EDIT: ${(preset.name || preset.label || 'MACRO').toUpperCase()}`;
     const metaEl = document.getElementById('modalTargetMeta');
-    if (metaEl) metaEl.textContent = `Custom Presets Library â€¢ Sequence & Actions Editor`;
+    if (metaEl) metaEl.textContent = `Custom Presets Library • Sequence & Actions Editor`;
 
     const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
     if (btnAssignShift) btnAssignShift.style.display = 'none';
@@ -3296,9 +3375,9 @@ function openSinglePresetEditor(preset) {
     }
 
     const titleEl = document.getElementById('modalTargetTitle');
-    if (titleEl) titleEl.textContent = `KEY COMBINATION â€” EDIT: ${(preset.name || preset.label || 'COMBO').toUpperCase()}`;
+    if (titleEl) titleEl.textContent = `KEY COMBINATION — EDIT: ${(preset.name || preset.label || 'COMBO').toUpperCase()}`;
     const metaEl = document.getElementById('modalTargetMeta');
-    if (metaEl) metaEl.textContent = `Custom Presets Library â€¢ Keystroke Combination`;
+    if (metaEl) metaEl.textContent = `Custom Presets Library • Keystroke Combination`;
 
     const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
     if (btnAssignShift) btnAssignShift.style.display = 'none';
@@ -3347,17 +3426,17 @@ function updateModeExplanation(mode, elementId) {
     switch (mode) {
         case 'NoRepeat':
             el.textContent = isSingle
-                ? 'â€¢ Direct Passthrough: Holds button down while physically held, and releases on release (no repeating).'
-                : 'â€¢ Standard macro: Plays the recorded sequence once when pressed.';
+                ? '• Direct Passthrough: Holds button down while physically held, and releases on release (no repeating).'
+                : '• Standard macro: Plays the recorded sequence once when pressed.';
             break;
         case 'RepeatWhileHolding':
-            el.textContent = 'â€¢ Auto-repeat / Rapid-fire: continuously repeats the action while the mouse button is held down.';
+            el.textContent = '• Auto-repeat / Rapid-fire: continuously repeats the action while the mouse button is held down.';
             break;
         case 'Toggle':
-            el.textContent = 'â€¢ Toggle loop: press once to start continuously repeating, press again to stop.';
+            el.textContent = '• Toggle loop: press once to start continuously repeating, press again to stop.';
             break;
         case 'Sequence':
-            el.textContent = 'â€¢ 3-Phase sequence: plays ON PRESS once, loops WHILE HOLDING continuously, and finishes with ON RELEASE.';
+            el.textContent = '• 3-Phase sequence: plays ON PRESS once, loops WHILE HOLDING continuously, and finishes with ON RELEASE.';
             break;
     }
 }
@@ -4163,10 +4242,10 @@ function setGhubMacroType(type) {
     const explainEl = document.getElementById('macroExplainText');
     if (explainEl) {
         const explanations = {
-            NoRepeat: 'â€¢ No Repeat: Plays through the recorded macro actions once per button press.',
-            RepeatWhileHolding: 'â€¢ Repeat While Holding: Repeats the macro sequence continuously while the button is held down.',
-            Toggle: 'â€¢ Toggle (Loop): Press once to start looping the macro continuously; press again to stop.',
-            Sequence: 'â€¢ Sequence: Executes separate actions On Press, while Holding, and on Release.'
+            NoRepeat: '• No Repeat: Plays through the recorded macro actions once per button press.',
+            RepeatWhileHolding: '• Repeat While Holding: Repeats the macro sequence continuously while the button is held down.',
+            Toggle: '• Toggle (Loop): Press once to start looping the macro continuously; press again to stop.',
+            Sequence: '• Sequence: Executes separate actions On Press, while Holding, and on Release.'
         };
         explainEl.textContent = explanations[state.modal.macroType] || '';
     }
@@ -4415,7 +4494,7 @@ function renderMacroSteps() {
                 } else {
                     block.classList.add(isUp ? 'is-up' : 'is-down');
                     const actLabel = isUp ? 'KEY UP' : 'KEY DOWN';
-                    block.setAttribute('title', `${formatKeyNice(step.Key)}: ${actLabel}\nSingle-click to toggle Down/Up â€¢ Drag to reorder`);
+                    block.setAttribute('title', `${formatKeyNice(step.Key)}: ${actLabel}\nSingle-click to toggle Down/Up • Drag to reorder`);
                 }
 
                 block.addEventListener('dragstart', (e) => {
@@ -4772,12 +4851,304 @@ function updateTextBlockStats() {
     const wordCount = trimmed ? trimmed.split(/\s+/).length : 0;
     const lineCount = val ? val.split('\n').length : 1;
 
-    statsEl.textContent = `${charCount} ${charCount === 1 ? 'character' : 'characters'} â€¢ ${wordCount} ${wordCount === 1 ? 'word' : 'words'} â€¢ ${lineCount} ${lineCount === 1 ? 'line' : 'lines'}`;
+    statsEl.textContent = `${charCount} ${charCount === 1 ? 'character' : 'characters'} • ${wordCount} ${wordCount === 1 ? 'word' : 'words'} • ${lineCount} ${lineCount === 1 ? 'line' : 'lines'}`;
 }
 
 // ============================================================================
-// APPLY & SAVE LOGIC
+// APPLY & SAVE LOGIC & MACRO UPDATE DIALOG
 // ============================================================================
+let pendingMacroUpdate = null;
+
+function findMacroUsageAcrossProfiles(macroName, presetId) {
+    const usages = [];
+    if (!state.mappings || (!macroName && !presetId)) return usages;
+
+    for (const profName of Object.keys(state.mappings)) {
+        const profMap = state.mappings[profName];
+        if (!profMap) continue;
+
+        for (const btnId of Object.keys(profMap)) {
+            const btnObj = profMap[btnId];
+            if (!btnObj) continue;
+
+            for (const layerKey of ['Normal', 'GShift', 'GShift2']) {
+                const act = btnObj[layerKey];
+                if (!act || act.Type !== 'Macro') continue;
+
+                const matchById = presetId && act.PresetId && act.PresetId === presetId;
+                const matchByName = macroName && act.Label && act.Label === macroName;
+
+                if (matchById || matchByName) {
+                    usages.push({
+                        profile: profName,
+                        btnId: btnId,
+                        layer: layerKey,
+                        action: act
+                    });
+                }
+            }
+        }
+    }
+    return usages;
+}
+
+function initMacroUpdateChoiceModal() {
+    const modal = document.getElementById('macroUpdateChoiceModal');
+    const btnClose = document.getElementById('btnMacroChoiceClose');
+    const btnCancel = document.getElementById('btnMacroChoiceCancel');
+    const btnConfirm = document.getElementById('btnMacroChoiceConfirm');
+    const optUpdate = document.getElementById('optUpdateOriginal');
+    const optSaveNew = document.getElementById('optSaveAsNew');
+    const newNameWrap = document.getElementById('newMacroNameWrap');
+    const txtNewName = document.getElementById('txtNewMacroChoiceName');
+
+    if (optUpdate) {
+        optUpdate.addEventListener('click', () => {
+            optUpdate.classList.add('selected');
+            optSaveNew?.classList.remove('selected');
+            if (newNameWrap) newNameWrap.style.display = 'none';
+        });
+    }
+
+    if (optSaveNew) {
+        optSaveNew.addEventListener('click', () => {
+            optSaveNew.classList.add('selected');
+            optUpdate?.classList.remove('selected');
+            if (newNameWrap) {
+                newNameWrap.style.display = 'block';
+                setTimeout(() => txtNewName?.focus(), 50);
+            }
+        });
+    }
+
+    if (btnClose) btnClose.addEventListener('click', closeMacroUpdateChoiceModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeMacroUpdateChoiceModal);
+
+    if (btnConfirm) {
+        btnConfirm.addEventListener('click', () => {
+            if (!pendingMacroUpdate) {
+                closeMacroUpdateChoiceModal();
+                return;
+            }
+            const isUpdate = optUpdate?.classList.contains('selected');
+            const data = pendingMacroUpdate;
+            pendingMacroUpdate = null;
+            closeMacroUpdateChoiceModal();
+
+            if (isUpdate) {
+                executeUpdateOriginalMacro(data.actionObj, data.originalName, data.presetId, data.usages);
+            } else {
+                const newName = txtNewName?.value?.trim() || `${data.originalName} (Copy)`;
+                executeSaveAsNewMacro(data.actionObj, newName);
+            }
+        });
+    }
+
+    if (txtNewName) {
+        txtNewName.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                btnConfirm?.click();
+            }
+        });
+    }
+
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeMacroUpdateChoiceModal();
+        });
+    }
+}
+
+function closeMacroUpdateChoiceModal() {
+    const modal = document.getElementById('macroUpdateChoiceModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('open');
+    }
+}
+
+function promptMacroUpdateChoice(actionObj, originalName, presetId, usages) {
+    const modal = document.getElementById('macroUpdateChoiceModal');
+    const origNameEl = document.getElementById('macroChoiceOrigName');
+    const usageCountEl = document.getElementById('macroChoiceUsageCount');
+    const optUpdate = document.getElementById('optUpdateOriginal');
+    const optSaveNew = document.getElementById('optSaveAsNew');
+    const newNameWrap = document.getElementById('newMacroNameWrap');
+    const txtNewName = document.getElementById('txtNewMacroChoiceName');
+
+    if (!modal) {
+        executeDirectModalSave(actionObj, true);
+        return;
+    }
+
+    pendingMacroUpdate = { actionObj, originalName, presetId, usages };
+
+    if (origNameEl) origNameEl.textContent = originalName || 'Macro';
+    if (usageCountEl) {
+        const uniqueProfs = Array.from(new Set(usages.map(u => u.profile)));
+        usageCountEl.textContent = usages.length === 0
+            ? 'Library Preset only (0 profile mappings)'
+            : `${usages.length} mapping${usages.length === 1 ? '' : 's'} in ${uniqueProfs.join(', ')}`;
+    }
+
+    if (optUpdate) optUpdate.classList.add('selected');
+    if (optSaveNew) optSaveNew.classList.remove('selected');
+    if (newNameWrap) newNameWrap.style.display = 'none';
+
+    const currentInputName = document.getElementById('macroNameInput')?.value?.trim();
+    if (txtNewName) {
+        if (currentInputName && currentInputName !== originalName) {
+            txtNewName.value = currentInputName;
+        } else {
+            txtNewName.value = `${originalName} (Copy)`;
+        }
+    }
+
+    modal.style.display = 'flex';
+    modal.classList.add('open');
+}
+
+function executeUpdateOriginalMacro(actionObj, originalName, presetId, usages) {
+    if (!Array.isArray(state.customActionPresets)) state.customActionPresets = [];
+    let pIdx = -1;
+    if (presetId) {
+        pIdx = state.customActionPresets.findIndex(p => p.id === presetId || p.name === originalName);
+    } else if (originalName) {
+        pIdx = state.customActionPresets.findIndex(p => p.name === originalName);
+    }
+
+    const updatedPreset = {
+        id: presetId || (pIdx >= 0 ? state.customActionPresets[pIdx].id : ('preset_' + Date.now())),
+        name: actionObj.Label || originalName,
+        label: actionObj.Label || originalName,
+        type: 'Macro',
+        cmd: actionObj.Cmd || 'Macro',
+        playType: actionObj.PlayType || 'Sequence',
+        repeatInterval: actionObj.RepeatInterval || 50,
+        steps: actionObj.Steps || [],
+        seqPress: actionObj.SeqPress || [],
+        seqHold: actionObj.SeqHold || [],
+        seqRelease: actionObj.SeqRelease || [],
+        Steps: actionObj.Steps || [],
+        SeqPress: actionObj.SeqPress || [],
+        SeqHold: actionObj.SeqHold || [],
+        SeqRelease: actionObj.SeqRelease || [],
+        color: actionObj.Color || 'none'
+    };
+
+    if (pIdx >= 0) {
+        state.customActionPresets[pIdx] = updatedPreset;
+    } else {
+        state.customActionPresets.unshift(updatedPreset);
+    }
+    try { localStorage.setItem('obm_custom_action_presets', JSON.stringify(state.customActionPresets)); } catch (e) {}
+
+    // Update all matching mappings across all profiles
+    for (const u of usages) {
+        if (state.mappings[u.profile] && state.mappings[u.profile][u.btnId]) {
+            const target = state.mappings[u.profile][u.btnId][u.layer];
+            if (target) {
+                target.Type = 'Macro';
+                target.Label = actionObj.Label;
+                target.Cmd = actionObj.Cmd || 'Macro';
+                target.PlayType = actionObj.PlayType;
+                target.RepeatInterval = actionObj.RepeatInterval;
+                target.Steps = JSON.parse(JSON.stringify(actionObj.Steps || []));
+                target.SeqPress = JSON.parse(JSON.stringify(actionObj.SeqPress || []));
+                target.SeqHold = JSON.parse(JSON.stringify(actionObj.SeqHold || []));
+                target.SeqRelease = JSON.parse(JSON.stringify(actionObj.SeqRelease || []));
+                target.Color = actionObj.Color;
+                if (updatedPreset.id) target.PresetId = updatedPreset.id;
+            }
+        }
+    }
+
+    if (state.modal.buttonId) {
+        actionObj.PresetId = updatedPreset.id;
+        applyActionToButton(state.modal.buttonId, actionObj);
+    }
+
+    sendToAhk({
+        action: 'updateMacroAcrossProfiles',
+        originalName: originalName,
+        presetId: updatedPreset.id,
+        updatedAction: actionObj,
+        updatedPreset: updatedPreset
+    });
+
+    if (typeof initCatalog === 'function') initCatalog();
+    refreshCardsAndStage();
+    updateSvgLines();
+
+    showToast('Macro Updated Everywhere', `"${actionObj.Label}" synced across ${usages.length} profile mapping${usages.length === 1 ? '' : 's'}`);
+    closeButtonStudio();
+}
+
+function executeSaveAsNewMacro(actionObj, newName) {
+    const finalName = newName.trim() || 'New Macro';
+    const newPresetId = 'preset_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+
+    const newAction = JSON.parse(JSON.stringify(actionObj));
+    newAction.Label = finalName;
+    newAction.PresetId = newPresetId;
+
+    const newPreset = {
+        id: newPresetId,
+        name: finalName,
+        label: finalName,
+        type: 'Macro',
+        cmd: newAction.Cmd || 'Macro',
+        playType: newAction.PlayType || 'Sequence',
+        repeatInterval: newAction.RepeatInterval || 50,
+        steps: newAction.Steps || [],
+        seqPress: newAction.SeqPress || [],
+        seqHold: newAction.SeqHold || [],
+        seqRelease: newAction.SeqRelease || [],
+        Steps: newAction.Steps || [],
+        SeqPress: newAction.SeqPress || [],
+        SeqHold: newAction.SeqHold || [],
+        SeqRelease: newAction.SeqRelease || [],
+        color: newAction.Color || 'none'
+    };
+
+    if (!Array.isArray(state.customActionPresets)) state.customActionPresets = [];
+    state.customActionPresets.unshift(newPreset);
+    try { localStorage.setItem('obm_custom_action_presets', JSON.stringify(state.customActionPresets)); } catch (e) {}
+
+    sendToAhk({
+        action: 'saveCustomActionPreset',
+        preset: newPreset
+    });
+
+    if (state.modal.buttonId) {
+        applyActionToButton(state.modal.buttonId, newAction);
+    }
+
+    if (typeof initCatalog === 'function') initCatalog();
+    refreshCardsAndStage();
+    updateSvgLines();
+
+    showToast('Saved as New Macro', `Created "${finalName}" without modifying original`);
+    closeButtonStudio();
+}
+
+function executeDirectModalSave(actionObj, shouldSaveToPreset) {
+    if (state.modal.buttonId) {
+        applyActionToButton(state.modal.buttonId, actionObj);
+    }
+
+    if (shouldSaveToPreset && actionObj && actionObj.Label && actionObj.Label !== 'Unassigned' && actionObj.Type !== 'Default') {
+        if (state.modal.activeTab === 'text') {
+            saveActionAsTextBlockPreset(actionObj);
+        } else {
+            saveActionAsCustomPreset(actionObj);
+        }
+    }
+
+    closeButtonStudio();
+}
+
 function saveModalAction() {
     let actionObj;
     let shouldSaveToPreset = false;
@@ -4787,7 +5158,7 @@ function saveModalAction() {
         const repeatInterval = state.modal.singleAction?.RepeatInterval || parseInt(document.getElementById('singleRepeatDelay')?.value) || 50;
         let cleanLbl = state.modal.singleAction?.Label || state.modal.singleAction?.Cmd || 'Unassigned';
         if (typeof cleanLbl === 'string') {
-            cleanLbl = cleanLbl.replace(/<svg[^>]*>.*?<\/svg>/gi, '').trim();
+            cleanLbl = cleanLbl.replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '').trim();
         }
         actionObj = {
             Type: state.modal.singleAction?.Type || 'Send',
@@ -4800,6 +5171,26 @@ function saveModalAction() {
     } else if (state.modal.activeTab === 'macro') {
         actionObj = compileMacroAction();
         shouldSaveToPreset = !!document.getElementById('macroSavePresetSwitch')?.checked;
+
+        // Check if editing an existing macro
+        const isExisting = !!(state.modal.isExistingMacro || state.modal.editingPresetId || state.modal.editingPresetOriginalName);
+        const originalName = state.modal.editingPresetOriginalName || state.modal.macroName;
+        const presetId = state.modal.editingPresetId;
+
+        // Find existing preset in custom catalog
+        const existingPreset = (state.customActionPresets || []).find(p => 
+            (presetId && p.id === presetId) || 
+            (originalName && (p.name === originalName || p.label === originalName)) || 
+            (actionObj.Label && (p.name === actionObj.Label || p.label === actionObj.Label))
+        );
+
+        if (isExisting || existingPreset) {
+            const effectiveOrigName = originalName || existingPreset?.name || existingPreset?.label || actionObj.Label;
+            const effectivePresetId = presetId || existingPreset?.id;
+            const usages = findMacroUsageAcrossProfiles(effectiveOrigName, effectivePresetId);
+            promptMacroUpdateChoice(actionObj, effectiveOrigName, effectivePresetId, usages);
+            return;
+        }
     } else if (state.modal.activeTab === 'text') {
         const textContent = document.getElementById('textBlockContent')?.value || '';
         let textLabel = document.getElementById('textBlockLabel')?.value?.trim();
@@ -4817,19 +5208,7 @@ function saveModalAction() {
         shouldSaveToPreset = !!document.getElementById('textSavePresetSwitch')?.checked;
     }
 
-    if (state.modal.buttonId) {
-        applyActionToButton(state.modal.buttonId, actionObj);
-    }
-
-    if (shouldSaveToPreset && actionObj && actionObj.Label && actionObj.Label !== 'Unassigned' && actionObj.Type !== 'Default') {
-        if (state.modal.activeTab === 'text') {
-            saveActionAsTextBlockPreset(actionObj);
-        } else {
-            saveActionAsCustomPreset(actionObj);
-        }
-    }
-
-    closeButtonStudio();
+    executeDirectModalSave(actionObj, shouldSaveToPreset);
 }
 
 function saveActionAsCustomPreset(actionObj) {
@@ -4998,9 +5377,9 @@ function openTextBlockPresetEditor(preset) {
     }
 
     const titleEl = document.getElementById('modalTargetTitle');
-    if (titleEl) titleEl.textContent = `TEXT BLOCK â€” EDIT: ${(preset.name || preset.label || 'TEXT').toUpperCase()}`;
+    if (titleEl) titleEl.textContent = `TEXT BLOCK — EDIT: ${(preset.name || preset.label || 'TEXT').toUpperCase()}`;
     const metaEl = document.getElementById('modalTargetMeta');
-    if (metaEl) metaEl.textContent = `Text Blocks Library â€¢ Literal Text Insertion`;
+    if (metaEl) metaEl.textContent = `Text Blocks Library • Literal Text Insertion`;
 
     const btnAssignShift = document.getElementById('btnAssignBShiftStudio');
     if (btnAssignShift) btnAssignShift.style.display = 'none';
@@ -5523,9 +5902,9 @@ function setCalibMoveMode(mode) {
 
     if (hintText) {
         if (state.calibMoveAll) {
-            hintText.textContent = 'Move Everything: Drag mouse visual or stage canvas to move everything together â€¢ Or use Arrow keys (Shift for 5x)';
+            hintText.textContent = 'Move Everything: Drag mouse visual or stage canvas to move everything together • Or use Arrow keys (Shift for 5x)';
         } else {
-            hintText.textContent = 'Drag any target dot directly on the mouse â€¢ Or click to reposition â€¢ Fine-tune with Arrow keys';
+            hintText.textContent = 'Drag any target dot directly on the mouse • Or click to reposition • Fine-tune with Arrow keys';
         }
     }
 
@@ -5718,6 +6097,7 @@ function saveCalibration() {
         mouseOffset: cleanMouseOffset
     });
     showToast('Calibration Saved', 'Diagram points, card positions, and mouse alignment saved to settings.ini');
+    toggleCalibrationMode(false);
 }
 
 function resetCalibration() {
@@ -6927,7 +7307,7 @@ function openProfileModal(mode, profData) {
         // Trigger open windows scan
         sendToAhk({ action: 'getRunningApps' });
     } else {
-        if (title) title.textContent = `EDIT PROFILE â€” ${profData ? profData.name : state.currentProfile}`;
+        if (title) title.textContent = `EDIT PROFILE — ${profData ? profData.name : state.currentProfile}`;
         if (modalSubtitle) modalSubtitle.textContent = 'Configure auto-switching application targets, icon branding, and open window bindings';
         if (hotkeyNotice) hotkeyNotice.style.display = 'none';
         if (inputName) {
@@ -7440,7 +7820,7 @@ function openButtonContextMenu(e, btnId) {
         if (ctxPasteText) {
             const fromProf = state.copiedButtonMapping.fromProfile || state.currentProfile;
             const isOtherProf = (fromProf !== state.currentProfile);
-            const profLabel = isOtherProf ? ` â€¢ ${fromProf}` : '';
+            const profLabel = isOtherProf ? ` • ${fromProf}` : '';
             ctxPasteText.textContent = `Paste Mapping (from ${state.copiedButtonMapping.btnName}${profLabel})`;
         }
     } else {
@@ -7906,7 +8286,7 @@ function openButtonRenameModal(btnId) {
     const subEl = document.getElementById('renameModalSubtitle');
     const input = document.getElementById('txtButtonCustomName');
 
-    if (titleEl) titleEl.textContent = `RENAME BUTTON â€” ${defInfo.tag || btnId}`;
+    if (titleEl) titleEl.textContent = `RENAME BUTTON — ${defInfo.tag || btnId}`;
     if (subEl) subEl.textContent = `Original: ${defInfo.name}`;
     if (input) {
         input.value = currentCustom;
@@ -8552,11 +8932,11 @@ function openButtonConfigModal(btnId) {
                 }
                 if (inUseBy && inUseBy !== btnId) {
                     const otherTagName = DIAGRAM_POINTS[inUseBy]?.tag || inUseBy;
-                    el.textContent = `${opt.val} â€” [In use: ${otherTagName}] (Will reassign)`;
+                    el.textContent = `${opt.val} — [In use: ${otherTagName}] (Will reassign)`;
                 } else if (inUseBy === btnId) {
-                    el.textContent = `${opt.val} â€” (Current)`;
+                    el.textContent = `${opt.val} — (Current)`;
                 } else {
-                    el.textContent = `${opt.val} â€” (Available)`;
+                    el.textContent = `${opt.val} — (Available)`;
                 }
             }
             keyEl.appendChild(el);
@@ -8944,9 +9324,9 @@ function handleLoadedBackupFile(fileName, content) {
                 <div><strong>${getSvgIcon('folder', 'svg-icon-xs')} Profiles:</strong> ${profCount} app profile(s)</div>
                 <div><strong>${getSvgIcon('mouse', 'svg-icon-xs')} Buttons:</strong> ${btnCount} mouse controls</div>
                 <div><strong>${getSvgIcon('zap', 'svg-icon-xs')} Hardware Keys:</strong> ${hasHardwareFKeys} F-keys mapped</div>
-                <div><strong>${getSvgIcon('image', 'svg-icon-xs')} Presets:</strong> ${presetsCount} models â€¢ ${actionPresetsCount} macros â€¢ ${textBlocksCount} text blocks</div>
+                <div><strong>${getSvgIcon('image', 'svg-icon-xs')} Presets:</strong> ${presetsCount} models • ${actionPresetsCount} macros • ${textBlocksCount} text blocks</div>
                 <div style="grid-column: span 2; color: var(--text-muted); font-size: 11px; margin-top: 4px;">
-                    <strong>${getSvgIcon('clock', 'svg-icon-xs')} Created:</strong> ${backupTime} â€¢ <strong>App:</strong> ${parsedJson.app || 'OBM Studio'} v${parsedJson.version || '2.0'}
+                    <strong>${getSvgIcon('clock', 'svg-icon-xs')} Created:</strong> ${backupTime} • <strong>App:</strong> ${parsedJson.app || 'OBM Studio'} v${parsedJson.version || '2.0'}
                 </div>
             `;
         }
@@ -9677,11 +10057,11 @@ function updateVisualizerKey(vkeyId, isDown, displayName) {
         if (isDown) {
             el.classList.add('was-pressed');
             el.classList.add('is-down');
-            if (statusEl) statusEl.textContent = 'â†“';
+            if (statusEl) statusEl.textContent = '↓';
         } else {
             el.classList.add('was-pressed'); // Retains the different pressed color from the screenshot!
             el.classList.remove('is-down');
-            if (statusEl) statusEl.textContent = 'â†‘';
+            if (statusEl) statusEl.textContent = '↑';
         }
     }
 
@@ -9724,7 +10104,7 @@ function addVisualizerRibbonChip(name, isDown) {
     chip.className = `vribbon-chip ${isDown ? '' : 'chip-up'}`;
     chip.innerHTML = `
         <span class="chip-name">${escapeHtml(name)}</span>
-        <span class="vchip-arrow">${isDown ? 'â†“' : 'â†‘'}</span>
+        <span class="vchip-arrow">${isDown ? '↓' : '↑'}</span>
     `;
 
     ribbon.appendChild(chip);
@@ -9767,7 +10147,7 @@ function onVisualizerNativeKeyDown(e) {
     const vkey = mapDomCodeToVKey(e.code);
     const name = getReadableDomKeyName(e);
     updateVisualizerKey(vkey, true, name);
-    logVisualizerEvent('KEY', `Press (Down) â–¾ ${name}`, `Key: ${e.code || vkey} | Focused`);
+    logVisualizerEvent('KEY', `Press (Down) ▾ ${name}`, `Key: ${e.code || vkey} | Focused`);
 }
 
 function onVisualizerNativeKeyUp(e) {
@@ -9775,7 +10155,7 @@ function onVisualizerNativeKeyUp(e) {
     const vkey = mapDomCodeToVKey(e.code);
     const name = getReadableDomKeyName(e);
     updateVisualizerKey(vkey, false, name);
-    logVisualizerEvent('KEY', `Release (Up) â–´ ${name}`, `Key: ${e.code || vkey} | Focused`);
+    logVisualizerEvent('KEY', `Release (Up) ▴ ${name}`, `Key: ${e.code || vkey} | Focused`);
 }
 
 const activeVisualizerMouseButtons = new Set();
@@ -9796,7 +10176,7 @@ function onVisualizerNativeMouseDown(e) {
     if (btn) {
         activeVisualizerMouseButtons.add(e.button);
         updateVisualizerKey(btn.vkey, true, btn.name);
-        logVisualizerEvent('BUTTON', `Press (Down) â–¾ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
+        logVisualizerEvent('BUTTON', `Press (Down) ▾ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
     }
 }
 
@@ -9816,7 +10196,7 @@ function onVisualizerNativeMouseUp(e) {
     const btn = mapping[e.button];
     if (btn) {
         updateVisualizerKey(btn.vkey, false, btn.name);
-        logVisualizerEvent('BUTTON', `Release (Up) â–´ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
+        logVisualizerEvent('BUTTON', `Release (Up) ▴ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
     }
 }
 
@@ -9869,7 +10249,7 @@ function parseAndDispatchAhkToVisualizer(entry) {
     if (cat === 'BUTTON') {
         const isDown = txt.includes('Down') || txt.includes('Press');
         let btnId = '';
-        const match = txt.match(/â–¾\s*([a-zA-Z0-9_]+)|â–´\s*([a-zA-Z0-9_]+)/);
+        const match = txt.match(/▾\s*([a-zA-Z0-9_]+)|▴\s*([a-zA-Z0-9_]+)/);
         if (match) {
             btnId = match[1] || match[2] || '';
         }
@@ -9912,7 +10292,7 @@ function parseAndDispatchAhkToVisualizer(entry) {
 
     // 3. Shift layer hold / release
     if (cat === 'SHIFT') {
-        const isDown = txt.includes('Hold') || txt.includes('â–¾');
+        const isDown = txt.includes('Hold') || txt.includes('▾');
         updateVisualizerKey('MouseBack', isDown, 'B-Shift');
     }
 }

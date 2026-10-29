@@ -2722,6 +2722,73 @@
         </div>
     </div>
 
+    <!-- Macro Update Choice Modal -->
+    <div class="modal-backdrop custom-dialog-backdrop" id="macroUpdateChoiceModal" style="display: none;">
+        <div class="custom-dialog-card dialog-info" id="macroUpdateChoiceCard" role="dialog" aria-modal="true" aria-labelledby="macroUpdateChoiceTitle">
+            <div class="custom-dialog-header">
+                <div class="custom-dialog-icon-wrap icon-info" id="macroUpdateChoiceIconWrap">
+                    <svg class="svg-icon">
+                        <use href="#icon-edit-2"></use>
+                    </svg>
+                </div>
+                <div class="custom-dialog-header-text">
+                    <h3 class="custom-dialog-title" id="macroUpdateChoiceTitle">Save Macro Changes</h3>
+                    <span class="custom-dialog-badge badge-info">MACRO STUDIO</span>
+                </div>
+                <button type="button" class="custom-dialog-close-btn" id="btnMacroChoiceClose" aria-label="Close dialog">
+                    <svg class="svg-icon">
+                        <use href="#icon-x"></use>
+                    </svg>
+                </button>
+            </div>
+            <div class="custom-dialog-body">
+                <p class="custom-dialog-message" id="macroChoiceMsg">You modified an existing macro. How would you like to save your changes?</p>
+                <div class="macro-choice-meta-box" id="macroChoiceMetaBox">
+                    <div class="meta-row">
+                        <span class="meta-lbl">Original Macro:</span>
+                        <strong class="meta-val" id="macroChoiceOrigName">Macro Name</strong>
+                    </div>
+                    <div class="meta-row" id="macroChoiceProfilesRow">
+                        <span class="meta-lbl">Assigned Across:</span>
+                        <span class="meta-val-badge" id="macroChoiceUsageCount">0 profile mappings</span>
+                    </div>
+                </div>
+
+                <div class="macro-choice-options">
+                    <!-- Option 1: Update Original -->
+                    <div class="macro-option-card selected" id="optUpdateOriginal" tabindex="0">
+                        <div class="option-radio">
+                            <span class="radio-dot"></span>
+                        </div>
+                        <div class="option-content">
+                            <div class="option-title">Update Original Macro (All Profiles)</div>
+                            <div class="option-desc">Updates the original macro everywhere. All buttons and profiles currently using this macro will automatically update to the new version.</div>
+                        </div>
+                    </div>
+
+                    <!-- Option 2: Save as New -->
+                    <div class="macro-option-card" id="optSaveAsNew" tabindex="0">
+                        <div class="option-radio">
+                            <span class="radio-dot"></span>
+                        </div>
+                        <div class="option-content">
+                            <div class="option-title">Save as New Macro</div>
+                            <div class="option-desc">Leaves the original macro untouched for all other profiles, and saves your changes as an independent new macro.</div>
+                            <div class="new-macro-name-wrap" id="newMacroNameWrap" style="display: none;">
+                                <label for="txtNewMacroChoiceName">New Macro Name:</label>
+                                <input type="text" id="txtNewMacroChoiceName" class="studio-input" placeholder="e.g. My Macro (Copy)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="custom-dialog-footer">
+                <button type="button" class="custom-dialog-btn secondary" id="btnMacroChoiceCancel">Cancel</button>
+                <button type="button" class="custom-dialog-btn primary btn-cyan" id="btnMacroChoiceConfirm">Apply Changes</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Custom App Themed Profile Hover Popover -->
     <div id="profileHoverPopover" class="profile-hover-popover" style="display: none;" aria-hidden="true">
         <div class="popover-header">
@@ -2789,7 +2856,8 @@
                     </button>
                 </div>
 
-                <div class="activity-log-header-actions">
+                <div class="activity-log-header-right">
+                    <div class="activity-log-header-actions">
                     <button type="button" class="log-action-btn log-test-mode-toggle active" id="btnLogToggleTestMode" title="Focus Test Mode: Active (Clicks highlight diagram without executing macros)">
                         <svg class="svg-icon svg-icon-xs"><use href="#icon-shield"></use></svg>
                         <span id="logTestModeStatusText">Test Mode: ON</span>
@@ -2814,7 +2882,9 @@
                         <svg class="svg-icon svg-icon-xs"><use href="#icon-trash-2"></use></svg>
                         <span>Clear Log</span>
                     </button>
-                    <button type="button" class="custom-dialog-close-btn" id="btnCloseActivityLog" aria-label="Close activity log">
+                    </div>
+                    <div class="activity-header-sep"></div>
+                    <button type="button" class="modal-close-btn activity-log-close-btn" id="btnCloseActivityLog" title="Close Monitor (Esc)" aria-label="Close activity log">
                         <svg class="svg-icon"><use href="#icon-x"></use></svg>
                     </button>
                 </div>

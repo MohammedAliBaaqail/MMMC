@@ -705,6 +705,9 @@ class WebViewGuiManager {
             case "saveMapping":
                 this.HandleSaveMapping(req)
 
+            case "updateMacroAcrossProfiles":
+                this.HandleUpdateMacroAcrossProfiles(req)
+
             case "copyProfileMappings":
                 fromP := req.Has("fromProfile") ? req["fromProfile"] : ""
                 toP := req.Has("toProfile") ? req["toProfile"] : ""
@@ -1143,6 +1146,49 @@ class WebViewGuiManager {
             "btnId", btnId,
             "mapping", this.ExportButtonMapping(currMap)
         ))
+    }
+
+    static HandleUpdateMacroAcrossProfiles(req) {
+        if (!req.Has("updatedAction"))
+            return
+
+        originalName := req.Has("originalName") ? req["originalName"] : ""
+        presetId := req.Has("presetId") ? req["presetId"] : ""
+        rawAct := req["updatedAction"]
+        updatedPreset := req.Has("updatedPreset") ? req["updatedPreset"] : rawAct
+
+        ; Normalize action
+        normAct := {
+            Type: "Macro",
+            Cmd: rawAct.Has("Cmd") ? rawAct["Cmd"] : "Macro",
+            Label: rawAct.Has("Label") ? rawAct["Label"] : (rawAct.Has("name") ? rawAct["name"] : originalName),
+            PlayType: rawAct.Has("PlayType") ? rawAct["PlayType"] : (rawAct.Has("playType") ? rawAct["playType"] : "Sequence"),
+            RepeatInterval: rawAct.Has("RepeatInterval") ? Integer(rawAct["RepeatInterval"]) : (rawAct.Has("repeatInterval") ? Integer(rawAct["repeatInterval"]) : 50),
+            Color: rawAct.Has("Color") ? rawAct["Color"] : (rawAct.Has("color") ? rawAct["color"] : "none"),
+            Steps: this.NormalizeSteps(rawAct.Has("Steps") ? rawAct["Steps"] : (rawAct.Has("steps") ? rawAct["steps"] : [])),
+            SeqPress: this.NormalizeSteps(rawAct.Has("SeqPress") ? rawAct["SeqPress"] : (rawAct.Has("seqPress") ? rawAct["seqPress"] : [])),
+            SeqHold: this.NormalizeSteps(rawAct.Has("SeqHold") ? rawAct["SeqHold"] : (rawAct.Has("seqHold") ? rawAct["seqHold"] : [])),
+            SeqRelease: this.NormalizeSteps(rawAct.Has("SeqRelease") ? rawAct["SeqRelease"] : (rawAct.Has("seqRelease") ? rawAct["seqRelease"] : []))
+        }
+        if (presetId != "")
+            normAct.PresetId := presetId
+
+        ; 1. Update preset in settings.ini if presetId or updatedPreset is provided
+        if (presetId != "" || (IsObject(updatedPreset) && (this.GetPropSafe(updatedPreset, "id", "") != "" || this.GetPropSafe(updatedPreset, "name", "") != ""))) {
+            this.SaveCustomActionPreset(updatedPreset)
+        }
+
+        ; 2. Update across all profiles in ProfileEngine & settings.ini
+        count := ProfileEngine.UpdateMacroAcrossAllProfiles(originalName, presetId, normAct)
+
+        ; 3. Notify frontend with updated mappings
+        this.PostMessage(Map(
+            "type", "allMappingsUpdated",
+            "mappings", this.ExportAllMappings()
+        ))
+
+        lbl := normAct.Label
+        OSD.Show("Macro Updated", lbl . " synced across " . count . " profile mapping" . (count = 1 ? "" : "s"))
     }
 
     static HandleResetButtonDefault(req) {
@@ -2017,20 +2063,61 @@ class WebViewGuiManager {
         return this.LoadCustomMousePresets()
     }
 
+    static GetPropSafe(obj, key, defaultVal := "") {
+        if (!IsObject(obj))
+            return defaultVal
+        if (Type(obj) = "Map")
+            return obj.Has(key) ? obj[key] : defaultVal
+        if (HasMethod(obj, "HasProp") && obj.HasProp(key))
+            return obj.%key%
+        if (HasMethod(obj, "HasOwnProp") && obj.HasOwnProp(key))
+            return obj.%key%
+        return defaultVal
+    }
+
     static LoadCustomActionPresets() {
         iniPath := A_ScriptDir . "\settings.ini"
         out := []
+        if (!FileExist(iniPath))
+            return out
         try {
-            listStr := IniRead(iniPath, "ActionPresets", "List", "")
-            if (listStr = "") {
-                return out
+            ; 1. Direct INI section scanning (Self-Healing)
+            iniText := FileRead(iniPath, "UTF-8")
+            discoveredIds := Map()
+            pos := 1
+            while RegExMatch(iniText, "im)^\[ActionPreset_([^\]]+)\]", &m, pos) {
+                secId := Trim(m[1])
+                if (secId != "")
+                    discoveredIds[secId] := true
+                pos := m.Pos + m.Len
             }
-            pIds := StrSplit(listStr, ",")
-            for _, pId in pIds {
-                pId := Trim(pId)
-                if (pId = "") {
-                    continue
+
+            ; 2. Also incorporate any IDs from ActionPresets List
+            listStr := ""
+            try listStr := IniRead(iniPath, "ActionPresets", "List", "")
+            if (listStr != "") {
+                for _, id in StrSplit(listStr, ",") {
+                    id := Trim(id)
+                    if (id != "")
+                        discoveredIds[id] := true
                 }
+            }
+
+            ; 3. Build ordered IDs and keep master List in settings.ini synchronized
+            allIds := []
+            for id, _ in discoveredIds {
+                allIds.Push(id)
+            }
+            if (allIds.Length > 0) {
+                newMasterList := ""
+                for idx, id in allIds {
+                    newMasterList .= (idx = 1 ? "" : ",") . id
+                }
+                try IniWrite(newMasterList, iniPath, "ActionPresets", "List")
+            }
+
+            ; 4. Load all presets
+            for pId in allIds {
                 secName := "ActionPreset_" . pId
                 name := IniRead(iniPath, secName, "Name", pId)
                 label := IniRead(iniPath, secName, "Label", name)
@@ -2078,14 +2165,28 @@ class WebViewGuiManager {
 
     static SaveCustomActionPreset(presetObj) {
         iniPath := A_ScriptDir . "\settings.ini"
-        pId := presetObj.Has("id") && presetObj["id"] != "" ? presetObj["id"] : ("act_" . A_TickCount)
-        name := presetObj.Has("name") && presetObj["name"] != "" ? presetObj["name"] : (presetObj.Has("label") ? presetObj["label"] : "Custom Preset")
-        label := presetObj.Has("label") && presetObj["label"] != "" ? presetObj["label"] : name
-        type := presetObj.Has("type") ? presetObj["type"] : (presetObj.Has("Type") ? presetObj["Type"] : "Send")
-        cmd := presetObj.Has("cmd") ? presetObj["cmd"] : (presetObj.Has("Cmd") ? presetObj["Cmd"] : "")
-        playType := presetObj.Has("playType") ? presetObj["playType"] : (presetObj.Has("PlayType") ? presetObj["PlayType"] : "NoRepeat")
-        repeatInterval := presetObj.Has("repeatInterval") ? presetObj["repeatInterval"] : (presetObj.Has("RepeatInterval") ? presetObj["RepeatInterval"] : 50)
-        color := presetObj.Has("color") ? presetObj["color"] : (presetObj.Has("Color") ? presetObj["Color"] : "none")
+        pId := this.GetPropSafe(presetObj, "id", "")
+        if (pId = "")
+            pId := "act_" . A_TickCount
+        name := this.GetPropSafe(presetObj, "name", "")
+        if (name = "")
+            name := this.GetPropSafe(presetObj, "label", "Custom Preset")
+        label := this.GetPropSafe(presetObj, "label", name)
+        type := this.GetPropSafe(presetObj, "type", "")
+        if (type = "")
+            type := this.GetPropSafe(presetObj, "Type", "Send")
+        cmd := this.GetPropSafe(presetObj, "cmd", "")
+        if (cmd = "")
+            cmd := this.GetPropSafe(presetObj, "Cmd", "")
+        playType := this.GetPropSafe(presetObj, "playType", "")
+        if (playType = "")
+            playType := this.GetPropSafe(presetObj, "PlayType", "NoRepeat")
+        repeatInterval := this.GetPropSafe(presetObj, "repeatInterval", "")
+        if (repeatInterval = "")
+            repeatInterval := this.GetPropSafe(presetObj, "RepeatInterval", 50)
+        color := this.GetPropSafe(presetObj, "color", "")
+        if (color = "")
+            color := this.GetPropSafe(presetObj, "Color", "none")
 
         secName := "ActionPreset_" . pId
         try IniWrite(name, iniPath, secName, "Name")
@@ -2098,15 +2199,15 @@ class WebViewGuiManager {
 
         for _, jsonKey in ["Steps", "SeqPress", "SeqHold", "SeqRelease"] {
             lowerKey := StrLower(SubStr(jsonKey, 1, 1)) . SubStr(jsonKey, 2)
-            stepsVal := ""
-            if (presetObj.Has(jsonKey))
-                stepsVal := presetObj[jsonKey]
-            else if (presetObj.Has(lowerKey))
-                stepsVal := presetObj[lowerKey]
+            stepsVal := this.GetPropSafe(presetObj, jsonKey, "")
+            if (stepsVal = "")
+                stepsVal := this.GetPropSafe(presetObj, lowerKey, "")
 
             stepsStr := ""
-            if (IsObject(stepsVal) && stepsVal.Length > 0) {
-                stepsStr := ProfileEngine.SerializeSteps(stepsVal)
+            if (IsObject(stepsVal)) {
+                if (HasProp(stepsVal, "Length") && stepsVal.Length > 0) {
+                    try stepsStr := ProfileEngine.SerializeSteps(stepsVal)
+                }
             } else if (Type(stepsVal) = "String" && stepsVal != "") {
                 if (SubStr(Trim(stepsVal), 1, 1) = "[") {
                     try {
@@ -2134,7 +2235,7 @@ class WebViewGuiManager {
             }
         }
         if (!found) {
-            newList := (listStr != "" ? listStr . "," : "") . pId
+            newList := (listStr != "" ? (listStr . ",") : "") . pId
             try IniWrite(newList, iniPath, "ActionPresets", "List")
         }
 
@@ -2163,17 +2264,44 @@ class WebViewGuiManager {
     static LoadTextBlockPresets() {
         iniPath := A_ScriptDir . "\settings.ini"
         out := []
+        if (!FileExist(iniPath))
+            return out
         try {
-            listStr := IniRead(iniPath, "TextBlockPresets", "List", "")
-            if (listStr = "") {
-                return out
+            ; 1. Direct INI section scanning (Self-Healing)
+            iniText := FileRead(iniPath, "UTF-8")
+            discoveredIds := Map()
+            pos := 1
+            while RegExMatch(iniText, "im)^\[TextBlockPreset_([^\]]+)\]", &m, pos) {
+                secId := Trim(m[1])
+                if (secId != "")
+                    discoveredIds[secId] := true
+                pos := m.Pos + m.Len
             }
-            pIds := StrSplit(listStr, ",")
-            for _, pId in pIds {
-                pId := Trim(pId)
-                if (pId = "") {
-                    continue
+
+            ; 2. Also check TextBlockPresets List
+            listStr := ""
+            try listStr := IniRead(iniPath, "TextBlockPresets", "List", "")
+            if (listStr != "") {
+                for _, id in StrSplit(listStr, ",") {
+                    id := Trim(id)
+                    if (id != "")
+                        discoveredIds[id] := true
                 }
+            }
+
+            allIds := []
+            for id, _ in discoveredIds {
+                allIds.Push(id)
+            }
+            if (allIds.Length > 0) {
+                newMasterList := ""
+                for idx, id in allIds {
+                    newMasterList .= (idx = 1 ? "" : ",") . id
+                }
+                try IniWrite(newMasterList, iniPath, "TextBlockPresets", "List")
+            }
+
+            for pId in allIds {
                 secName := "TextBlockPreset_" . pId
                 name := IniRead(iniPath, secName, "Name", pId)
                 label := IniRead(iniPath, secName, "Label", name)
@@ -2199,10 +2327,18 @@ class WebViewGuiManager {
 
     static SaveTextBlockPreset(presetObj) {
         iniPath := A_ScriptDir . "\settings.ini"
-        pId := presetObj.Has("id") && presetObj["id"] != "" ? presetObj["id"] : ("txt_" . A_TickCount)
-        name := presetObj.Has("name") && presetObj["name"] != "" ? presetObj["name"] : (presetObj.Has("label") ? presetObj["label"] : "Text Block")
-        label := presetObj.Has("label") && presetObj["label"] != "" ? presetObj["label"] : name
-        text := presetObj.Has("text") ? presetObj["text"] : (presetObj.Has("cmd") ? presetObj["cmd"] : (presetObj.Has("Cmd") ? presetObj["Cmd"] : ""))
+        pId := this.GetPropSafe(presetObj, "id", "")
+        if (pId = "")
+            pId := "txt_" . A_TickCount
+        name := this.GetPropSafe(presetObj, "name", "")
+        if (name = "")
+            name := this.GetPropSafe(presetObj, "label", "Text Block")
+        label := this.GetPropSafe(presetObj, "label", name)
+        text := this.GetPropSafe(presetObj, "text", "")
+        if (text = "")
+            text := this.GetPropSafe(presetObj, "cmd", "")
+        if (text = "")
+            text := this.GetPropSafe(presetObj, "Cmd", "")
 
         savedText := StrReplace(text, "\", "\\")
         savedText := StrReplace(savedText, "`r`n", "\n")

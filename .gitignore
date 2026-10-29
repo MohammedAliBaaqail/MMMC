@@ -12,6 +12,8 @@ settings.ini
 *.orig
 
 # Windows Installer Setup & Distribution Packages
+setup.exe
+setup_*.exe
 *_Setup.exe
 *_Setup_*.exe
 MyMouseMyChoice_Setup.exe
