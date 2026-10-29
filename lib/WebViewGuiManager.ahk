@@ -12,6 +12,7 @@
 #Include "OSD.ahk"
 #Include "OMMHelper.ahk"
 #Include "StartupManager.ahk"
+#Include "SnapTap.ahk"
 
 class WebViewGuiManager {
     static MainGui := ""
@@ -110,8 +111,10 @@ class WebViewGuiManager {
 
         ; Hook ProfileEngine callbacks
         ProfileEngine.OnProfileChanged := (p) => WebViewGuiManager.OnProfileChangedHandler(p)
-        ProfileEngine.OnButtonStateChanged := (btnId, isDown) => WebViewGuiManager.OnButtonStateChangedHandler(btnId, isDown)
-        ProfileEngine.OnShiftStateChanged := (layerNum, isActive) => WebViewGuiManager.OnShiftStateChangedHandler(isActive, (layerNum = 2 ? "GShift2" : "GShift1"))
+        ProfileEngine.OnButtonStateChanged := (btnId, isDown) => WebViewGuiManager.OnButtonStateChangedHandler(btnId,
+            isDown)
+        ProfileEngine.OnShiftStateChanged := (layerNum, isActive) => WebViewGuiManager.OnShiftStateChangedHandler(
+            isActive, (layerNum = 2 ? "GShift2" : "GShift1"))
 
         ; Clean any orphaned WebView2 renderer processes from prior runs asynchronously
         SetTimer(() => this.CleanOrphanedProcesses(), -1500)
@@ -166,7 +169,7 @@ class WebViewGuiManager {
             yVal := Integer(savedY)
             try {
                 monCount := MonitorGetCount()
-                Loop monCount {
+                loop monCount {
                     MonitorGet(A_Index, &mLeft, &mTop, &mRight, &mBottom)
                     if (xVal + 100 >= mLeft && xVal <= mRight - 100 && yVal + 100 >= mTop && yVal <= mBottom - 100) {
                         isValidPos := true
@@ -220,7 +223,8 @@ class WebViewGuiManager {
             baseData := A_AppData . "\OBM_WebView2"
 
             ; 1. Clean orphaned msedgewebview2 processes
-            for proc in ComObjGet("winmgmts:").ExecQuery("Select ProcessId, CommandLine from Win32_Process where Name like 'msedgewebview2%'") {
+            for proc in ComObjGet("winmgmts:").ExecQuery(
+                "Select ProcessId, CommandLine from Win32_Process where Name like 'msedgewebview2%'") {
                 cmd := proc.CommandLine
                 if (RegExMatch(cmd, "(?:OBM_WebView2|OBM_WV|WV)_(\d+)", &m)) {
                     ownerPid := Integer(m[1])
@@ -232,7 +236,7 @@ class WebViewGuiManager {
 
             ; 2. Clean dead session directories
             if (DirExist(baseData)) {
-                Loop Files, baseData . "\WV_*", "D" {
+                loop files, baseData . "\WV_*", "D" {
                     if (RegExMatch(A_LoopFileName, "^WV_(\d+)$", &m)) {
                         ownerPid := Integer(m[1])
                         if (ownerPid != currentPid && !ProcessExist(ownerPid)) {
@@ -506,7 +510,8 @@ class WebViewGuiManager {
                         this.SendProfilesUpdated()
                         ProfileEngine.SetProfile(pName)
                         if (!pOsdIconOnly)
-                            OSD.Show("Profile Created: " . pName, pExe != "" ? "Bound to: " . pExe : "Default Bindings")
+                            OSD.Show("Profile Created: " . pName, pExe != "" ? "Bound to: " . pExe : "Default Bindings"
+                            )
                     }
                 }
 
@@ -525,9 +530,12 @@ class WebViewGuiManager {
                     oldName := req.Has("oldName") ? req["oldName"] : pName
                     pExe := req.Has("targetExe") ? req["targetExe"] : ""
                     pIcon := req.Has("icon") ? req["icon"] : ""
-                    pHover := req.Has("switchOnHover") ? ((req["switchOnHover"] = 1 || req["switchOnHover"] = true || req["switchOnHover"] = "1" || req["switchOnHover"] = "true") ? true : false) : -1
-                    pFocusHover := req.Has("focusOnHover") ? ((req["focusOnHover"] = 1 || req["focusOnHover"] = true || req["focusOnHover"] = "1" || req["focusOnHover"] = "true") ? true : false) : -1
-                    pOsdIconOnly := req.Has("osdIconOnly") ? ((req["osdIconOnly"] = 1 || req["osdIconOnly"] = true || req["osdIconOnly"] = "1" || req["osdIconOnly"] = "true") ? true : false) : -1
+                    pHover := req.Has("switchOnHover") ? ((req["switchOnHover"] = 1 || req["switchOnHover"] = true ||
+                        req["switchOnHover"] = "1" || req["switchOnHover"] = "true") ? true : false) : -1
+                    pFocusHover := req.Has("focusOnHover") ? ((req["focusOnHover"] = 1 || req["focusOnHover"] = true ||
+                        req["focusOnHover"] = "1" || req["focusOnHover"] = "true") ? true : false) : -1
+                    pOsdIconOnly := req.Has("osdIconOnly") ? ((req["osdIconOnly"] = 1 || req["osdIconOnly"] = true ||
+                        req["osdIconOnly"] = "1" || req["osdIconOnly"] = "true") ? true : false) : -1
                     if (ProfileEngine.UpdateProfile(pName, pExe, pIcon, pHover, pOsdIconOnly, oldName, pFocusHover)) {
                         this.SendProfilesUpdated()
                         if (ProfileEngine.CurrentProfile == pName && (pOsdIconOnly = 1 || pOsdIconOnly = true)) {
@@ -541,7 +549,8 @@ class WebViewGuiManager {
             case "updateProfileOsdIconOnly":
                 if (req.Has("name")) {
                     pName := req["name"]
-                    isIconOnly := (req.Has("osdIconOnly") && (req["osdIconOnly"] = 1 || req["osdIconOnly"] = true || req["osdIconOnly"] = "1" || req["osdIconOnly"] = "true")) ? true : false
+                    isIconOnly := (req.Has("osdIconOnly") && (req["osdIconOnly"] = 1 || req["osdIconOnly"] = true ||
+                        req["osdIconOnly"] = "1" || req["osdIconOnly"] = "true")) ? true : false
                     if (ProfileEngine.ProfileMetadata.Has(pName)) {
                         ProfileEngine.ProfileMetadata[pName].OsdIconOnly := isIconOnly
                         ProfileEngine.SaveProfileConfig()
@@ -553,15 +562,19 @@ class WebViewGuiManager {
                 enabled := req.Has("enabled") ? req["enabled"] : !ProfileEngine.AutoSwitchEnabled
                 ProfileEngine.AutoSwitchEnabled := enabled ? true : false
                 ProfileEngine.SaveProfileConfig()
-                this.PostMessage(Map("type", "autoSwitchChanged", "enabled", ProfileEngine.AutoSwitchEnabled ? true : false))
-                OSD.Show("Auto-Switch: " . (ProfileEngine.AutoSwitchEnabled ? "Enabled" : "Disabled"), "Window focus tracking")
+                this.PostMessage(Map("type", "autoSwitchChanged", "enabled", ProfileEngine.AutoSwitchEnabled ? true :
+                    false))
+                OSD.Show("Auto-Switch: " . (ProfileEngine.AutoSwitchEnabled ? "Enabled" : "Disabled"),
+                "Window focus tracking")
 
             case "toggleLockProfile":
                 targetProf := req.Has("profile") ? req["profile"] : ProfileEngine.CurrentProfile
                 ProfileEngine.LockedProfile := (ProfileEngine.LockedProfile == targetProf) ? "" : targetProf
                 ProfileEngine.SaveProfileConfig()
                 this.PostMessage(Map("type", "lockProfileChanged", "lockedProfile", ProfileEngine.LockedProfile))
-                OSD.Show(ProfileEngine.LockedProfile != "" ? "Profile Locked: " . ProfileEngine.LockedProfile : "Profile Unlocked", "Auto-switch will " . (ProfileEngine.LockedProfile != "" ? "stay on this profile" : "follow active window"))
+                OSD.Show(ProfileEngine.LockedProfile != "" ? "Profile Locked: " . ProfileEngine.LockedProfile :
+                    "Profile Unlocked", "Auto-switch will " . (ProfileEngine.LockedProfile != "" ?
+                        "stay on this profile" : "follow active window"))
 
             case "toggleOSD":
                 enabled := req.Has("enabled") ? req["enabled"] : !OSD.Enabled
@@ -574,10 +587,14 @@ class WebViewGuiManager {
             case "toggleMuteWhenFocused":
                 enabled := req.Has("enabled") ? req["enabled"] : !ProfileEngine.MuteWhenStudioFocused
                 ProfileEngine.MuteWhenStudioFocused := enabled ? true : false
-                IniWrite(ProfileEngine.MuteWhenStudioFocused ? "1" : "0", ProfileEngine.ConfigPath, "Settings", "MuteWhenFocused")
-                this.PostMessage(Map("type", "muteWhenFocusedChanged", "enabled", ProfileEngine.MuteWhenStudioFocused ? true : false))
+                IniWrite(ProfileEngine.MuteWhenStudioFocused ? "1" : "0", ProfileEngine.ConfigPath, "Settings",
+                    "MuteWhenFocused")
+                this.PostMessage(Map("type", "muteWhenFocusedChanged", "enabled", ProfileEngine.MuteWhenStudioFocused ?
+                    true : false))
                 if (OSD.Enabled) {
-                    OSD.Show("Test in Focus: " . (ProfileEngine.MuteWhenStudioFocused ? "ACTIVE" : "OFF"), ProfileEngine.MuteWhenStudioFocused ? "Buttons highlight without executing actions" : "Normal button actions active")
+                    OSD.Show("Test in Focus: " . (ProfileEngine.MuteWhenStudioFocused ? "ACTIVE" : "OFF"),
+                    ProfileEngine.MuteWhenStudioFocused ? "Buttons highlight without executing actions" :
+                        "Normal button actions active")
                 }
 
             case "toggleReactWhenUnfocused":
@@ -605,9 +622,11 @@ class WebViewGuiManager {
                 if (OSD.Enabled) {
                     if (InterceptionDriver.Enabled) {
                         if (InterceptionDriver.IsAvailable)
-                            OSD.Show("Kernel Driver Mode: ON", "Interception kernel filter active (kbdclass.sys & mouclass.sys)")
+                            OSD.Show("Kernel Driver Mode: ON",
+                                "Interception kernel filter active (kbdclass.sys & mouclass.sys)")
                         else
-                            OSD.Show("Interception Driver: Not Active", "Driver not installed. Click Install in Settings.")
+                            OSD.Show("Interception Driver: Not Active",
+                                "Driver not installed. Click Install in Settings.")
                     } else {
                         OSD.Show("Kernel Driver Mode: OFF", "Standard SendInput active")
                     }
@@ -636,6 +655,25 @@ class WebViewGuiManager {
                     ))
                 }
 
+            case "toggleSnapTap":
+                enabled := req.Has("enabled") ? req["enabled"] : !SnapTap.Enabled
+                SnapTap.SetEnabled(enabled)
+                this.PostMessage(Map("type", "snapTapChanged", "enabled", SnapTap.Enabled ? true : false, "mode",
+                    SnapTap.Mode))
+                modeDesc := (SnapTap.Mode = "games") ? "Game Profiles" : "Always Active"
+                OSD.Show("Snap Tap", SnapTap.Enabled ? ("Enabled (" . modeDesc . ")") : "Disabled")
+                this.PostMessage(Map("type", "snapTapChanged", "enabled", SnapTap.Enabled ? true : false))
+                OSD.Show("Snap Tap", SnapTap.Enabled ? "Enabled (A/D SOCD Cleaner)" : "Disabled")
+
+            case "setSnapTapMode":
+                mode := req.Has("mode") ? String(req["mode"]) : "games"
+                SnapTap.SetMode(mode)
+                this.PostMessage(Map("type", "snapTapModeChanged", "mode", SnapTap.Mode))
+                modeDesc := (SnapTap.Mode = "games") ? "Game Profiles" : "Always Active"
+                if (SnapTap.Enabled) {
+                    OSD.Show("Snap Tap Mode", modeDesc)
+                }
+
             case "toggleRunAtStartup":
                 enabled := req.Has("enabled") ? req["enabled"] : !StartupManager.IsEnabled()
                 StartupManager.SetEnabled(enabled, ProfileEngine.ConfigPath)
@@ -650,11 +688,14 @@ class WebViewGuiManager {
             case "installInterceptionDriver":
                 installerPath := A_ScriptDir . "\tools\install-interception.exe"
                 if (!FileExist(installerPath)) {
-                    installerPath := A_ScriptDir . "\tools\Interception\Interception\command line installer\install-interception.exe"
+                    installerPath := A_ScriptDir .
+                        "\tools\Interception\Interception\command line installer\install-interception.exe"
                 }
                 if (FileExist(installerPath)) {
                     try {
-                        Run('*RunAs cmd.exe /c ""' . installerPath . '" /install & echo. & echo ======================================== & echo Installation finished! Please REBOOT your computer. & echo ======================================== & echo. & pause"')
+                        Run('*RunAs cmd.exe /c ""' . installerPath .
+                            '" /install & echo. & echo ======================================== & echo Installation finished! Please REBOOT your computer. & echo ======================================== & echo. & pause"'
+                        )
                     } catch as err {
                         OSD.Show("Driver Install Cancelled", err.Message)
                     }
@@ -672,14 +713,16 @@ class WebViewGuiManager {
                 IniWrite(ProfileEngine.GameKeyDelay, ProfileEngine.ConfigPath, "General", "GameKeyDelay")
                 this.PostMessage(Map("type", "gameKeyDelayChanged", "delay", ProfileEngine.GameKeyDelay))
                 if (OSD.Enabled)
-                    OSD.Show("Game Key Delay: " . ProfileEngine.GameKeyDelay . " ms", "Keystroke pacing for game compatibility")
+                    OSD.Show("Game Key Delay: " . ProfileEngine.GameKeyDelay . " ms",
+                        "Keystroke pacing for game compatibility")
 
             case "setFocusOnHoverMode":
                 modeVal := req.Has("mode") ? req["mode"] : "profile"
                 FocusFollowsMouse.SetMode(modeVal)
                 this.PostMessage(Map("type", "focusOnHoverModeChanged", "mode", FocusFollowsMouse.Mode))
                 if (OSD.Enabled)
-                    OSD.Show("Hover Focus: " . (FocusFollowsMouse.Mode = "profile" ? "Per Profile" : (FocusFollowsMouse.Mode = "all" ? "Always On" : "Disabled")), "Window hover activation")
+                    OSD.Show("Hover Focus: " . (FocusFollowsMouse.Mode = "profile" ? "Per Profile" : (FocusFollowsMouse
+                        .Mode = "all" ? "Always On" : "Disabled")), "Window hover activation")
 
             case "setFocusOnHoverDelay":
                 delayVal := req.Has("delay") ? Integer(req["delay"]) : 120
@@ -694,7 +737,8 @@ class WebViewGuiManager {
             case "unstickAllKeys":
                 ProfileEngine.StopAllRunningMacros()
                 Send("{Blind}{LButton up}{RButton up}{MButton up}{Shift up}{Ctrl up}{Alt up}")
-                WebViewGuiManager.LogActivity("SYSTEM", "Emergency Unstick Triggered", "Sent UP for LButton, RButton, MButton, Shift, Ctrl, Alt")
+                WebViewGuiManager.LogActivity("SYSTEM", "Emergency Unstick Triggered",
+                    "Sent UP for LButton, RButton, MButton, Shift, Ctrl, Alt")
                 if (OSD.Enabled)
                     OSD.Show("Keys Unstuck", "Released all held keys and mouse buttons")
 
@@ -737,10 +781,12 @@ class WebViewGuiManager {
                 }
 
             case "browseCustomIcon":
-                selectedFile := FileSelect(1, , "Select Custom Profile Icon", "Image Files (*.png; *.ico; *.jpg; *.jpeg; *.bmp; *.exe)")
+                selectedFile := FileSelect(1, , "Select Custom Profile Icon",
+                    "Image Files (*.png; *.ico; *.jpg; *.jpeg; *.bmp; *.exe)")
                 if (selectedFile != "") {
                     SplitPath(selectedFile, &outFileName, &outDir, &outExt, &outNameNoExt)
-                    cleanKey := "custom_" . StrLower(RegExReplace(outNameNoExt, "[^a-zA-Z0-9_]", "")) . "_" . A_TickCount
+                    cleanKey := "custom_" . StrLower(RegExReplace(outNameNoExt, "[^a-zA-Z0-9_]", "")) . "_" .
+                    A_TickCount
                     outPng := A_ScriptDir . "\web\icons\" . cleanKey . ".png"
                     if (ProfileEngine.SaveImageAsPng(selectedFile, outPng)) {
                         this.PostMessage(Map(
@@ -772,13 +818,17 @@ class WebViewGuiManager {
                 }
 
             case "copySingleButtonMapping":
-                fromProf := req.Has("fromProfile") ? req["fromProfile"] : (req.Has("profile") ? req["profile"] : ProfileEngine.CurrentProfile)
-                toProf := req.Has("toProfile") ? req["toProfile"] : (req.Has("profile") ? req["profile"] : ProfileEngine.CurrentProfile)
+                fromProf := req.Has("fromProfile") ? req["fromProfile"] : (req.Has("profile") ? req["profile"] :
+                    ProfileEngine.CurrentProfile)
+                toProf := req.Has("toProfile") ? req["toProfile"] : (req.Has("profile") ? req["profile"] :
+                    ProfileEngine.CurrentProfile)
                 fId := req.Has("fromBtnId") ? req["fromBtnId"] : ""
                 tId := req.Has("toBtnId") ? req["toBtnId"] : ""
                 mappingObj := req.Has("mapping") ? req["mapping"] : ""
-                if (fromProf != "" && toProf != "" && fId != "" && tId != "" && ProfileEngine.CopySingleButtonMapping(fromProf, toProf, fId, tId, mappingObj)) {
-                    this.PostMessage(Map("type", "buttonMappingPasted", "profile", toProf, "toBtnId", tId, "mappings", this.ExportAllMappings()))
+                if (fromProf != "" && toProf != "" && fId != "" && tId != "" && ProfileEngine.CopySingleButtonMapping(
+                    fromProf, toProf, fId, tId, mappingObj)) {
+                    this.PostMessage(Map("type", "buttonMappingPasted", "profile", toProf, "toBtnId", tId, "mappings",
+                        this.ExportAllMappings()))
                     OSD.Show("Mapping Pasted", fId . " ➔ " . tId)
                 }
 
@@ -980,7 +1030,8 @@ class WebViewGuiManager {
                 if (this.ImportFullBackup(backupData, mode, rawIni)) {
                     this.SendInitialState()
                     OSD.Show("Backup Restored", "All profiles, layouts & settings restored!")
-                    this.PostMessage(Map("type", "backupImportSuccess", "message", "Configuration successfully imported"))
+                    this.PostMessage(Map("type", "backupImportSuccess", "message",
+                        "Configuration successfully imported"))
                 } else {
                     this.PostMessage(Map("type", "backupImportFailed", "error", "Failed to restore backup file"))
                 }
@@ -988,7 +1039,8 @@ class WebViewGuiManager {
             case "exportBackupToFile":
                 jsonContent := req.Has("jsonContent") ? req["jsonContent"] : ""
                 defaultName := "MyMouseMyChoice_Backup_" . FormatTime(, "yyyy-MM-dd") . ".json"
-                selectedFile := FileSelect("S16", defaultName, "Export Studio Backup", "JSON Files (*.json);;All Files (*.*)")
+                selectedFile := FileSelect("S16", defaultName, "Export Studio Backup",
+                    "JSON Files (*.json);;All Files (*.*)")
                 if (selectedFile != "") {
                     if (!InStr(selectedFile, ".json"))
                         selectedFile .= ".json"
@@ -999,7 +1051,8 @@ class WebViewGuiManager {
                 }
 
             case "browseBackupFile":
-                selectedFile := FileSelect("3", "", "Select Backup File to Import", "Backup Files (*.json; *.ini);;JSON Files (*.json);;INI Files (*.ini);;All Files (*.*)")
+                selectedFile := FileSelect("3", "", "Select Backup File to Import",
+                    "Backup Files (*.json; *.ini);;JSON Files (*.json);;INI Files (*.ini);;All Files (*.*)")
                 if (selectedFile != "" && FileExist(selectedFile)) {
                     content := FileRead(selectedFile, "UTF-8")
                     fileName := RegExReplace(selectedFile, "^.*[\\/]", "")
@@ -1021,7 +1074,8 @@ class WebViewGuiManager {
 
             profilesList := []
             for p in ProfileEngine.Profiles {
-                meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), SwitchOnHover: false, OsdIconOnly: false, Desc: p . " Profile" }
+                meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic",
+                    IsDefault: (p = "Desktop"), SwitchOnHover: false, OsdIconOnly: false, Desc: p . " Profile" }
                 resolvedPath := ""
                 if (meta.TargetExe != "") {
                     resolvedPath := ProfileEngine.ResolveExePath(meta.TargetExe)
@@ -1059,9 +1113,14 @@ class WebViewGuiManager {
                 "focusOnHoverDelay", FocusFollowsMouse.Delay,
                 "isAdmin", A_IsAdmin ? true : false,
                 "runAtStartup", StartupManager.IsEnabled() ? true : false,
-                "useInterceptionDriver", (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled) ? true : false,
-                "interceptionDriverInstalled", (HasProp(InterceptionDriver, "IsInstalled") && InterceptionDriver.IsInstalled) ? true : false,
-                "interceptionDriverAvailable", (HasProp(InterceptionDriver, "IsAvailable") && InterceptionDriver.IsAvailable) ? true : false,
+                "snapTap", SnapTap.Enabled ? true : false,
+                "snapTapMode", SnapTap.Mode,
+                "useInterceptionDriver", (HasProp(InterceptionDriver, "Enabled") && InterceptionDriver.Enabled) ? true :
+                    false,
+                "interceptionDriverInstalled", (HasProp(InterceptionDriver, "IsInstalled") && InterceptionDriver.IsInstalled
+                ) ? true : false,
+                "interceptionDriverAvailable", (HasProp(InterceptionDriver, "IsAvailable") && InterceptionDriver.IsAvailable
+                ) ? true : false,
                 "mappings", mappings,
                 "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport(),
                 "diagramPoints", diagPoints,
@@ -1074,7 +1133,8 @@ class WebViewGuiManager {
                 "customMousePresets", this.LoadCustomMousePresets(),
                 "customActionPresets", this.LoadCustomActionPresets(),
                 "textBlockPresets", this.LoadTextBlockPresets(),
-                "rawIni", FileExist(A_ScriptDir . "\settings.ini") ? FileRead(A_ScriptDir . "\settings.ini", "UTF-8") : ""
+                "rawIni", FileExist(A_ScriptDir . "\settings.ini") ? FileRead(A_ScriptDir . "\settings.ini", "UTF-8") :
+                    ""
             )
             this.Log("SendInitialState: calling PostMessage...")
             this.PostMessage(stateObj)
@@ -1087,7 +1147,8 @@ class WebViewGuiManager {
     static SendProfilesUpdated() {
         profilesList := []
         for p in ProfileEngine.Profiles {
-            meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic", IsDefault: (p = "Desktop"), SwitchOnHover: false, OsdIconOnly: false, Desc: p . " Profile" }
+            meta := ProfileEngine.ProfileMetadata.Has(p) ? ProfileEngine.ProfileMetadata[p] : { TargetExe: "", Icon: "generic",
+                IsDefault: (p = "Desktop"), SwitchOnHover: false, OsdIconOnly: false, Desc: p . " Profile" }
             resolvedPath := ""
             if (meta.TargetExe != "") {
                 resolvedPath := ProfileEngine.ResolveExePath(meta.TargetExe)
@@ -1162,19 +1223,26 @@ class WebViewGuiManager {
             Type: "Macro",
             Cmd: rawAct.Has("Cmd") ? rawAct["Cmd"] : "Macro",
             Label: rawAct.Has("Label") ? rawAct["Label"] : (rawAct.Has("name") ? rawAct["name"] : originalName),
-            PlayType: rawAct.Has("PlayType") ? rawAct["PlayType"] : (rawAct.Has("playType") ? rawAct["playType"] : "Sequence"),
-            RepeatInterval: rawAct.Has("RepeatInterval") ? Integer(rawAct["RepeatInterval"]) : (rawAct.Has("repeatInterval") ? Integer(rawAct["repeatInterval"]) : 50),
+            PlayType: rawAct.Has("PlayType") ? rawAct["PlayType"] : (rawAct.Has("playType") ? rawAct["playType"] :
+                "Sequence"),
+            RepeatInterval: rawAct.Has("RepeatInterval") ? Integer(rawAct["RepeatInterval"]) : (rawAct.Has(
+                "repeatInterval") ? Integer(rawAct["repeatInterval"]) : 50),
             Color: rawAct.Has("Color") ? rawAct["Color"] : (rawAct.Has("color") ? rawAct["color"] : "none"),
-            Steps: this.NormalizeSteps(rawAct.Has("Steps") ? rawAct["Steps"] : (rawAct.Has("steps") ? rawAct["steps"] : [])),
-            SeqPress: this.NormalizeSteps(rawAct.Has("SeqPress") ? rawAct["SeqPress"] : (rawAct.Has("seqPress") ? rawAct["seqPress"] : [])),
-            SeqHold: this.NormalizeSteps(rawAct.Has("SeqHold") ? rawAct["SeqHold"] : (rawAct.Has("seqHold") ? rawAct["seqHold"] : [])),
-            SeqRelease: this.NormalizeSteps(rawAct.Has("SeqRelease") ? rawAct["SeqRelease"] : (rawAct.Has("seqRelease") ? rawAct["seqRelease"] : []))
+            Steps: this.NormalizeSteps(rawAct.Has("Steps") ? rawAct["Steps"] : (rawAct.Has("steps") ? rawAct["steps"] :
+                [])),
+            SeqPress: this.NormalizeSteps(rawAct.Has("SeqPress") ? rawAct["SeqPress"] : (rawAct.Has("seqPress") ?
+                rawAct["seqPress"] : [])),
+            SeqHold: this.NormalizeSteps(rawAct.Has("SeqHold") ? rawAct["SeqHold"] : (rawAct.Has("seqHold") ? rawAct[
+                "seqHold"] : [])),
+            SeqRelease: this.NormalizeSteps(rawAct.Has("SeqRelease") ? rawAct["SeqRelease"] : (rawAct.Has("seqRelease") ?
+                rawAct["seqRelease"] : []))
         }
         if (presetId != "")
             normAct.PresetId := presetId
 
         ; 1. Update preset in settings.ini if presetId or updatedPreset is provided
-        if (presetId != "" || (IsObject(updatedPreset) && (this.GetPropSafe(updatedPreset, "id", "") != "" || this.GetPropSafe(updatedPreset, "name", "") != ""))) {
+        if (presetId != "" || (IsObject(updatedPreset) && (this.GetPropSafe(updatedPreset, "id", "") != "" || this.GetPropSafe(
+            updatedPreset, "name", "") != ""))) {
             this.SaveCustomActionPreset(updatedPreset)
         }
 
@@ -1318,10 +1386,10 @@ class WebViewGuiManager {
 
         if (mode = "macro") {
             ih.OnKeyDown := (hook, vk, sc) => this.OnMacroKeyDown(vk, sc)
-            ih.OnKeyUp   := (hook, vk, sc) => this.OnMacroKeyUp(vk, sc)
+            ih.OnKeyUp := (hook, vk, sc) => this.OnMacroKeyUp(vk, sc)
         } else {
             ih.OnKeyDown := (hook, vk, sc) => this.OnSingleKeyDown(vk, sc)
-            ih.OnKeyUp   := (hook, vk, sc) => this.OnSingleKeyUp(vk, sc)
+            ih.OnKeyUp := (hook, vk, sc) => this.OnSingleKeyUp(vk, sc)
         }
 
         this.RecorderHook := ih
@@ -1408,43 +1476,43 @@ class WebViewGuiManager {
             case 0x11, 0xA2, 0xA3: return "Ctrl"
             case 0x10, 0xA0, 0xA1: return "Shift"
             case 0x12, 0xA4, 0xA5: return "Alt"
-            case 0x5B, 0x5C:       return "Win"
-            case 0x1B:             return "Escape"
-            case 0x20:             return "Space"
-            case 0x09:             return "Tab"
-            case 0x0D:             return "Enter"
-            case 0x08:             return "Backspace"
-            case 0x2E:             return "Delete"
-            case 0x2D:             return "Insert"
-            case 0x24:             return "Home"
-            case 0x23:             return "End"
-            case 0x21:             return "PgUp"
-            case 0x22:             return "PgDn"
-            case 0x26:             return "Up"
-            case 0x28:             return "Down"
-            case 0x25:             return "Left"
-            case 0x27:             return "Right"
-            case 0x14:             return "CapsLock"
-            case 0x90:             return "NumLock"
-            case 0x91:             return "ScrollLock"
-            case 0x2C:             return "PrintScreen"
-            case 0x13:             return "Pause"
-            case 0x6A:             return "NumpadMult"
-            case 0x6B:             return "NumpadAdd"
-            case 0x6D:             return "NumpadSub"
-            case 0x6E:             return "NumpadDot"
-            case 0x6F:             return "NumpadDiv"
-            case 0xBA:             return ";"
-            case 0xBB:             return "="
-            case 0xBC:             return ","
-            case 0xBD:             return "-"
-            case 0xBE:             return "."
-            case 0xBF:             return "/"
-            case 0xC0:             return "``"
-            case 0xDB:             return "["
-            case 0xDC:             return "\"
-            case 0xDD:             return "]"
-            case 0xDE:             return "'"
+            case 0x5B, 0x5C: return "Win"
+            case 0x1B: return "Escape"
+            case 0x20: return "Space"
+            case 0x09: return "Tab"
+            case 0x0D: return "Enter"
+            case 0x08: return "Backspace"
+            case 0x2E: return "Delete"
+            case 0x2D: return "Insert"
+            case 0x24: return "Home"
+            case 0x23: return "End"
+            case 0x21: return "PgUp"
+            case 0x22: return "PgDn"
+            case 0x26: return "Up"
+            case 0x28: return "Down"
+            case 0x25: return "Left"
+            case 0x27: return "Right"
+            case 0x14: return "CapsLock"
+            case 0x90: return "NumLock"
+            case 0x91: return "ScrollLock"
+            case 0x2C: return "PrintScreen"
+            case 0x13: return "Pause"
+            case 0x6A: return "NumpadMult"
+            case 0x6B: return "NumpadAdd"
+            case 0x6D: return "NumpadSub"
+            case 0x6E: return "NumpadDot"
+            case 0x6F: return "NumpadDiv"
+            case 0xBA: return ";"
+            case 0xBB: return "="
+            case 0xBC: return ","
+            case 0xBD: return "-"
+            case 0xBE: return "."
+            case 0xBF: return "/"
+            case 0xC0: return "``"
+            case 0xDB: return "["
+            case 0xDC: return "\"
+            case 0xDD: return "]"
+            case 0xDE: return "'"
         }
 
         ; Fallback to GetKeyName
@@ -1454,16 +1522,17 @@ class WebViewGuiManager {
 
         switch kName {
             case "Control", "Ctrl", "LControl", "RControl", "LCtrl", "RCtrl": return "Ctrl"
-            case "Shift", "LShift", "RShift":                                 return "Shift"
-            case "Alt", "LAlt", "RAlt":                                       return "Alt"
-            case "Win", "LWin", "RWin":                                       return "Win"
+            case "Shift", "LShift", "RShift": return "Shift"
+            case "Alt", "LAlt", "RAlt": return "Alt"
+            case "Win", "LWin", "RWin": return "Win"
         }
 
         return kName
     }
 
     static OnSingleKeyDown(vk, sc) {
-        if (!this.IsRecordingActive || !this.MainGui || !WinExist(this.MainGui.Hwnd) || !WinActive("ahk_id " . this.MainGui.Hwnd)) {
+        if (!this.IsRecordingActive || !this.MainGui || !WinExist(this.MainGui.Hwnd) || !WinActive("ahk_id " . this.MainGui
+            .Hwnd)) {
             this.StopRecording()
             return
         }
@@ -1660,7 +1729,8 @@ class WebViewGuiManager {
     }
 
     static OnMacroKeyDown(vk, sc) {
-        if (!this.IsRecordingActive || !this.MainGui || !WinExist(this.MainGui.Hwnd) || !WinActive("ahk_id " . this.MainGui.Hwnd)) {
+        if (!this.IsRecordingActive || !this.MainGui || !WinExist(this.MainGui.Hwnd) || !WinActive("ahk_id " . this.MainGui
+            .Hwnd)) {
             this.StopRecording()
             return
         }
@@ -1732,18 +1802,18 @@ class WebViewGuiManager {
     ; DIAGRAM POINTER CALIBRATION
     ; =========================================================================
     static DefaultDiagramPoints := Map(
-        "LeftClick",    Map("x", 213, "y", 25),
-        "G8",           Map("x", 96, "y", 41),
-        "G7",           Map("x", 178, "y", 128),
-        "DpiShift",     Map("x", 166, "y", 251),
-        "Forward",      Map("x", 213, "y", 218),
-        "Back",         Map("x", 310, "y", 293),
-        "RightClick",   Map("x", 414, "y", -33),
-        "TiltLeft",     Map("x", 266, "y", -5),
-        "WheelUp",      Map("x", 241, "y", -66),
-        "Middle",       Map("x", 306, "y", -37),
-        "WheelDown",    Map("x", 346, "y", -9),
-        "TiltRight",    Map("x", 349, "y", -59),
+        "LeftClick", Map("x", 213, "y", 25),
+        "G8", Map("x", 96, "y", 41),
+        "G7", Map("x", 178, "y", 128),
+        "DpiShift", Map("x", 166, "y", 251),
+        "Forward", Map("x", 213, "y", 218),
+        "Back", Map("x", 310, "y", 293),
+        "RightClick", Map("x", 414, "y", -33),
+        "TiltLeft", Map("x", 266, "y", -5),
+        "WheelUp", Map("x", 241, "y", -66),
+        "Middle", Map("x", 306, "y", -37),
+        "WheelDown", Map("x", 346, "y", -9),
+        "TiltRight", Map("x", 349, "y", -59),
         "ProfileCycle", Map("x", 406, "y", 34)
     )
 
@@ -1924,10 +1994,12 @@ class WebViewGuiManager {
     static WriteBase64ToFile(filePath, b64String) {
         try {
             size := 0
-            DllCall("crypt32\CryptStringToBinaryW", "Str", b64String, "UInt", StrLen(b64String), "UInt", 1, "Ptr", 0, "UInt*", &size, "Ptr", 0, "Ptr", 0)
+            DllCall("crypt32\CryptStringToBinaryW", "Str", b64String, "UInt", StrLen(b64String), "UInt", 1, "Ptr", 0,
+            "UInt*", &size, "Ptr", 0, "Ptr", 0)
             if (size > 0) {
                 buf := Buffer(size)
-                DllCall("crypt32\CryptStringToBinaryW", "Str", b64String, "UInt", StrLen(b64String), "UInt", 1, "Ptr", buf.Ptr, "UInt*", &size, "Ptr", 0, "Ptr", 0)
+                DllCall("crypt32\CryptStringToBinaryW", "Str", b64String, "UInt", StrLen(b64String), "UInt", 1, "Ptr",
+                buf.Ptr, "UInt*", &size, "Ptr", 0, "Ptr", 0)
                 fileObj := FileOpen(filePath, "w")
                 fileObj.RawWrite(buf, size)
                 fileObj.Close()
@@ -2407,7 +2479,8 @@ class WebViewGuiManager {
         return Map(
             "Normal", this.ExportAction(mapping.Normal),
             "GShift", this.ExportAction(mapping.GShift),
-            "GShift2", mapping.HasOwnProp("GShift2") ? this.ExportAction(mapping.GShift2) : this.ExportAction(mapping.Normal)
+            "GShift2", mapping.HasOwnProp("GShift2") ? this.ExportAction(mapping.GShift2) : this.ExportAction(mapping.Normal
+            )
         )
     }
 
@@ -2499,11 +2572,13 @@ class WebViewGuiManager {
 
     static SetReactWhenUnfocused(enabled) {
         this.ReactWhenUnfocused := !!enabled
-        cfg := (HasProp(ProfileEngine, "ConfigPath") && ProfileEngine.ConfigPath != "") ? ProfileEngine.ConfigPath : (A_ScriptDir . "\settings.ini")
+        cfg := (HasProp(ProfileEngine, "ConfigPath") && ProfileEngine.ConfigPath != "") ? ProfileEngine.ConfigPath : (
+            A_ScriptDir . "\settings.ini")
         try IniWrite(this.ReactWhenUnfocused ? "1" : "0", cfg, "Settings", "ReactWhenUnfocused")
         this.PostMessage(Map("type", "reactWhenUnfocusedChanged", "enabled", this.ReactWhenUnfocused ? true : false))
         if (OSD.Enabled) {
-            OSD.Show("React When Unfocused: " . (this.ReactWhenUnfocused ? "ENABLED" : "OFF"), this.ReactWhenUnfocused ? "UI flashes on clicks while open in background" : "Power saving active (0% background CPU)")
+            OSD.Show("React When Unfocused: " . (this.ReactWhenUnfocused ? "ENABLED" : "OFF"), this.ReactWhenUnfocused ?
+                "UI flashes on clicks while open in background" : "Power saving active (0% background CPU)")
         }
     }
 
@@ -2533,7 +2608,8 @@ class WebViewGuiManager {
             ; Guard: drop high-frequency live rendering/logging events if visuals shouldn't be dispatched
             if (!this.ShouldDispatchVisuals() && obj.Has("type")) {
                 t := obj["type"]
-                if (t == "activityLog" || t == "buttonStateChanged" || t == "shiftStateChanged" || t == "liveKeyPreview" || t == "singleKeyRecorded" || t == "macroStepRecorded")
+                if (t == "activityLog" || t == "buttonStateChanged" || t == "shiftStateChanged" || t ==
+                    "liveKeyPreview" || t == "singleKeyRecorded" || t == "macroStepRecorded")
                     return
             }
             if (!this.IsStudioVisible() && obj.Has("type")) {

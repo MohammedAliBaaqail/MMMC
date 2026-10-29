@@ -513,6 +513,8 @@ class ProfileEngine {
         for p in this.Profiles {
             if (p = profileName) {
                 this.StopAllRunningMacros()
+                if (IsSet(SnapTap))
+                    SnapTap.Reset()
                 this.CurrentProfile := p
                 meta := this.ProfileMetadata.Has(p) ? this.ProfileMetadata[p] : ""
                 isIconOnly := (meta && meta.HasOwnProp("OsdIconOnly") && (meta.OsdIconOnly = 1 || meta.OsdIconOnly = true || meta.OsdIconOnly = "1" || meta.OsdIconOnly = "true"))

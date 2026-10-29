@@ -2369,6 +2369,31 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Tile 10: Snap Tap (A / D SOCD Cleaner) -->
+                    <div class="settings-card snap-tap-tile" id="cardSettingsSnapTap">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon snap-tap-icon"><svg class="svg-icon">
+                                    <use href="#icon-crosshair"></use>
+                                </svg></div>
+                            <div class="settings-card-content" style="flex: 1;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                    <div class="settings-card-title">Snap Tap (A / D SOCD Cleaner)</div>
+                                    <label class="switch-toggle" title="Toggle Snap Tap SOCD Counter-Strafing">
+                                        <input type="checkbox" id="chkSettingsSnapTap">
+                                        <span class="switch-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="settings-card-desc">
+                                    Prioritizes the last pressed directional key between <strong>A</strong> and <strong>D</strong> when both are held simultaneously (emulating Razer Snap Tap &amp; Wooting SOCD). Releasing one key instantly resumes the other without stopping, giving you instantaneous counter-strafing in FPS games.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-card-footer" style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: var(--text-muted);">
+                            <span><svg class="svg-icon svg-icon-xs" style="vertical-align: middle; margin-right: 4px;"><use href="#icon-alert-triangle"></use></svg> Note: Check game / league rules (e.g., CS2) before enabling in competitive matchmaking.</span>
+                            <span class="badge" id="snapTapStatusBadge" style="background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 4px; font-weight: 600; letter-spacing: 0.5px;">DISABLED</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 

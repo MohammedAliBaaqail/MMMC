@@ -81,6 +81,7 @@ OnScriptExit(ExitReason, ExitCode) {
 #Include "lib/QuickRemap.ahk"
 #Include "lib/InterceptionDriver.ahk"
 #Include "lib/StartupManager.ahk"
+#Include "lib/SnapTap.ahk"
 
 ; --- Application Initialization ---
 A_IconTip := "My Mouse My Choice"
@@ -93,6 +94,7 @@ if FileExist(iconFile) {
 ProfileEngine.Init(ConfigFile)
 FocusFollowsMouse.Init(ConfigFile)
 InterceptionDriver.Init(ConfigFile)
+SnapTap.Init()
 
 ; Load configuration if available
 InitialProfile := IniRead(ConfigFile, "General", "DefaultProfile", "Desktop")
@@ -450,3 +452,16 @@ OnResetMouseVisual() {
 }
 
 #HotIf
+; ========================================================
+; SNAP TAP / SOCD A/D STRAFE CLEANER (#HotIf)
+; Active only when Snap Tap is toggled ON in Settings
+; ========================================================
+#HotIf SnapTap.IsActive() && !ProfileEngine.IsMasterSuspended && !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive
+~*a::SnapTap.OnADown()
+~*a up::SnapTap.OnAUp()
+~*d::SnapTap.OnDDown()
+~*d up::SnapTap.OnDUp()
+#HotIf
+
+; Quick Toggle: ScrollLock toggles Snap Tap anytime with instant OSD feedback
+ScrollLock::SnapTap.Toggle()

@@ -27,6 +27,7 @@ const state = {
     hoveredButton: null,
     isRapidFire: false,
     isAlwaysOnTop: false,
+    snapTap: false,
     isMasterSuspended: false,
     isShiftPhysicallyActive: false,
     activeShiftName: '',
@@ -897,6 +898,10 @@ function handleEngineMessage(msg) {
             renderRunningAppsPicker(msg.apps || []);
             break;
 
+                case 'snapTapChanged':
+            state.snapTap = !!msg.enabled;
+            updateSnapTapUi();
+            break;
         case 'allMappingsUpdated':
             if (msg.mappings) {
                 state.mappings = msg.mappings;
@@ -9549,6 +9554,25 @@ function initBackupModal() {
 // ============================================================================
 // STUDIO SETTINGS MODAL CONTROLLER
 // ============================================================================
+function updateSnapTapUi() {
+    const chk = document.getElementById('chkSettingsSnapTap');
+    const badge = document.getElementById('snapTapStatusBadge');
+    if (chk) chk.checked = !!state.snapTap;
+    if (badge) {
+        if (state.snapTap) {
+            badge.textContent = 'ACTIVE';
+            badge.style.background = 'rgba(0, 210, 255, 0.15)';
+            badge.style.color = 'var(--accent-cyan, #00d2ff)';
+            badge.style.border = '1px solid rgba(0, 210, 255, 0.3)';
+        } else {
+            badge.textContent = 'DISABLED';
+            badge.style.background = 'rgba(255, 255, 255, 0.06)';
+            badge.style.color = 'var(--text-muted, #7a829e)';
+            badge.style.border = '1px solid transparent';
+        }
+    }
+}
+
 function openStudioSettingsModal() {
     const modal = document.getElementById('studioSettingsModal');
     if (!modal) return;
@@ -9681,6 +9705,15 @@ function initStudioSettingsModal() {
         chkSettingsReactUnfocused.addEventListener('change', (e) => {
             state.reactWhenUnfocused = e.target.checked;
             sendToAhk({ action: 'toggleReactWhenUnfocused', enabled: state.reactWhenUnfocused });
+        });
+    }
+
+        const chkSettingsSnapTap = document.getElementById('chkSettingsSnapTap');
+    if (chkSettingsSnapTap) {
+        chkSettingsSnapTap.addEventListener('change', (e) => {
+            state.snapTap = e.target.checked;
+            updateSnapTapUi();
+            sendToAhk({ action: 'toggleSnapTap', enabled: state.snapTap });
         });
     }
 

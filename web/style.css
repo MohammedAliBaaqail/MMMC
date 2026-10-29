@@ -9014,3 +9014,9 @@ body.calibrating-mode .btn-card.calib-selected::after {
     margin-bottom: 5px;
     font-weight: 600;
 }
+
+.settings-card-icon.snap-tap-icon {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(0, 210, 255, 0.25));
+    border: 1px solid rgba(0, 210, 255, 0.45);
+    color: var(--accent-cyan, #00d2ff);
+}
