@@ -370,6 +370,34 @@ OnResetMouseVisual() {
 #HotIf
 
 ; ========================================================
+; NATIVE MOUSE BUTTON INTERCEPT (Direct Hardware Key Mapping)
+; Active when buttons are mapped directly to their original hardware keys
+; (MButton, XButton1, XButton2, WheelLeft, WheelRight) instead of F-keys
+; ========================================================
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && ProfileEngine.HasHardwareKey("MButton")
+*MButton::ProfileEngine.HandleHardwareKey("MButton", true)
+*MButton Up::ProfileEngine.HandleHardwareKey("MButton", false)
+#HotIf
+
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && ProfileEngine.HasHardwareKey("XButton1")
+*XButton1::ProfileEngine.HandleHardwareKey("XButton1", true)
+*XButton1 Up::ProfileEngine.HandleHardwareKey("XButton1", false)
+#HotIf
+
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && ProfileEngine.HasHardwareKey("XButton2")
+*XButton2::ProfileEngine.HandleHardwareKey("XButton2", true)
+*XButton2 Up::ProfileEngine.HandleHardwareKey("XButton2", false)
+#HotIf
+
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && ProfileEngine.HasHardwareKey("WheelLeft")
+*WheelLeft::ProfileEngine.HandleHardwareKey("WheelLeft", true)
+#HotIf
+
+#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && ProfileEngine.HasHardwareKey("WheelRight")
+*WheelRight::ProfileEngine.HandleHardwareKey("WheelRight", true)
+#HotIf
+
+; ========================================================
 ; SCROLL WHEEL INTERCEPT (No F-Key Required)
 ; Dispatches based on active profile & B-Shift layer
 ; ========================================================

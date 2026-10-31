@@ -2561,6 +2561,24 @@ class ProfileEngine {
     ; --- Button Event Handlers (F13 - F21) ---
     ; Matches Onboard Memory Manager (OMM) physical layout with dynamic swapping support
 
+    static HasHardwareKey(keyName) {
+        return this.FKeyToButtonMap.Has(keyName)
+    }
+
+    static HandleHardwareKey(keyName, isDown) {
+        if (keyName = "WheelLeft" || keyName = "WheelRight") {
+            btnId := this.FKeyToButtonMap.Has(keyName) ? this.FKeyToButtonMap[keyName] : ""
+            if (btnId != "") {
+                this.NotifyButton(btnId, true)
+                this.DispatchButton(btnId, true)
+                SetTimer(() => this.NotifyButton(btnId, false), -100)
+                SetTimer(() => this.DispatchButton(btnId, false), -100)
+            }
+            return
+        }
+        this.HandleFKey(keyName, isDown)
+    }
+
     static HandleFKey(fKey, isDown) {
         btnId := this.FKeyToButtonMap.Has(fKey) ? this.FKeyToButtonMap[fKey] : ""
         if (btnId != "") {

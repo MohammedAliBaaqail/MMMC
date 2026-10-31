@@ -2063,21 +2063,30 @@
                         </label>
                         <select id="btnConfigHardwareKey"
                             style="width:100%; box-sizing:border-box; padding:10px 14px; background:rgba(16,18,28,0.8); border:1px solid var(--border-subtle); border-radius:8px; color:#fff; font-size:14px; font-weight:600; cursor:pointer;">
-                            <option value="">None / Virtual (On-Screen & Macro)</option>
-                            <option value="F13">F13 (Default: Mouse 3 / Middle)</option>
-                            <option value="F14">F14 (Default: Back / Mouse 4)</option>
-                            <option value="F15">F15 (Default: DPI Shift / Sniper)</option>
-                            <option value="F16">F16 (Default: Forward / Mouse 5)</option>
-                            <option value="F17">F17 (Default: Tilt Left)</option>
-                            <option value="F18">F18 (Default: Tilt Right)</option>
-                            <option value="F19">F19 (Default: Profile Cycle / G9)</option>
-                            <option value="F20">F20 (Default: DPI Up / G8)</option>
-                            <option value="F21">F21 (Default: DPI Down / G7)</option>
-                            <option value="F22">F22 (Available Virtual Key)</option>
-                            <option value="F23">F23 (Available Virtual Key)</option>
-                            <option value="F24">F24 (Available Virtual Key)</option>
-                            <option value="XButton1">Mouse 4 (XButton1)</option>
-                            <option value="XButton2">Mouse 5 (XButton2)</option>
+                            <optgroup label="── ORIGINAL / NATIVE BUTTONS (DIRECT INTERCEPT) ──" class="optgroup-native">
+                                <option value="MButton">⚡ MButton (Middle Click / Mouse 3) — Direct • No OMM</option>
+                                <option value="XButton1">⚡ XButton1 (Back Button / Mouse 4) — Direct • No OMM</option>
+                                <option value="XButton2">⚡ XButton2 (Forward Button / Mouse 5) — Direct • No OMM</option>
+                                <option value="WheelLeft">⚡ WheelLeft (Wheel Tilt Left) — Direct • No OMM</option>
+                                <option value="WheelRight">⚡ WheelRight (Wheel Tilt Right) — Direct • No OMM</option>
+                            </optgroup>
+                            <optgroup label="── VIRTUAL F-KEYS (LOGITECH ONBOARD MEMORY) ──">
+                                <option value="F13">F13 (Default: Mouse 3 / Middle)</option>
+                                <option value="F14">F14 (Default: Back / Mouse 4)</option>
+                                <option value="F15">F15 (Default: DPI Shift / Sniper)</option>
+                                <option value="F16">F16 (Default: Forward / Mouse 5)</option>
+                                <option value="F17">F17 (Default: Tilt Left)</option>
+                                <option value="F18">F18 (Default: Tilt Right)</option>
+                                <option value="F19">F19 (Default: Profile Cycle / G9)</option>
+                                <option value="F20">F20 (Default: DPI Up / G8)</option>
+                                <option value="F21">F21 (Default: DPI Down / G7)</option>
+                                <option value="F22">F22 (Available Virtual Key)</option>
+                                <option value="F23">F23 (Available Virtual Key)</option>
+                                <option value="F24">F24 (Available Virtual Key)</option>
+                            </optgroup>
+                            <optgroup label="── NO HARDWARE TRIGGER ──">
+                                <option value="">None / Virtual Only (No Hardware Intercept)</option>
+                            </optgroup>
                         </select>
                     </div>
 
