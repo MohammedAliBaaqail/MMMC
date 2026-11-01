@@ -579,6 +579,20 @@ class ProfileEngine {
         }
         this.ActiveHeldButtons.Clear()
         this.ActiveHeldPressTimes.Clear()
+
+        ; Cleanly release any active wheel tilt holds (WheelLeft / WheelRight)
+        if (HasProp(this, "WheelReleaseTimers")) {
+            for keyName, timerFn in this.WheelReleaseTimers {
+                SetTimer(timerFn, 0)
+            }
+        }
+        if (HasProp(this, "WheelHoldStates")) {
+            for keyName, btnId in this.WheelHoldStates {
+                this.NotifyButton(btnId, false)
+                this.DispatchButton(btnId, false)
+            }
+            this.WheelHoldStates.Clear()
+        }
         if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
             try Send("{Blind}{LButton up}")
         if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
@@ -2561,6 +2575,9 @@ class ProfileEngine {
     ; --- Button Event Handlers (F13 - F21) ---
     ; Matches Onboard Memory Manager (OMM) physical layout with dynamic swapping support
 
+    static WheelHoldStates := Map()
+    static WheelReleaseTimers := Map()
+
     static HasHardwareKey(keyName) {
         return this.FKeyToButtonMap.Has(keyName)
     }
@@ -2568,15 +2585,38 @@ class ProfileEngine {
     static HandleHardwareKey(keyName, isDown) {
         if (keyName = "WheelLeft" || keyName = "WheelRight") {
             btnId := this.FKeyToButtonMap.Has(keyName) ? this.FKeyToButtonMap[keyName] : ""
-            if (btnId != "") {
+            if (btnId = "")
+                return
+
+            ; Cache bound method for exact timer reference matching in AHK v2
+            if (!this.WheelReleaseTimers.Has(keyName)) {
+                this.WheelReleaseTimers[keyName] := ObjBindMethod(ProfileEngine, "ReleaseWheelTilt", keyName)
+            }
+            timerFn := this.WheelReleaseTimers[keyName]
+
+            ; Initial tilt press event: trigger Down once
+            if (!this.WheelHoldStates.Has(keyName)) {
+                this.WheelHoldStates[keyName] := btnId
                 this.NotifyButton(btnId, true)
                 this.DispatchButton(btnId, true)
-                SetTimer(() => this.NotifyButton(btnId, false), -100)
-                SetTimer(() => this.DispatchButton(btnId, false), -100)
             }
+
+            ; Extend/reset release timer while user continues to hold tilt wheel.
+            ; Mouse hardware sends repeat pulses every ~60-120ms while tilted;
+            ; when released, pulses cease, and timer fires 200ms after the last pulse.
+            SetTimer(timerFn, -200)
             return
         }
         this.HandleFKey(keyName, isDown)
+    }
+
+    static ReleaseWheelTilt(keyName) {
+        if (this.WheelHoldStates.Has(keyName)) {
+            btnId := this.WheelHoldStates[keyName]
+            this.WheelHoldStates.Delete(keyName)
+            this.NotifyButton(btnId, false)
+            this.DispatchButton(btnId, false)
+        }
     }
 
     static HandleFKey(fKey, isDown) {

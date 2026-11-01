@@ -120,7 +120,7 @@ class WebViewGuiManager {
         SetTimer(() => this.CleanOrphanedProcesses(), -1500)
 
         ; Create GUI with minimum dimensions (1060px width, 680px height) and enable MaximizeBox
-        opt := "+Resize +MaximizeBox +MinSize1060x680 " . (this.IsAlwaysOnTop ? "+AlwaysOnTop" : "-AlwaysOnTop")
+        opt := "+Resize +MaximizeBox +MinSize480x320 " . (this.IsAlwaysOnTop ? "+AlwaysOnTop" : "-AlwaysOnTop")
         g := Gui(opt, "My Mouse My Choice")
         g.BackColor := "0b0d14"
         g.MarginX := 0
@@ -131,6 +131,8 @@ class WebViewGuiManager {
         OnMessage(0x0024, (wParam, lParam, msg, hwnd) => WebViewGuiManager.OnGetMinMaxInfo(lParam, hwnd))
         ; Register window activation / focus change listener (WM_ACTIVATE) for smart gaming power throttling
         OnMessage(0x0006, (wParam, lParam, msg, hwnd) => WebViewGuiManager.OnActivate(wParam, lParam, hwnd))
+        ; Register window move/resize completion (WM_EXITSIZEMOVE) for instant geometry persistence
+        OnMessage(0x0232, (wParam, lParam, msg, hwnd) => WebViewGuiManager.OnExitSizeMove(hwnd))
 
         ; Set custom app icon (16x16 caption, 32x32 taskbar)
         this.SetWindowIcon(g.Hwnd)
@@ -157,10 +159,10 @@ class WebViewGuiManager {
             savedMax := Integer(IniRead(iniPath, "General", "WindowMaximized", "0"))
         } catch {
         }
-        if (savedW < 1060)
-            savedW := 1060
-        if (savedH < 680)
-            savedH := 680
+        if (savedW < 320)
+            savedW := 320
+        if (savedH < 240)
+            savedH := 240
 
         showOpt := "w" . savedW . " h" . savedH
         isValidPos := false
@@ -348,6 +350,12 @@ class WebViewGuiManager {
 
     static _saveGeometryTimer := () => WebViewGuiManager.SaveWindowGeometry()
 
+    static OnExitSizeMove(hwnd) {
+        if (this.MainGui && hwnd == this.MainGui.Hwnd) {
+            this.SaveWindowGeometry()
+        }
+    }
+
     static OnSize(minMax, w, h) {
         if (minMax = -1) { ; Minimized
             ; Free 100% of CPU and GPU: hide controller and suspend WebView2 rendering
@@ -382,7 +390,8 @@ class WebViewGuiManager {
             try IniWrite(1, A_ScriptDir . "\settings.ini", "General", "WindowMaximized")
         } else if (minMax = 0) {
             ; Normal / Restored
-            SetTimer(this._saveGeometryTimer, -500)
+            try IniWrite(0, A_ScriptDir . "\settings.ini", "General", "WindowMaximized")
+            SetTimer(this._saveGeometryTimer, -300)
         }
     }
 
@@ -420,11 +429,12 @@ class WebViewGuiManager {
                 return
             }
 
+            this.MainGui.GetClientPos(&cx, &cy, &cw, &ch)
             this.MainGui.GetPos(&x, &y, &w, &h)
-            if (w >= 1060 && h >= 680) {
+            if (cw >= 200 && ch >= 150) {
                 IniWrite(0, iniPath, "General", "WindowMaximized")
-                IniWrite(w, iniPath, "General", "WindowWidth")
-                IniWrite(h, iniPath, "General", "WindowHeight")
+                IniWrite(cw, iniPath, "General", "WindowWidth")
+                IniWrite(ch, iniPath, "General", "WindowHeight")
                 IniWrite(x, iniPath, "General", "WindowX")
                 IniWrite(y, iniPath, "General", "WindowY")
             }
@@ -446,8 +456,8 @@ class WebViewGuiManager {
         if (this.MainGui && hwnd == this.MainGui.Hwnd) {
             ; Enforce physical window min track size (with DPI scaling)
             dpiScale := A_ScreenDPI / 96
-            minW := Integer(1060 * dpiScale)
-            minH := Integer(680 * dpiScale)
+            minW := Integer(480 * dpiScale)
+            minH := Integer(320 * dpiScale)
             NumPut("int", minW, lParam, 24) ; ptMinTrackSize.x
             NumPut("int", minH, lParam, 28) ; ptMinTrackSize.y
             return 0

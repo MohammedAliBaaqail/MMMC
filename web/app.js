@@ -34,6 +34,8 @@ const state = {
 
     // Hardware F-Keys configuration for physical buttons
     hardwareFKeys: {
+        LeftClick: 'LButton',
+        RightClick: 'RButton',
         Middle: 'F13',
         Back: 'F14',
         DpiShift: 'F15',
@@ -128,13 +130,13 @@ const state = {
 
 // Default Factory Button Definitions
 const DEFAULT_BUTTONS_CONFIG = [
-    { id: 'LeftClick', x: 213, y: 25, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: '' },
+    { id: 'LeftClick', x: 213, y: 25, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: 'LButton' },
     { id: 'G8', x: 96, y: 41, side: 'left', name: 'G8 (DPI Up)', tag: 'G8', hardwareKey: 'F20' },
     { id: 'G7', x: 178, y: 128, side: 'left', name: 'G7 (DPI Down)', tag: 'G7', hardwareKey: 'F21' },
     { id: 'DpiShift', x: 166, y: 251, side: 'left', name: 'DPI Shift (Sniper)', tag: 'DPI', hardwareKey: 'F15' },
     { id: 'Forward', x: 213, y: 218, side: 'left', name: 'G5 (Forward)', tag: 'G5', hardwareKey: 'F16' },
     { id: 'Back', x: 310, y: 293, side: 'left', name: 'G4 (Back)', tag: 'G4', hardwareKey: 'F14' },
-    { id: 'RightClick', x: 414, y: -33, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: '' },
+    { id: 'RightClick', x: 414, y: -33, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: 'RButton' },
     { id: 'TiltLeft', x: 266, y: -5, side: 'right', name: 'Wheel Tilt Left', tag: 'TL', hardwareKey: 'F17' },
     { id: 'WheelUp', x: 241, y: -66, side: 'right', name: 'Wheel Scroll Up', tag: 'W-UP', hardwareKey: '' },
     { id: 'Middle', x: 306, y: -37, side: 'right', name: 'Wheel Click (M3)', tag: 'MID', hardwareKey: 'F13' },
@@ -2225,9 +2227,6 @@ function renderAllCards() {
         }
 
         const isPrimaryClick = (btnId === 'LeftClick' || btnId === 'RightClick');
-        if (isPrimaryClick && !isShiftActive) {
-            card.classList.add('primary-locked');
-        }
 
         const header = document.createElement('div');
         header.className = 'card-header';
@@ -2244,10 +2243,13 @@ function renderAllCards() {
         const fkeyPill = document.createElement('span');
         fkeyPill.className = 'card-fkey-pill';
         fkeyPill.id = `fkey_${btnId}`;
-        const curFKey = state.hardwareFKeys?.[btnId];
+        let curFKey = state.hardwareFKeys?.[btnId];
+        if (!curFKey && (btnId === 'LeftClick' || btnId === 'RightClick')) {
+            curFKey = (btnId === 'LeftClick' ? 'LButton' : 'RButton');
+        }
         if (curFKey) {
             fkeyPill.textContent = curFKey;
-            const isNativeKey = (curFKey === 'MButton' || curFKey === 'XButton1' || curFKey === 'XButton2' || curFKey === 'WheelLeft' || curFKey === 'WheelRight');
+            const isNativeKey = (curFKey === 'LButton' || curFKey === 'RButton' || curFKey === 'MButton' || curFKey === 'XButton1' || curFKey === 'XButton2' || curFKey === 'WheelLeft' || curFKey === 'WheelRight');
             fkeyPill.classList.toggle('native-pill', isNativeKey);
             fkeyPill.title = isNativeKey
                 ? `Direct Hardware Intercept (${curFKey}) — No Logitech OMM configuration required`
@@ -2479,21 +2481,17 @@ function refreshCardsAndStage() {
         if (isPrimaryClick) {
             const defaultTag = (btnId === 'LeftClick' ? 'M1' : 'M2');
             const baseTag = customName || defaultTag;
-            if (!isShiftActive) {
+            if (isShiftActive) {
                 if (card) {
-                    card.classList.add('primary-locked');
-                    card.classList.remove('bshift-editable');
-                }
-                if (badgeEl) badgeEl.innerHTML = `${baseTag} ${getSvgIcon('lock', 'svg-icon-xs')}`;
-                actionEl.textContent = (btnId === 'LeftClick' ? 'Standard Left Click' : 'Standard Right Click');
-                continue;
-            } else {
-                if (card) {
-                    card.classList.remove('primary-locked');
                     card.classList.add('bshift-editable');
                 }
                 const shiftNum = (state.currentLayer === 'GShift2') ? '2' : '1';
                 if (badgeEl) badgeEl.innerHTML = `${baseTag} ${getSvgIcon('zap', 'svg-icon-xs')}${shiftNum}`;
+            } else {
+                if (card) {
+                    card.classList.remove('bshift-editable');
+                }
+                if (badgeEl) badgeEl.textContent = baseTag;
             }
         } else {
             if (badgeEl) {
@@ -2561,28 +2559,29 @@ function refreshCardsAndStage() {
     }
 
     // Update hardware F-key badges on cards
-    if (state.hardwareFKeys) {
-        for (const bId in state.hardwareFKeys) {
-            const pill = document.getElementById(`fkey_${bId}`);
-            if (pill) {
-                const curKey = state.hardwareFKeys[bId];
+    for (const bId in DIAGRAM_POINTS) {
+        const pill = document.getElementById(`fkey_${bId}`);
+        if (pill) {
+            let curKey = state.hardwareFKeys?.[bId];
+            if (!curKey && (bId === 'LeftClick' || bId === 'RightClick')) {
+                curKey = (bId === 'LeftClick' ? 'LButton' : 'RButton');
+            }
+            if (curKey) {
                 pill.textContent = curKey;
-                const isNativeKey = (curKey === 'MButton' || curKey === 'XButton1' || curKey === 'XButton2' || curKey === 'WheelLeft' || curKey === 'WheelRight');
+                const isNativeKey = (curKey === 'LButton' || curKey === 'RButton' || curKey === 'MButton' || curKey === 'XButton1' || curKey === 'XButton2' || curKey === 'WheelLeft' || curKey === 'WheelRight');
                 pill.classList.toggle('native-pill', isNativeKey);
                 pill.title = isNativeKey
                     ? `Direct Hardware Intercept (${curKey}) — No Logitech OMM configuration required`
                     : `Hardware Virtual Key: ${curKey} (Configured in Mouse Onboard Memory)`;
                 pill.style.display = 'inline-block';
+            } else {
+                pill.style.display = 'none';
             }
         }
     }
 
     if (state.selectedButton) {
-        if (!state.isCalibrating && (state.selectedButton === 'LeftClick' || state.selectedButton === 'RightClick') && !isShiftActive) {
-            selectButton('G8');
-        } else {
-            selectButton(state.selectedButton);
-        }
+        selectButton(state.selectedButton);
     }
     updateBShiftVisibility();
     syncCardMinWidthWithRightClick();
@@ -7951,6 +7950,8 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
     submenu.innerHTML = '';
 
     const NATIVE_BUTTONS = [
+        { key: 'LButton', name: 'Left Click (Mouse 1)', short: 'LButton', defaultFor: 'LeftClick' },
+        { key: 'RButton', name: 'Right Click (Mouse 2)', short: 'RButton', defaultFor: 'RightClick' },
         { key: 'MButton', name: 'Middle Click (Mouse 3)', short: 'MButton', defaultFor: 'Middle' },
         { key: 'XButton1', name: 'Back Button (Mouse 4)', short: 'XButton1', defaultFor: 'Back' },
         { key: 'XButton2', name: 'Forward Button (Mouse 5)', short: 'XButton2', defaultFor: 'Forward' },
@@ -8049,10 +8050,9 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
         return item;
     }
 
-    // 1. ORIGINAL / NATIVE HARDWARE BUTTONS SECTION
     // 1. HARDWARE KEY SECTIONS
     if (currentNativeDef) {
-        // A. Button has its own native Windows mouse button (Middle, Back, Forward, TiltLeft, TiltRight)
+        // A. Button has its own native Windows mouse button (LeftClick, RightClick, Middle, Back, Forward, TiltLeft, TiltRight)
         const natDivider = document.createElement('div');
         natDivider.className = 'ctx-sub-divider-text';
         natDivider.style.color = '#10b981';
@@ -8064,7 +8064,6 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
         // Put the button's own original native key first in prominent emerald styling
         submenu.appendChild(createKeyOption(currentNativeDef.key, currentNativeDef.name, true, true));
 
-        // Also offer other native mouse buttons
         // Virtual F-keys
         const fkeyDivider = document.createElement('div');
         fkeyDivider.className = 'ctx-sub-divider-text';
@@ -8077,52 +8076,24 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
 
         // Other native buttons
         const otherNatives = NATIVE_BUTTONS.filter(nb => nb.key !== currentNativeDef.key);
-        otherNatives.forEach(nb => {
-            submenu.appendChild(createKeyOption(nb.key, nb.name, true, false));
-            if (otherNatives.length > 0) {
-                const otherDiv = document.createElement('div');
-                otherDiv.className = 'ctx-sub-divider-text';
-                otherDiv.style.color = '#10b981';
-                otherDiv.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} OTHER NATIVE BUTTONS`;
-                submenu.appendChild(otherDiv);
+        if (otherNatives.length > 0) {
+            const otherDiv = document.createElement('div');
+            otherDiv.className = 'ctx-sub-divider-text';
+            otherDiv.style.color = '#10b981';
+            otherDiv.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} OTHER NATIVE BUTTONS`;
+            submenu.appendChild(otherDiv);
 
-                otherNatives.forEach(nb => {
-                    submenu.appendChild(createKeyOption(nb.key, nb.name, true, false));
-                });
-            }
-        } else {
-            // B. Button with no default native mouse button (G8, G7, DpiShift, ProfileCycle, Custom)
-            // Show Virtual F-Keys first (primary keys configured via OMM)
-            const fkeyDivider = document.createElement('div');
-            fkeyDivider.className = 'ctx-sub-divider-text';
-            fkeyDivider.style.borderTop = 'none';
-            fkeyDivider.style.paddingTop = '0';
-            fkeyDivider.innerHTML = `${getSvgIcon('keyboard', 'svg-icon-xs')} VIRTUAL F-KEYS (ONBOARD MEMORY)`;
-            submenu.appendChild(fkeyDivider);
-
-            allFKeys.forEach(fKey => {
-                submenu.appendChild(createKeyOption(fKey, fKey, false, false));
-            });
-        } else {
-            // Button with no default native mouse button (G8, G7, DpiShift, ProfileCycle, Custom)
-
-            // Native mouse buttons available as alternative triggers
-            const natDivider = document.createElement('div');
-            natDivider.className = 'ctx-sub-divider-text';
-            natDivider.style.color = '#10b981';
-            natDivider.style.borderTop = 'none';
-            natDivider.style.paddingTop = '0';
-            natDivider.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} NATIVE MOUSE BUTTONS`;
-            submenu.appendChild(natDivider);
-
-            NATIVE_BUTTONS.forEach(nb => {
+            otherNatives.forEach(nb => {
                 submenu.appendChild(createKeyOption(nb.key, nb.name, true, false));
             });
         }
-
-    // 2. VIRTUAL F-KEYS SECTION (F13 - F24)
-    const fkeyDivider = document.createElement('div');
+    } else {
+        // B. Button with no default native mouse button (G8, G7, DpiShift, ProfileCycle, Custom)
+        // Show Virtual F-Keys first (primary keys configured via OMM)
+        const fkeyDivider = document.createElement('div');
         fkeyDivider.className = 'ctx-sub-divider-text';
+        fkeyDivider.style.borderTop = 'none';
+        fkeyDivider.style.paddingTop = '0';
         fkeyDivider.innerHTML = `${getSvgIcon('keyboard', 'svg-icon-xs')} VIRTUAL F-KEYS (ONBOARD MEMORY)`;
         submenu.appendChild(fkeyDivider);
 
@@ -8130,7 +8101,19 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
             submenu.appendChild(createKeyOption(fKey, fKey, false, false));
         });
 
-        // 3. UNASSIGN / CLEAR HARDWARE KEY
+        // Native mouse buttons available as alternative triggers
+        const natDivider = document.createElement('div');
+        natDivider.className = 'ctx-sub-divider-text';
+        natDivider.style.color = '#10b981';
+        natDivider.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} NATIVE MOUSE BUTTONS`;
+        submenu.appendChild(natDivider);
+
+        NATIVE_BUTTONS.forEach(nb => {
+            submenu.appendChild(createKeyOption(nb.key, nb.name, true, false));
+        });
+    }
+
+    // 3. UNASSIGN / CLEAR HARDWARE KEY
         const clearDivider = document.createElement('div');
         clearDivider.className = 'ctx-sub-divider-text';
         clearDivider.textContent = 'UNASSIGN';
@@ -9021,9 +9004,7 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
 
         // Dynamically annotate hardware key options with availability and in-use status
         if (keyEl) {
-            const keyOptions = [
-                { val: '', label: 'None / Virtual (No Hardware Intercept)' },
-                keyEl.innerHTML = '';
+            keyEl.innerHTML = '';
 
             // 1. ORIGINAL / NATIVE MOUSE BUTTONS
             const nativeGroup = document.createElement('optgroup');
@@ -9031,6 +9012,8 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
             nativeGroup.className = 'optgroup-native';
 
             const nativeDefs = [
+                { val: 'LButton', name: 'Left Click (Mouse 1)', defaultFor: 'LeftClick' },
+                { val: 'RButton', name: 'Right Click (Mouse 2)', defaultFor: 'RightClick' },
                 { val: 'MButton', name: 'Middle Click (Mouse 3)', defaultFor: 'Middle' },
                 { val: 'XButton1', name: 'Back Button (Mouse 4)', defaultFor: 'Back' },
                 { val: 'XButton2', name: 'Forward Button (Mouse 5)', defaultFor: 'Forward' },
@@ -9081,68 +9064,44 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
                 { val: 'F21', label: 'F21 (Default: DPI Down / G7)' },
                 { val: 'F22', label: 'F22 (Available Key)' },
                 { val: 'F23', label: 'F23 (Available Key)' },
-                { val: 'F24', label: 'F24 (Available Key)' },
-                { val: 'XButton1', label: 'Mouse 4 (XButton1)' },
-                { val: 'XButton2', label: 'Mouse 5 (XButton2)' }
-            { val: 'F24', label: 'F24 (Available Key)' }
+                { val: 'F24', label: 'F24 (Available Key)' }
             ];
-            keyEl.innerHTML = '';
-            keyOptions.forEach(opt => {
 
-                fkeyDefs.forEach(opt => {
-                    const el = document.createElement('option');
-                    el.value = opt.val;
-                    if (!opt.val) {
-                        el.textContent = opt.label;
-                    } else {
-                        let inUseBy = '';
-                        if (state.hardwareFKeys) {
-                            for (const b in state.hardwareFKeys) {
-                                if (state.hardwareFKeys[b] === opt.val) {
-                                    inUseBy = b;
-                                    break;
-                                }
-                                let inUseBy = '';
-                                if (state.hardwareFKeys) {
-                                    for (const b in state.hardwareFKeys) {
-                                        if (state.hardwareFKeys[b] === opt.val) {
-                                            inUseBy = b;
-                                            break;
-                                        }
-                                    }
-                                    if (inUseBy && inUseBy !== btnId) {
-                                        const otherTagName = DIAGRAM_POINTS[inUseBy]?.tag || inUseBy;
-                                        el.textContent = `${opt.val} — [In use: ${otherTagName}] (Will reassign)`;
-                                    } else if (inUseBy === btnId) {
-                                        el.textContent = `${opt.val} — (Current)`;
-                                    } else {
-                                        el.textContent = `${opt.val} — (Available)`;
-                                    }
-                                }
-                                keyEl.appendChild(el);
-                                if (inUseBy === btnId) {
-                                    el.textContent = `${opt.label} — (Current Active)`;
-                                } else if (inUseBy) {
-                                    const otherTagName = DIAGRAM_POINTS[inUseBy]?.tag || inUseBy;
-                                    el.textContent = `${opt.label} — [In use: ${otherTagName}] (Will reassign)`;
-                                } else {
-                                    el.textContent = `${opt.label} — (Available)`;
-                                }
-                                fkeyGroup.appendChild(el);
-                            });
-                keyEl.appendChild(fkeyGroup);
+            fkeyDefs.forEach(opt => {
+                const el = document.createElement('option');
+                el.value = opt.val;
+                let inUseBy = '';
+                if (state.hardwareFKeys) {
+                    for (const b in state.hardwareFKeys) {
+                        if (state.hardwareFKeys[b] === opt.val) {
+                            inUseBy = b;
+                            break;
+                        }
+                    }
+                }
+                if (inUseBy === btnId) {
+                    el.textContent = `${opt.label} — (Current Active)`;
+                } else if (inUseBy) {
+                    const otherTagName = DIAGRAM_POINTS[inUseBy]?.tag || inUseBy;
+                    el.textContent = `${opt.label} — [In use: ${otherTagName}] (Will reassign)`;
+                } else {
+                    el.textContent = `${opt.label} — (Available)`;
+                }
+                fkeyGroup.appendChild(el);
+            });
+            keyEl.appendChild(fkeyGroup);
 
-                // 3. NO HARDWARE TRIGGER
-                const virtualGroup = document.createElement('optgroup');
-                virtualGroup.label = '── NO HARDWARE TRIGGER ──';
-                const noneEl = document.createElement('option');
-                noneEl.value = '';
-                noneEl.textContent = 'None / Virtual Only (No Hardware Intercept)';
-                virtualGroup.appendChild(noneEl);
-                keyEl.appendChild(virtualGroup);
+            // 3. NO HARDWARE TRIGGER
+            const virtualGroup = document.createElement('optgroup');
+            virtualGroup.label = '── NO HARDWARE TRIGGER ──';
+            const noneEl = document.createElement('option');
+            noneEl.value = '';
+            noneEl.textContent = 'None / Virtual Only (No Hardware Intercept)';
+            virtualGroup.appendChild(noneEl);
+            keyEl.appendChild(virtualGroup);
 
-                keyEl.value = curKey;
-            }
+            keyEl.value = curKey;
+        }
 
     if (btnId && DIAGRAM_POINTS[btnId]) {
                 // Edit existing button
