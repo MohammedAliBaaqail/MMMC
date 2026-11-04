@@ -24,8 +24,10 @@ class WebViewGuiManager {
     static IsInitializing := false
     static IsNavigated := false
     static PendingMessages := []
+    static IsWindowShown := false
 
     static Show() {
+        this.IsWindowShown := true
         if (this.MainGui != "" && WinExist(this.MainGui.Hwnd)) {
             if (this.wv != "") {
                 try this.wv.Resume()
@@ -49,6 +51,7 @@ class WebViewGuiManager {
     }
 
     static Hide() {
+        this.IsWindowShown := false
         if (this.MainGui != "" && WinExist(this.MainGui.Hwnd)) {
             this.SaveWindowGeometry()
             this.StopRecording()
@@ -76,6 +79,7 @@ class WebViewGuiManager {
     }
 
     static OnWindowCloseOrHide() {
+        this.IsWindowShown := false
         this.SaveWindowGeometry()
         this.StopRecording()
         ; Free 100% of CPU and GPU: hide controller and suspend WebView2
@@ -194,6 +198,7 @@ class WebViewGuiManager {
 
         ; Display window
         g.Show(showOpt)
+        this.IsWindowShown := true
         this.ApplyThemeToTitleBar(g.Hwnd)
 
         ; Initialize WebView2 Controller
@@ -253,6 +258,7 @@ class WebViewGuiManager {
     }
 
     static Cleanup() {
+        this.IsWindowShown := false
         if (this.wvc != "") {
             try this.wvc.Close()
             this.wvc := ""
@@ -2594,6 +2600,8 @@ class WebViewGuiManager {
     }
 
     static ShouldDispatchVisuals() {
+        if (!this.IsWindowShown)
+            return false
         ; 1. If Studio has active focus, always dispatch visuals
         if (this.IsStudioFocused())
             return true
@@ -2607,6 +2615,8 @@ class WebViewGuiManager {
     }
 
     static IsStudioVisible() {
+        if (!this.IsWindowShown || !this.MainGui)
+            return false
         if (!this.MainGui || !WinExist(this.MainGui.Hwnd))
             return false
         if (DllCall("IsIconic", "ptr", this.MainGui.Hwnd))

@@ -38,6 +38,35 @@ Persistent(true)
 DllCall("winmm\timeBeginPeriod", "uint", 1)
 ; Ensure input thread and driver hooks take precedence even during 100% CPU game loads
 try ProcessSetPriority("High")
+
+; --- Ultra-Low Latency & Anti-Idle Stutter Hardening ---
+; 1. Exempt process from Windows 11 EcoQoS (Power Throttling)
+; Prevents the OS from parking cores, throttling execution clocks, or degrading timer granularity on idle
+try {
+    hProcess := DllCall("kernel32\GetCurrentProcess", "ptr")
+    powerThrottling := Buffer(12, 0)
+    NumPut("uint", 1, powerThrottling, 0)          ; Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION
+    NumPut("uint", 0x1 | 0x2, powerThrottling, 4)  ; ControlMask = EXECUTION_SPEED | IGNORE_TIMER_RESOLUTION
+    NumPut("uint", 0, powerThrottling, 8)          ; StateMask = 0 (Unconstrained max performance)
+    DllCall("kernel32\SetProcessInformation", "ptr", hProcess, "int", 4, "ptr", powerThrottling, "uint", 12)
+}
+
+; 2. Enforce Hard Minimum Working Set Quota
+; Prevents Windows Virtual Memory Manager from trimming process memory into standby/pagefile during idle
+try {
+    ; QUOTA_LIMITS_HARDWS_MIN_ENABLE (0x00000001) | QUOTA_LIMITS_HARDWS_MAX_DISABLE (0x00000008)
+    minWS := 32 * 1024 * 1024   ; 32 MB hard minimum working set
+    maxWS := 256 * 1024 * 1024  ; 256 MB maximum working set
+    DllCall("kernel32\SetProcessWorkingSetSizeEx", "ptr", hProcess, "uptr", minWS, "uptr", maxWS, "uint", 0x00000001 | 0x00000008)
+}
+
+; 3. Elevate Input Thread Priority to Highest
+; Guarantees immediate timeslice scheduling ahead of background threads
+try {
+    hThread := DllCall("kernel32\GetCurrentThread", "ptr")
+    DllCall("kernel32\SetThreadPriority", "ptr", hThread, "int", 2) ; THREAD_PRIORITY_HIGHEST = 2
+}
+
 A_MaxHotkeysPerInterval := 5000
 A_HotkeyInterval := 2000
 OnError(LogError)

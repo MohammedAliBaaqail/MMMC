@@ -816,7 +816,44 @@ class ProfileEngine {
             return
         this.SyncShiftState()
         this.SyncActiveHeldButtons()
+        this.KeepMemoryWarm()
         this.CheckActiveWindow()
+    }
+
+    static LastMemoryWarmupTick := 0
+
+    static KeepMemoryWarm() {
+        now := A_TickCount
+        ; Run warmup every 20 seconds to prevent standby memory trimming and CPU cache decay
+        if (now - this.LastMemoryWarmupTick < 20000)
+            return
+        this.LastMemoryWarmupTick := now
+
+        try {
+            ; 1. Keep active profile mappings & action command strings active in physical RAM
+            if (this.ActiveMappings.Has(this.CurrentProfile)) {
+                curMap := this.ActiveMappings[this.CurrentProfile]
+                for btnId, mapping in curMap {
+                    if (IsObject(mapping)) {
+                        _ := mapping.Normal.Cmd
+                        _ := mapping.GShift.Cmd
+                        _ := mapping.GShift2.Cmd
+                    }
+                }
+            }
+
+            ; 2. Touch button lookups and physical states
+            _ := this.FKeyToButtonMap.Count
+            _ := this.ButtonToFKeyMap.Count
+            _ := this.PhysicalButtonStates.Count
+            _ := this.ButtonDispatchedLayer.Count
+
+            ; 3. Keep RegEx cache compiled and resident
+            RegExMatch("{LButton}", "i)^\{(LButton|RButton|MButton|XButton1|XButton2)\}$")
+
+            ; 4. Touch Win32 API pointers
+            DllCall("kernel32\GetCurrentThreadId", "uint")
+        }
     }
 
     static GetProfileDescription(p) {
@@ -2583,31 +2620,40 @@ class ProfileEngine {
     }
 
     static HandleHardwareKey(keyName, isDown) {
+        if (this.IsMasterSuspended)
+            return
         if (keyName = "WheelLeft" || keyName = "WheelRight") {
-            btnId := this.FKeyToButtonMap.Has(keyName) ? this.FKeyToButtonMap[keyName] : ""
-            if (btnId = "")
-                return
-
-            ; Cache bound method for exact timer reference matching in AHK v2
-            if (!this.WheelReleaseTimers.Has(keyName)) {
-                this.WheelReleaseTimers[keyName] := ObjBindMethod(ProfileEngine, "ReleaseWheelTilt", keyName)
-            }
-            timerFn := this.WheelReleaseTimers[keyName]
-
-            ; Initial tilt press event: trigger Down once
-            if (!this.WheelHoldStates.Has(keyName)) {
-                this.WheelHoldStates[keyName] := btnId
-                this.NotifyButton(btnId, true)
-                this.DispatchButton(btnId, true)
-            }
-
-            ; Extend/reset release timer while user continues to hold tilt wheel.
-            ; Mouse hardware sends repeat pulses every ~60-120ms while tilted;
-            ; when released, pulses cease, and timer fires 200ms after the last pulse.
-            SetTimer(timerFn, -200)
+            ; Decouple tilt wheel handling from OS mouse hook (WH_MOUSE_LL)
+            SetTimer(() => ProfileEngine._DoHandleWheelTilt(keyName), -1)
             return
         }
         this.HandleFKey(keyName, isDown)
+    }
+
+    static _DoHandleWheelTilt(keyName) {
+        if (this.IsMasterSuspended)
+            return
+        btnId := this.FKeyToButtonMap.Has(keyName) ? this.FKeyToButtonMap[keyName] : ""
+        if (btnId = "")
+            return
+
+        ; Cache bound method for exact timer reference matching in AHK v2
+        if (!this.WheelReleaseTimers.Has(keyName)) {
+            this.WheelReleaseTimers[keyName] := ObjBindMethod(ProfileEngine, "ReleaseWheelTilt", keyName)
+        }
+        timerFn := this.WheelReleaseTimers[keyName]
+
+        ; Initial tilt press event: trigger Down once
+        if (!this.WheelHoldStates.Has(keyName)) {
+            this.WheelHoldStates[keyName] := btnId
+            this.NotifyButton(btnId, true)
+            this.DispatchButton(btnId, true)
+        }
+
+        ; Extend/reset release timer while user continues to hold tilt wheel.
+        ; Mouse hardware sends repeat pulses every ~60-120ms while tilted;
+        ; when released, pulses cease, and timer fires 200ms after the last pulse.
+        SetTimer(timerFn, -200)
     }
 
     static ReleaseWheelTilt(keyName) {
@@ -2620,6 +2666,16 @@ class ProfileEngine {
     }
 
     static HandleFKey(fKey, isDown) {
+        if (this.IsMasterSuspended)
+            return
+        ; Decouple execution from OS low-level hook (WH_KEYBOARD_LL / WH_MOUSE_LL)
+        ; Returns to Windows immediately in < 0.05ms to prevent cursor micro-stutter & hook timeouts
+        SetTimer(() => ProfileEngine._DoHandleFKey(fKey, isDown), -1)
+    }
+
+    static _DoHandleFKey(fKey, isDown) {
+        if (this.IsMasterSuspended)
+            return
         btnId := this.FKeyToButtonMap.Has(fKey) ? this.FKeyToButtonMap[fKey] : ""
         if (btnId != "") {
             this.NotifyButton(btnId, isDown)
@@ -2805,6 +2861,14 @@ class ProfileEngine {
     static DispatchWheel(direction) {
         if (this.IsMasterSuspended)
             return
+        ; Decouple wheel dispatch from OS low-level mouse hook (WH_MOUSE_LL)
+        ; Returns to Windows immediately in < 0.05ms to prevent cursor micro-stutter
+        SetTimer(() => ProfileEngine._DoDispatchWheel(direction), -1)
+    }
+
+    static _DoDispatchWheel(direction) {
+        if (this.IsMasterSuspended)
+            return
         btnId := (direction = "Up") ? "WheelUp" : "WheelDown"
 
         ; Determine active layer
@@ -2872,6 +2936,11 @@ class ProfileEngine {
 
     static NotifyButton(btnName, isPressed) {
         if (this.IsMasterSuspended)
+            return
+
+        ; High-performance guard: if Studio window is hidden/minimized or visuals are disabled,
+        ; skip all UI notification work and activity logging immediately to avoid wasting CPU cycles!
+        if (!WebViewGuiManager.ShouldDispatchVisuals())
             return
 
         ; Suppress redundant UI flash on OS typematic repeats (F-keys only; mouse clicks do not repeat)
