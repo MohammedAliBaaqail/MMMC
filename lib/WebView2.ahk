@@ -55,6 +55,8 @@ class WebView2 {
 						edgeRuntime := A_LoopFileFullPath, ver := m[1]
 		}
 		if options && !(options is this.EnvironmentOptions) {
+			if Type(options) = 'String'
+				options := {AdditionalBrowserArguments: options}
 			if !options.HasOwnProp('TargetCompatibleBrowserVersion')
 				options.TargetCompatibleBrowserVersion := ver
 			options := this.EnvironmentOptions(options)

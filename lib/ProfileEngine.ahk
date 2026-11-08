@@ -1,4 +1,5 @@
 #Requires AutoHotkey v2.0
+#Warn All, Off
 
 /**
  * Dynamic Profile & Macro Execution Engine — My Mouse My Choice
@@ -35,15 +36,15 @@ class ProfileEngine {
     static RapidFireInterval := 50 ; ms (~20 CPS)
     static MuteWhenStudioFocused := true
     static DefaultHardwareFKeys := Map(
-        "Middle", "F13",
-        "Back", "F14",
-        "DpiShift", "F15",
-        "Forward", "F16",
-        "TiltLeft", "F17",
-        "TiltRight", "F18",
-        "ProfileCycle", "F19",
-        "G8", "F20",
-        "G7", "F21"
+        "Middle", "Middle",
+        "Back", "Back",
+        "DpiShift", "DpiShift",
+        "Forward", "Forward",
+        "TiltLeft", "TiltLeft",
+        "TiltRight", "TiltRight",
+        "ProfileCycle", "ProfileCycle",
+        "G8", "DpiUp",
+        "G7", "DpiDown"
     )
     static ButtonToFKeyMap := Map()
     static FKeyToButtonMap := Map()
@@ -725,6 +726,35 @@ class ProfileEngine {
         }
     }
 
+    /**
+     * Safely determine if a hardware button or keyboard key is physically pressed down.
+     * Prevents AutoHotkey ValueError exceptions when querying custom action names (e.g. "RightClick", "DpiUp").
+     */
+    static IsKeyPhysicallyDown(keyOrBtn) {
+        if (keyOrBtn == "")
+            return false
+        switch StrLower(Trim(keyOrBtn)) {
+            case "leftclick", "lbutton", "mouse1", "primaryclick":
+                return GetKeyState("LButton", "P")
+            case "rightclick", "rbutton", "mouse2", "secondaryclick":
+                return GetKeyState("RButton", "P")
+            case "middle", "mbutton", "mouse3", "wheelclick":
+                return GetKeyState("MButton", "P")
+            case "back", "xbutton1", "mouse4":
+                return GetKeyState("XButton1", "P")
+            case "forward", "xbutton2", "mouse5":
+                return GetKeyState("XButton2", "P")
+            case "tiltleft", "wheelleft", "tiltright", "wheelright":
+                return false
+            default:
+                try {
+                    return GetKeyState(keyOrBtn, "P")
+                } catch {
+                    return false
+                }
+        }
+    }
+
     static SyncShiftState() {
         if (!this.IsGShiftActive && !this.IsGShift1Active && !this.IsGShift2Active && this.ShiftHolders.Count = 0)
             return
@@ -737,15 +767,9 @@ class ProfileEngine {
         ; Verify all buttons in ShiftHolders are actually physically held
         stuckButtons := []
         for btnId, shiftLayerNum in this.ShiftHolders {
-            hwKey := this.ButtonToFKeyMap.Has(btnId) ? this.ButtonToFKeyMap[btnId] : ""
-            if (hwKey != "") {
-                if (!GetKeyState(hwKey, "P"))
-                    stuckButtons.Push(btnId)
-            } else {
-                ahkKey := (btnId = "Back") ? "XButton1" : ((btnId = "Forward") ? "XButton2" : ((btnId = "Middle") ? "MButton" : ((btnId = "DpiShift") ? "F15" : "")))
-                if (ahkKey != "" && !GetKeyState(ahkKey, "P"))
-                    stuckButtons.Push(btnId)
-            }
+            hwKey := this.ButtonToFKeyMap.Has(btnId) ? this.ButtonToFKeyMap[btnId] : btnId
+            if (!this.IsKeyPhysicallyDown(hwKey))
+                stuckButtons.Push(btnId)
         }
 
         for _, btnId in stuckButtons {
@@ -784,15 +808,9 @@ class ProfileEngine {
         ; Check if held buttons are still physically held
         stuck := []
         for btnId, releaseCmd in this.ActiveHeldButtons {
-            if (btnId = "LeftClick" && !GetKeyState("LButton", "P"))
+            hwKey := this.ButtonToFKeyMap.Has(btnId) ? this.ButtonToFKeyMap[btnId] : btnId
+            if (!this.IsKeyPhysicallyDown(hwKey))
                 stuck.Push(btnId)
-            else if (btnId = "RightClick" && !GetKeyState("RButton", "P"))
-                stuck.Push(btnId)
-            else if (this.ButtonToFKeyMap.Has(btnId)) {
-                hwKey := this.ButtonToFKeyMap[btnId]
-                if (!GetKeyState(hwKey, "P"))
-                    stuck.Push(btnId)
-            }
         }
 
         for _, btnId in stuck {
@@ -2105,14 +2123,11 @@ class ProfileEngine {
             }
             ; If button is still physically held down by the user, remember that its shift action
             ; was already released so its subsequent physical release does not misfire or stay stuck.
-            isStillHeld := false
-            if (item.btnId = "LeftClick") {
-                isStillHeld := GetKeyState("LButton", "P")
-            } else if (item.btnId = "RightClick") {
-                isStillHeld := GetKeyState("RButton", "P")
-            } else if (this.PhysicalButtonStates.Has(item.btnId) && this.PhysicalButtonStates[item.btnId]) {
+            isStillHeld := this.IsKeyPhysicallyDown(item.btnId)
+            if (!isStillHeld && this.ButtonToFKeyMap.Has(item.btnId))
+                isStillHeld := this.IsKeyPhysicallyDown(this.ButtonToFKeyMap[item.btnId])
+            if (!isStillHeld && this.PhysicalButtonStates.Has(item.btnId) && this.PhysicalButtonStates[item.btnId])
                 isStillHeld := true
-            }
 
             if (isStillHeld) {
                 this.DeactivatedWhileHeld[item.btnId] := item.layer
@@ -2615,14 +2630,48 @@ class ProfileEngine {
     static WheelHoldStates := Map()
     static WheelReleaseTimers := Map()
 
+    static ResolveKeyAlias(keyName) {
+        switch StrLower(keyName) {
+            case "mbutton", "middle", "wheelclick", "mouse3": return "Middle"
+            case "xbutton1", "back", "mouse4": return "Back"
+            case "xbutton2", "forward", "mouse5": return "Forward"
+            case "wheelleft", "tiltleft": return "TiltLeft"
+            case "wheelright", "tiltright": return "TiltRight"
+            case "dpishift", "sniper": return "DpiShift"
+            case "profilecycle", "cycleprofiles", "g9": return "ProfileCycle"
+            case "dpiup", "g8": return "G8"
+            case "dpidown", "g7": return "G7"
+            default: return keyName
+        }
+    }
+
+    static ResolveButtonId(keyOrFKey) {
+        if (this.FKeyToButtonMap.Has(keyOrFKey))
+            return this.FKeyToButtonMap[keyOrFKey]
+        
+        alias := this.ResolveKeyAlias(keyOrFKey)
+        if (this.FKeyToButtonMap.Has(alias))
+            return this.FKeyToButtonMap[alias]
+        
+        if (this.ButtonToFKeyMap.Has(alias))
+            return alias
+            
+        return ""
+    }
+
     static HasHardwareKey(keyName) {
-        return this.FKeyToButtonMap.Has(keyName)
+        if (this.FKeyToButtonMap.Has(keyName))
+            return true
+        alias := this.ResolveKeyAlias(keyName)
+        if (this.FKeyToButtonMap.Has(alias) || this.ButtonToFKeyMap.Has(alias))
+            return true
+        return false
     }
 
     static HandleHardwareKey(keyName, isDown) {
         if (this.IsMasterSuspended)
             return
-        if (keyName = "WheelLeft" || keyName = "WheelRight") {
+        if (keyName = "WheelLeft" || keyName = "WheelRight" || keyName = "TiltLeft" || keyName = "TiltRight") {
             ; Decouple tilt wheel handling from OS mouse hook (WH_MOUSE_LL)
             SetTimer(() => ProfileEngine._DoHandleWheelTilt(keyName), -1)
             return
@@ -2633,7 +2682,7 @@ class ProfileEngine {
     static _DoHandleWheelTilt(keyName) {
         if (this.IsMasterSuspended)
             return
-        btnId := this.FKeyToButtonMap.Has(keyName) ? this.FKeyToButtonMap[keyName] : ""
+        btnId := this.ResolveButtonId(keyName)
         if (btnId = "")
             return
 
@@ -2676,7 +2725,7 @@ class ProfileEngine {
     static _DoHandleFKey(fKey, isDown) {
         if (this.IsMasterSuspended)
             return
-        btnId := this.FKeyToButtonMap.Has(fKey) ? this.FKeyToButtonMap[fKey] : ""
+        btnId := this.ResolveButtonId(fKey)
         if (btnId != "") {
             this.NotifyButton(btnId, isDown)
             this.DispatchButton(btnId, isDown)
@@ -2983,7 +3032,11 @@ class ProfileEngine {
             name := IniRead(this.ConfigPath, sec, "Name", bId)
             tag := IniRead(this.ConfigPath, sec, "Tag", bId)
             side := IniRead(this.ConfigPath, sec, "Side", "left")
-            key := IniRead(this.ConfigPath, sec, "Key", "")
+            key := IniRead(this.ConfigPath, "HardwareFKeys", bId, "")
+            if (key = "")
+                key := IniRead(this.ConfigPath, sec, "Key", "")
+            else
+                IniWrite(key, this.ConfigPath, sec, "Key")
             xVal := IniRead(this.ConfigPath, "DiagramPoints", bId . "_X", "250")
             yVal := IniRead(this.ConfigPath, "DiagramPoints", bId . "_Y", "250")
 

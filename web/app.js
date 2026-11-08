@@ -407,6 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMouseImageModal();
     initButtonConfigModal();
     initOmmModal();
+    initLogitechTelemetry();
     initModalControls();
     initKeyboardGlobal();
     initCalibration();
@@ -495,6 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Request initial state from AHK backend
     sendToAhk({ action: 'getInitialState' });
+    sendToAhk({ action: 'getLogitechStatus' });
 });
 
 // ============================================================================
@@ -959,6 +961,43 @@ function handleEngineMessage(msg) {
 
         case 'ommInjectReset':
             handleOmmReset();
+            break;
+
+        case 'logitechStatus':
+            handleLogitechStatus(msg);
+            break;
+
+        case 'logitechAllProfilesLoaded':
+            state.activeOnboardProfileId = msg.activeProfileId || 1;
+            state.selectedOnboardProfileId = msg.selectedProfileId || state.activeOnboardProfileId;
+            state.onboardProfiles = msg.profiles || [];
+            renderOmmProfilesTabs();
+            renderOmmDpiStrip();
+            renderOmmGrid();
+            break;
+
+        case 'logitechProfileSwitched':
+            if (msg.success) {
+                state.activeOnboardProfileId = msg.activeProfileId;
+                showToast('Hardware Profile Active', `Profile ${msg.activeProfileId} is now active on mouse hardware!`, 'success');
+            } else {
+                showToast('Switch Failed', 'Could not switch active profile', 'error');
+            }
+            renderOmmProfilesTabs();
+            renderOmmDpiStrip();
+            renderOmmGrid();
+            break;
+
+        case 'logitechHardwareButtons':
+            handleLogitechHardwareButtons(msg);
+            break;
+
+        case 'logitechButtonFlashed':
+            handleLogitechButtonFlashed(msg);
+            break;
+
+        case 'logitechAllFlashed':
+            handleLogitechAllFlashed(msg);
             break;
 
         case 'appExeBrowsed':
@@ -8196,16 +8235,40 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
     // ============================================================================
     // ONBOARD MEMORY MANAGER (OMM) SETUP & F-KEY INJECTOR MODAL
     // ============================================================================
+    const LOGI_DEFAULT_FKEYS = {
+        'Middle': 'F13',
+        'Back': 'F22',
+        'DpiShift': 'F15',
+        'Forward': 'F16',
+        'TiltLeft': 'F17',
+        'TiltRight': 'F18',
+        'ProfileCycle': 'F19',
+        'G8': 'F20',
+        'G7': 'F21'
+    };
+
+    const LOGI_FACTORY_DEFAULTS = {
+        'Middle': 'Middle',
+        'Back': 'Back',
+        'DpiShift': 'DpiShift',
+        'Forward': 'Forward',
+        'TiltLeft': 'TiltLeft',
+        'TiltRight': 'TiltRight',
+        'ProfileCycle': 'ProfileCycle',
+        'G8': 'DpiUp',
+        'G7': 'DpiDown'
+    };
+
     const OMM_BUTTONS = [
-        { btnId: 'Middle', defaultFKey: 'F13', label: 'Mouse 3 (Middle Click)' },
-        { btnId: 'Back', defaultFKey: 'F14', label: 'G4 (Browser Back)' },
-        { btnId: 'DpiShift', defaultFKey: 'F15', label: 'DPI Shift (Sniper)' },
-        { btnId: 'Forward', defaultFKey: 'F16', label: 'G5 (Browser Forward)' },
-        { btnId: 'TiltLeft', defaultFKey: 'F17', label: 'Tilt Wheel Left' },
-        { btnId: 'TiltRight', defaultFKey: 'F18', label: 'Tilt Wheel Right' },
-        { btnId: 'ProfileCycle', defaultFKey: 'F19', label: 'G9 (Profile Cycle)' },
-        { btnId: 'G8', defaultFKey: 'F20', label: 'G8 (DPI Up)' },
-        { btnId: 'G7', defaultFKey: 'F21', label: 'G7 (DPI Down)' }
+        { btnId: 'Middle', defaultFKey: 'Middle', label: 'Mouse 3 (Middle Click)' },
+        { btnId: 'Back', defaultFKey: 'Back', label: 'G4 (Browser Back)' },
+        { btnId: 'DpiShift', defaultFKey: 'DpiShift', label: 'DPI Shift (Sniper)' },
+        { btnId: 'Forward', defaultFKey: 'Forward', label: 'G5 (Browser Forward)' },
+        { btnId: 'TiltLeft', defaultFKey: 'TiltLeft', label: 'Tilt Wheel Left' },
+        { btnId: 'TiltRight', defaultFKey: 'TiltRight', label: 'Tilt Wheel Right' },
+        { btnId: 'ProfileCycle', defaultFKey: 'ProfileCycle', label: 'G9 (Profile Cycle)' },
+        { btnId: 'G8', defaultFKey: 'DpiUp', label: 'G8 (DPI Up)' },
+        { btnId: 'G7', defaultFKey: 'DpiDown', label: 'G7 (DPI Down)' }
     ];
 
     function initOmmModal() {
@@ -8231,24 +8294,485 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
                 closeOmmModal();
             }
         });
+
+        // Toggle Quick Guide Drawer
+        const btnToggleGuide = document.getElementById('btnToggleOmmGuide');
+        const guideDrawer = document.getElementById('ommGuideDrawer');
+        if (btnToggleGuide && guideDrawer) {
+            btnToggleGuide.addEventListener('click', () => {
+                const isHidden = (guideDrawer.style.display === 'none');
+                guideDrawer.style.display = isHidden ? 'block' : 'none';
+                btnToggleGuide.classList.toggle('active', isHidden);
+            });
+        }
+
+        // 1-Click Preset Matrix
+        const btnAutoFlash = document.getElementById('btnAutoFlashLogitech');
+        if (btnAutoFlash) {
+            btnAutoFlash.addEventListener('click', () => {
+                const targetProf = state.selectedOnboardProfileId || 1;
+                if (!state.hardwareFKeys) state.hardwareFKeys = {};
+                for (const bId in LOGI_DEFAULT_FKEYS) {
+                    const sel = document.getElementById(`ommSelect_${bId}`);
+                    if (sel) sel.value = LOGI_DEFAULT_FKEYS[bId];
+                    const badge = document.getElementById(`ommFKeyBadge_${bId}`);
+                    if (badge) badge.textContent = LOGI_DEFAULT_FKEYS[bId];
+                    if (targetProf === (state.activeOnboardProfileId || 1)) {
+                        state.hardwareFKeys[bId] = LOGI_DEFAULT_FKEYS[bId];
+                    }
+                }
+
+                if (state.onboardProfiles && state.onboardProfiles[targetProf - 1]) {
+                    state.onboardProfiles[targetProf - 1].buttons = Object.assign({}, LOGI_DEFAULT_FKEYS);
+                }
+
+                refreshCardsAndStage();
+
+                sendToAhk({
+                    action: 'flashLogitechAll',
+                    mappings: LOGI_DEFAULT_FKEYS,
+                    profileId: targetProf
+                });
+
+                showToast('Flashing Mouse Memory', `Writing F13–F21 preset directly to Profile ${targetProf} over USB...`, 'info');
+            });
+        }
+
+        // Apply All Buttons to Studio & Physical Mouse Memory
+        const btnApplyAll = document.getElementById('btnApplyAllOnboard');
+        if (btnApplyAll) {
+            btnApplyAll.addEventListener('click', () => {
+                const targetProf = state.selectedOnboardProfileId || 1;
+                const mappings = {};
+                if (!state.hardwareFKeys) state.hardwareFKeys = {};
+                for (const bId in LOGI_DEFAULT_FKEYS) {
+                    const sel = document.getElementById(`ommSelect_${bId}`);
+                    const val = sel ? sel.value : (LOGI_DEFAULT_FKEYS[bId] || 'F13');
+                    mappings[bId] = val;
+                    const badge = document.getElementById(`ommFKeyBadge_${bId}`);
+                    if (badge) badge.textContent = val;
+                    if (targetProf === (state.activeOnboardProfileId || 1)) {
+                        state.hardwareFKeys[bId] = val;
+                    }
+                }
+
+                if (state.onboardProfiles && state.onboardProfiles[targetProf - 1]) {
+                    state.onboardProfiles[targetProf - 1].buttons = Object.assign({}, mappings);
+                }
+
+                refreshCardsAndStage();
+
+                sendToAhk({
+                    action: 'flashLogitechAll',
+                    mappings: mappings,
+                    profileId: targetProf
+                });
+
+                btnApplyAll.classList.add('save-success');
+                btnApplyAll.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>⚡ Flashing All...</span>`;
+                showToast('Flashing Hardware', `Sending all button assignments directly to Profile ${targetProf} via USB...`, 'info');
+
+                // Visual feedback on all card save buttons
+                document.querySelectorAll('.omm-save-secondary-btn').forEach(btn => {
+                    btn.classList.add('save-success');
+                    btn.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} <span class="btn-text">Saved!</span>`;
+                });
+
+                setTimeout(() => {
+                    btnApplyAll.classList.remove('save-success');
+                    btnApplyAll.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>⚡ Apply All</span>`;
+                    document.querySelectorAll('.omm-save-secondary-btn').forEach(btn => {
+                        btn.classList.remove('save-success');
+                        btn.innerHTML = `${getSvgIcon('save', 'svg-icon-xs')} <span class="btn-text">Save</span>`;
+                    });
+                }, 2000);
+            });
+        }
+
+        // Make Selected Profile Active in Hardware
+        const btnMakeActive = document.getElementById('btnMakeProfileActive');
+        if (btnMakeActive) {
+            btnMakeActive.addEventListener('click', () => {
+                const profId = state.selectedOnboardProfileId || 1;
+                btnMakeActive.disabled = true;
+                btnMakeActive.innerHTML = `${getSvgIcon('loader-2', 'spin svg-icon-xs')} <span>Switching...</span>`;
+                sendToAhk({
+                    action: 'switchLogitechProfile',
+                    profileId: profId
+                });
+            });
+        }
+
+        // Reset to Logitech Factory Defaults Button
+        const btnResetDefaults = document.getElementById('btnResetToDefaults');
+        if (btnResetDefaults) {
+            btnResetDefaults.addEventListener('click', () => {
+                const targetProf = state.selectedOnboardProfileId || 1;
+                if (!state.hardwareFKeys) state.hardwareFKeys = {};
+                for (const bId in LOGI_FACTORY_DEFAULTS) {
+                    const sel = document.getElementById(`ommSelect_${bId}`);
+                    if (sel) sel.value = LOGI_FACTORY_DEFAULTS[bId];
+                    const badge = document.getElementById(`ommFKeyBadge_${bId}`);
+                    if (badge) badge.textContent = LOGI_FACTORY_DEFAULTS[bId];
+                    if (targetProf === (state.activeOnboardProfileId || 1)) {
+                        state.hardwareFKeys[bId] = LOGI_FACTORY_DEFAULTS[bId];
+                    }
+                }
+                if (state.onboardProfiles && state.onboardProfiles[targetProf - 1]) {
+                    state.onboardProfiles[targetProf - 1].buttons = Object.assign({}, LOGI_FACTORY_DEFAULTS);
+                }
+                refreshCardsAndStage();
+                sendToAhk({
+                    action: 'resetLogitechDefaults',
+                    profileId: targetProf
+                });
+                showToast('Factory Defaults', `Reset Profile ${targetProf} to clean Logitech mouse defaults!`, 'success');
+            });
+        }
+
+        renderOmmProfilesTabs();
+        renderOmmDpiStrip();
+        renderOmmGrid();
+    }
+
+    function initLogitechTelemetry() {
+        const badgeBtn = document.getElementById('btnHeaderHardwareBadge');
+        const badgeName = document.getElementById('deviceBadgeName');
+        const badgeBatt = document.getElementById('deviceBadgeBatt');
+        const battPct = document.getElementById('deviceBattPct');
+        const battIcon = document.getElementById('deviceBattIcon');
+
+        if (!window.logitechDevice) return;
+
+        // Listen for device state and battery telemetry updates
+        window.logitechDevice.onStatusChange = (info) => {
+            if (!badgeBtn) return;
+            if (info.connected) {
+                badgeBtn.classList.add('connected');
+                badgeBtn.title = `${info.name} (Connected via HID++) — Click for Hardware Setup`;
+                if (badgeName) badgeName.textContent = info.name;
+
+                if (info.batteryLevel !== null && badgeBatt) {
+                    badgeBatt.style.display = 'inline-flex';
+                    if (battPct) battPct.textContent = `${info.batteryLevel}%`;
+                    if (battIcon) {
+                        const iconName = info.isCharging ? 'icon-battery-charging' : 'icon-battery';
+                        battIcon.innerHTML = `<use href="#${iconName}"></use>`;
+                    }
+                } else if (badgeBatt) {
+                    badgeBatt.style.display = 'none';
+                }
+
+                // Sync with AutoHotkey backend
+                if (window.chrome && window.chrome.webview) {
+                    window.chrome.webview.postMessage({
+                        action: 'logitechHardwareStatus',
+                        name: info.name,
+                        connected: true,
+                        batteryLevel: info.batteryLevel,
+                        isCharging: info.isCharging
+                    });
+                }
+            } else {
+                badgeBtn.classList.remove('connected');
+                badgeBtn.title = 'Logitech HID++ Hardware Engine: Click to Connect, Check Battery, or Auto-Pair Onboard Memory';
+                if (badgeName) badgeName.textContent = 'Connect Logitech Mouse';
+                if (badgeBatt) badgeBatt.style.display = 'none';
+            }
+        };
+
+        if (badgeBtn) {
+            badgeBtn.addEventListener('click', async () => {
+                if (!window.logitechDevice.deviceInfo.connected) {
+                    try {
+                        const connected = await window.logitechDevice.connect();
+                        if (connected) {
+                            showToast('Hardware Connected', `Connected to ${window.logitechDevice.deviceInfo.name}`);
+                        }
+                    } catch (err) {
+                        showToast('Connection Cancelled', err.message || 'No device selected', 'warning');
+                    }
+                } else {
+                    openOmmModal();
+                }
+            });
+        }
+
+        // Attempt automatic background reconnection to previously authorized devices
+        setTimeout(() => {
+            window.logitechDevice.autoConnect().catch(() => {});
+        }, 1200);
+
+        // Periodic battery refresh every 3 minutes if connected
+        setInterval(() => {
+            if (window.logitechDevice && window.logitechDevice.deviceInfo.connected) {
+                window.logitechDevice.refreshBattery().catch(() => {});
+            }
+        }, 180000);
     }
 
     function openOmmModal() {
+        renderOmmProfilesTabs();
+        renderOmmDpiStrip();
         renderOmmGrid();
         handleOmmReset();
         const modal = document.getElementById('ommSetupModal');
-        if (modal) modal.style.display = 'flex';
+        if (modal) {
+            modal.classList.add('open');
+            modal.style.display = 'flex';
+        }
+        sendToAhk({ action: 'getLogitechStatus' });
+        sendToAhk({ action: 'loadAllLogitechProfiles' });
     }
 
     function closeOmmModal() {
         const modal = document.getElementById('ommSetupModal');
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+            modal.classList.remove('open');
+            modal.style.display = 'none';
+        }
+    }
+
+    const LOGI_G502_INDICES = {
+        'LeftClick': 0, 'RightClick': 1, 'Middle': 2, 'Back': 3, 'Forward': 4,
+        'DpiShift': 5, 'G7': 6, 'G8': 7, 'TiltLeft': 8, 'TiltRight': 9, 'ProfileCycle': 10
+    };
+
+    function formatOmmBadgeLabel(val) {
+        if (!val) return 'Middle';
+        const u = val.toUpperCase();
+        if (/^F(1[3-9]|2[0-4])$/.test(u)) return u;
+        if (/^F([1-9]|1[0-2])$/.test(u)) return u;
+        if (/^[A-Z]$/.test(u)) return u;
+        if (/^[0-9]$/.test(u)) return u;
+        switch (val) {
+            case 'LeftClick': return 'Mouse 1';
+            case 'RightClick': return 'Mouse 2';
+            case 'Middle': return 'Mouse 3';
+            case 'Back': return 'Mouse 4';
+            case 'Forward': return 'Mouse 5';
+            case 'TiltLeft': return 'Tilt Left';
+            case 'TiltRight': return 'Tilt Right';
+            case 'DpiUp': return 'Next DPI';
+            case 'DpiDown': return 'Prev DPI';
+            case 'DpiShift': return 'DPI Shift';
+            case 'DpiCycle': return 'DPI Cycle';
+            case 'ProfileCycle': return 'Cycle Profiles';
+            case 'Disabled': return 'Disabled';
+            default:
+                if (val.startsWith('Key_0x')) return val.replace('Key_0x', '0x');
+                return val;
+        }
+    }
+
+    function renderHardwareTargetOptions(currentVal) {
+        const cur = (currentVal || '').toUpperCase();
+        let matched = false;
+
+        // 1. Virtual F-Keys (F13..F24)
+        const fkeys = ['F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'F21', 'F22', 'F23', 'F24'];
+        let html = `<optgroup label="Virtual F-Keys (Studio Macro Layer)">`;
+        fkeys.forEach(fk => {
+            const isSel = (cur === fk);
+            if (isSel) matched = true;
+            html += `<option value="${fk}" ${isSel ? 'selected' : ''}>⚡ ${fk} (Virtual F-Key)</option>`;
+        });
+        html += `</optgroup>`;
+
+        // 2. Keyboard Keystrokes (A-Z)
+        html += `<optgroup label="Keyboard Keystrokes (A-Z)">`;
+        const letters = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
+        letters.forEach(letter => {
+            const isSel = (cur === letter);
+            if (isSel) matched = true;
+            html += `<option value="${letter}" ${isSel ? 'selected' : ''}>Key '${letter}'</option>`;
+        });
+        html += `</optgroup>`;
+
+        // 3. Numbers & Standard Keyboard Keys
+        html += `<optgroup label="Keyboard Numbers & Keys">`;
+        const stdKeys = [
+            { val: '1', label: "Key '1'" },
+            { val: '2', label: "Key '2'" },
+            { val: '3', label: "Key '3'" },
+            { val: '4', label: "Key '4'" },
+            { val: '5', label: "Key '5'" },
+            { val: '6', label: "Key '6'" },
+            { val: '7', label: "Key '7'" },
+            { val: '8', label: "Key '8'" },
+            { val: '9', label: "Key '9'" },
+            { val: '0', label: "Key '0'" },
+            { val: 'Enter', label: 'Enter (Return)' },
+            { val: 'Escape', label: 'Escape (Esc)' },
+            { val: 'Tab', label: 'Tab' },
+            { val: 'Space', label: 'Spacebar' },
+            { val: 'Backspace', label: 'Backspace' },
+            { val: 'Delete', label: 'Delete' }
+        ];
+        stdKeys.forEach(k => {
+            const isSel = (cur === k.val.toUpperCase());
+            if (isSel) matched = true;
+            html += `<option value="${k.val}" ${isSel ? 'selected' : ''}>${k.label}</option>`;
+        });
+        html += `</optgroup>`;
+
+        // 4. Standard Function Keys (F1..F12)
+        html += `<optgroup label="Standard Function Keys (F1-F12)">`;
+        for (let i = 1; i <= 12; i++) {
+            const fnName = `F${i}`;
+            const isSel = (cur === fnName);
+            if (isSel) matched = true;
+            html += `<option value="${fnName}" ${isSel ? 'selected' : ''}>${fnName}</option>`;
+        }
+        html += `</optgroup>`;
+
+        // 5. Standard Mouse Functions
+        html += `<optgroup label="Standard Mouse Functions">`;
+        const mouseDefs = [
+            { val: 'LeftClick', label: 'Left Click (Mouse 1)' },
+            { val: 'RightClick', label: 'Right Click (Mouse 2)' },
+            { val: 'Middle', label: 'Middle Click (Mouse 3)' },
+            { val: 'Back', label: 'Back Button (Mouse 4 / G4)' },
+            { val: 'Forward', label: 'Forward Button (Mouse 5 / G5)' },
+            { val: 'TiltLeft', label: 'Wheel Tilt Left' },
+            { val: 'TiltRight', label: 'Wheel Tilt Right' }
+        ];
+        mouseDefs.forEach(m => {
+            const isSel = (cur === m.val.toUpperCase());
+            if (isSel) matched = true;
+            html += `<option value="${m.val}" ${isSel ? 'selected' : ''}>${m.label}</option>`;
+        });
+        html += `</optgroup>`;
+
+        // 6. Hardware DPI & Profile Controls
+        html += `<optgroup label="Hardware DPI & Profile Controls">`;
+        const dpiDefs = [
+            { val: 'DpiUp', label: 'Next DPI (DPI Up / G8)' },
+            { val: 'DpiDown', label: 'Previous DPI (DPI Down / G7)' },
+            { val: 'DpiShift', label: 'DPI Shift (Sniper / Paddle)' },
+            { val: 'DpiCycle', label: 'DPI Cycle' },
+            { val: 'ProfileCycle', label: 'Cycle Profiles (G9)' }
+        ];
+        dpiDefs.forEach(d => {
+            const isSel = (cur === d.val.toUpperCase());
+            if (isSel) matched = true;
+            html += `<option value="${d.val}" ${isSel ? 'selected' : ''}>${d.label}</option>`;
+        });
+        html += `</optgroup>`;
+
+        // 7. Special / Custom
+        html += `<optgroup label="Special">`;
+        const isDis = (cur === 'DISABLED');
+        if (isDis) matched = true;
+        html += `<option value="Disabled" ${isDis ? 'selected' : ''}>Disabled / No-Op</option>`;
+
+        // If hardware memory contains any other custom key not in standard list, render it selected
+        if (!matched && currentVal && currentVal !== 'Disabled') {
+            html += `<option value="${currentVal}" selected>★ ${currentVal} (Hardware Stored)</option>`;
+        }
+        html += `</optgroup>`;
+
+        return html;
+    }
+
+    function renderOmmProfilesTabs() {
+        const container = document.getElementById('ommProfilesTabs');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (!state.onboardProfiles || state.onboardProfiles.length === 0) {
+            state.onboardProfiles = [1, 2, 3, 4, 5].map(id => ({
+                id: id,
+                name: `Profile ${id}`,
+                isActive: (id === (state.activeOnboardProfileId || 1)),
+                sector: id,
+                buttons: Object.assign({}, LOGI_FACTORY_DEFAULTS),
+                dpis: [800, 1200, 1600, 2400, 3200],
+                activeDpiIndex: 2
+            }));
+        }
+
+        const activeHwId = state.activeOnboardProfileId || 1;
+        const selectedId = state.selectedOnboardProfileId || activeHwId;
+        state.selectedOnboardProfileId = selectedId;
+
+        state.onboardProfiles.forEach(prof => {
+            const isSelected = (prof.id === selectedId);
+            const isHwActive = (prof.id === activeHwId);
+
+            const tab = document.createElement('button');
+            tab.type = 'button';
+            tab.className = `omm-profile-tab ${isSelected ? 'selected' : ''}`;
+            tab.title = `Profile ${prof.id} (EEPROM Sector ${prof.sector || prof.id})${isHwActive ? ' — Currently ACTIVE on mouse' : ''}`;
+
+            const badgeHtml = isHwActive
+                ? `<span class="tab-badge active-hw">● ACTIVE</span>`
+                : `<span class="tab-badge">Slot ${prof.id}</span>`;
+
+            tab.innerHTML = `<span>Profile ${prof.id}</span> ${badgeHtml}`;
+
+            tab.addEventListener('click', () => {
+                state.selectedOnboardProfileId = prof.id;
+                renderOmmProfilesTabs();
+                renderOmmDpiStrip();
+                renderOmmGrid();
+            });
+
+            container.appendChild(tab);
+        });
+
+        // Update the "Make Active on Mouse" action button
+        const btnMakeActive = document.getElementById('btnMakeProfileActive');
+        if (btnMakeActive) {
+            const isSelectedActive = (selectedId === activeHwId);
+            if (isSelectedActive) {
+                btnMakeActive.classList.add('is-active-now');
+                btnMakeActive.disabled = true;
+                btnMakeActive.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>● Active Profile</span>`;
+                btnMakeActive.title = `Profile ${selectedId} is already running on the physical mouse`;
+            } else {
+                btnMakeActive.classList.remove('is-active-now');
+                btnMakeActive.disabled = false;
+                btnMakeActive.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-zap"></use></svg> <span>⚡ Switch Mouse to Profile ${selectedId}</span>`;
+                btnMakeActive.title = `Switch physical mouse to run from Profile ${selectedId} in hardware`;
+            }
+        }
+    }
+
+    function renderOmmDpiStrip() {
+        const curProfId = state.selectedOnboardProfileId || state.activeOnboardProfileId || 1;
+        const prof = (state.onboardProfiles && state.onboardProfiles[curProfId - 1]) || null;
+        const dpis = (prof && prof.dpis && prof.dpis.length) ? prof.dpis : [800, 1200, 1600, 2400, 3200];
+        const activeDpiIdx = (prof && typeof prof.activeDpiIndex === 'number') ? prof.activeDpiIndex : 2;
+
+        const chipsContainer = document.getElementById('ommDpiChips');
+        if (chipsContainer) {
+            chipsContainer.innerHTML = dpis.map((dpi, idx) => {
+                const isActive = (idx === activeDpiIdx);
+                return `<span class="omm-dpi-chip ${isActive ? 'active' : ''}">${dpi} DPI${isActive ? ' ★' : ''}</span>`;
+            }).join('');
+        }
+
+        const sectorEl = document.getElementById('ommSectorIndex');
+        if (sectorEl) {
+            const sec = (prof && prof.sector) ? prof.sector : curProfId;
+            sectorEl.textContent = `Sector ${sec} (Profile ${curProfId})`;
+        }
+
+        const rateEl = document.getElementById('ommReportRate');
+        if (rateEl) {
+            rateEl.textContent = '1000 Hz';
+        }
     }
 
     function renderOmmGrid() {
         const grid = document.getElementById('ommGrid');
         if (!grid) return;
         grid.innerHTML = '';
+
+        const curProfId = state.selectedOnboardProfileId || state.activeOnboardProfileId || 1;
+        const curProf = (state.onboardProfiles && state.onboardProfiles[curProfId - 1]);
+        const profButtons = curProf ? curProf.buttons : null;
 
         // Collect all buttons in the active layout that are assignable (exclude standard primary left/right/scrolls)
         const items = [];
@@ -8257,7 +8781,10 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
         for (const btnId in DIAGRAM_POINTS) {
             if (btnId === 'LeftClick' || btnId === 'RightClick' || btnId === 'WheelUp' || btnId === 'WheelDown') continue;
             const pt = DIAGRAM_POINTS[btnId];
-            const currentFKey = (state.hardwareFKeys && state.hardwareFKeys[btnId]) ? state.hardwareFKeys[btnId] : '';
+            const currentFKey = (profButtons && profButtons[btnId])
+                || (curProfId === (state.activeOnboardProfileId || 1) && state.hardwareFKeys && state.hardwareFKeys[btnId])
+                || LOGI_FACTORY_DEFAULTS[btnId]
+                || '';
             items.push({
                 btnId: btnId,
                 label: pt.name || btnId,
@@ -8268,9 +8795,9 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
 
         if (items.length === 0) {
             OMM_BUTTONS.forEach(item => {
-                const currentFKey = (state.hardwareFKeys && state.hardwareFKeys[item.btnId])
-                    ? state.hardwareFKeys[item.btnId]
-                    : item.defaultFKey;
+                const currentFKey = (profButtons && profButtons[item.btnId])
+                    || (curProfId === (state.activeOnboardProfileId || 1) && state.hardwareFKeys && state.hardwareFKeys[item.btnId])
+                    || item.defaultFKey;
                 items.push({
                     btnId: item.btnId,
                     label: item.label,
@@ -8280,25 +8807,87 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
         }
 
         items.forEach(item => {
-            const hasKey = item.fKey && item.fKey !== '';
             const card = document.createElement('div');
             card.className = 'omm-card';
+            card.id = `ommCard_${item.btnId}`;
+            const curVal = item.fKey || LOGI_FACTORY_DEFAULTS[item.btnId] || 'Middle';
+
             card.innerHTML = `
             <div class="omm-card-header">
                 <span class="omm-card-title">${item.label}</span>
-                <span class="omm-card-fkey" id="ommFKeyBadge_${item.btnId}" style="${hasKey ? '' : 'background:rgba(255,255,255,0.06); color:var(--text-muted); border-color:transparent;'}">${hasKey ? item.fKey : 'No Key'}</span>
+                <span class="omm-card-fkey" id="ommFKeyBadge_${item.btnId}">${formatOmmBadgeLabel(curVal)}</span>
             </div>
-            <button class="omm-inject-btn" id="btnInject_${item.btnId}" ${hasKey ? '' : 'disabled style="opacity:0.4; cursor:not-allowed;"'}>
-                ${getSvgIcon('zap', 'svg-icon-xs')} ${hasKey ? `Inject ${item.fKey} (3s)` : 'Configure Key First'}
-            </button>
+            <div class="omm-card-body">
+                <select class="omm-hardware-select" id="ommSelect_${item.btnId}" data-btn="${item.btnId}" title="Select hardware onboard binding">
+                    ${renderHardwareTargetOptions(curVal)}
+                </select>
+                <div class="omm-card-actions">
+                    <button type="button" class="omm-inject-primary-btn" id="btnFlashSingle_${item.btnId}" title="Flash this button binding directly to Profile ${curProfId} via USB">
+                        ${getSvgIcon('zap', 'svg-icon-xs')}
+                        <span>⚡ Flash to Mouse</span>
+                    </button>
+                    <button type="button" class="omm-save-secondary-btn" id="btnInjectLegacy_${item.btnId}" title="Type keystroke into active window (legacy assistant)">
+                        ${getSvgIcon('keyboard', 'svg-icon-xs')}
+                        <span class="btn-text">Inject</span>
+                    </button>
+                </div>
+            </div>
         `;
 
-            const injectBtn = card.querySelector(`#btnInject_${item.btnId}`);
-            if (injectBtn && hasKey) {
+            const selectEl = card.querySelector(`#ommSelect_${item.btnId}`);
+            if (selectEl) {
+                selectEl.addEventListener('change', () => {
+                    const badge = card.querySelector(`#ommFKeyBadge_${item.btnId}`);
+                    if (badge) badge.textContent = formatOmmBadgeLabel(selectEl.value);
+                    if (curProf && curProf.buttons) {
+                        curProf.buttons[item.btnId] = selectEl.value;
+                    }
+                    if (curProfId === (state.activeOnboardProfileId || 1)) {
+                        if (!state.hardwareFKeys) state.hardwareFKeys = {};
+                        state.hardwareFKeys[item.btnId] = selectEl.value;
+                    }
+                });
+            }
+
+            // Direct Hardware Flash Button (Instant USB HID++ Write)
+            const flashSingleBtn = card.querySelector(`#btnFlashSingle_${item.btnId}`);
+            if (flashSingleBtn) {
+                flashSingleBtn.addEventListener('click', () => {
+                    const targetVal = selectEl ? selectEl.value : curVal;
+                    flashSingleBtn.classList.add('save-success');
+                    flashSingleBtn.innerHTML = `${getSvgIcon('loader-2', 'spin svg-icon-xs')} <span class="btn-text">Flashing...</span>`;
+                    if (curProf && curProf.buttons) {
+                        curProf.buttons[item.btnId] = targetVal;
+                    }
+                    if (curProfId === (state.activeOnboardProfileId || 1)) {
+                        if (!state.hardwareFKeys) state.hardwareFKeys = {};
+                        state.hardwareFKeys[item.btnId] = targetVal;
+                        refreshCardsAndStage();
+                    }
+                    sendToAhk({
+                        action: 'flashLogitechButton',
+                        btnId: item.btnId,
+                        target: targetVal,
+                        profileId: curProfId
+                    });
+                });
+            }
+
+            // Optional Legacy Inject Button
+            const injectBtn = card.querySelector(`#btnInjectLegacy_${item.btnId}`);
+            if (injectBtn) {
                 injectBtn.addEventListener('click', () => {
+                    let keyToInject = selectEl ? selectEl.value : curVal;
+                    if (!/^F(1[3-9]|2[0-4])$/i.test(keyToInject)) {
+                        const fallbackFKey = LOGI_DEFAULT_FKEYS[item.btnId] || 'F13';
+                        keyToInject = fallbackFKey;
+                        if (selectEl) selectEl.value = fallbackFKey;
+                        const badge = card.querySelector(`#ommFKeyBadge_${item.btnId}`);
+                        if (badge) badge.textContent = fallbackFKey;
+                    }
                     sendToAhk({
                         action: 'injectFKey',
-                        key: item.fKey,
+                        key: keyToInject,
                         buttonId: item.btnId
                     });
                 });
@@ -8327,8 +8916,8 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
 
         box.className = 'omm-status-box success';
         if (icon) icon.innerHTML = getSvgIcon('check');
-        text.textContent = `>>> SENT {${key}} TO ACTIVE WINDOW! <<<`;
-        showToast('Injected Key', `Virtually typed {${key}}`);
+        text.textContent = `>>> SENT {${key}} TO OMM! Click SAVE in OMM to store in mouse memory. <<<`;
+        showToast('Injected Key', `Typed {${key}} into OMM! Click SAVE in OMM to save to hardware.`, 'success');
     }
 
     function handleOmmReset() {
@@ -8340,6 +8929,154 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
         box.className = 'omm-status-box';
         if (icon) icon.innerHTML = getSvgIcon('zap');
         text.textContent = 'Ready. Click any button below to start 3-second countdown.';
+    }
+
+    function handleLogitechStatus(msg) {
+        const badgeBtn = document.getElementById('btnHeaderHardwareBadge');
+        const badgeName = document.getElementById('deviceBadgeName');
+        const heroName = document.getElementById('nativeHidDeviceName');
+        const heroStatus = document.getElementById('nativeHidDeviceStatus');
+
+        if (msg.connected) {
+            if (badgeBtn) {
+                badgeBtn.classList.add('connected');
+                badgeBtn.title = `${msg.name} (Direct Win32 HID++ Hardware Connected)`;
+            }
+            if (badgeName) badgeName.textContent = msg.name || 'Logitech G502 X';
+            if (heroName) heroName.textContent = msg.name || 'Logitech G502 X';
+            if (heroStatus) {
+                heroStatus.innerHTML = `<span style="color:#a6e3a1; font-weight:700;">● Connected (Direct Win32 HID++)</span>`;
+            }
+            if (msg.activeProfileId) state.activeOnboardProfileId = msg.activeProfileId;
+            if (msg.selectedProfileId) state.selectedOnboardProfileId = msg.selectedProfileId;
+            if (msg.buttons && typeof msg.buttons === 'object') {
+                for (const bId in msg.buttons) {
+                    const sel = document.getElementById(`ommSelect_${bId}`);
+                    if (sel) sel.value = msg.buttons[bId];
+                    const badge = document.getElementById(`ommFKeyBadge_${bId}`);
+                    if (badge) badge.textContent = formatOmmBadgeLabel(msg.buttons[bId]);
+                }
+            }
+            renderOmmProfilesTabs();
+            renderOmmDpiStrip();
+        } else {
+            if (badgeBtn) {
+                badgeBtn.classList.remove('connected');
+                badgeBtn.title = 'Mouse Hardware Offline';
+            }
+            if (badgeName) badgeName.textContent = 'Hardware Offline';
+            if (heroStatus) {
+                heroStatus.innerHTML = `<span style="color:#f38ba8;">● Disconnected</span>`;
+            }
+        }
+    }
+
+    function handleLogitechHardwareButtons(msg) {
+        const progressBox = document.getElementById('nativeHidProgressBox');
+        if (progressBox) progressBox.style.display = 'none';
+        const btnRead = document.getElementById('btnReadOnboard');
+        if (btnRead) btnRead.disabled = false;
+
+        if (msg.success && msg.buttons) {
+            for (const bId in msg.buttons) {
+                const target = msg.buttons[bId];
+                const sel = document.getElementById(`ommSelect_${bId}`);
+                if (sel) sel.value = target;
+                const badge = document.getElementById(`ommFKeyBadge_${bId}`);
+                if (badge) badge.textContent = formatOmmBadgeLabel(target);
+                if (!state.hardwareFKeys) state.hardwareFKeys = {};
+                state.hardwareFKeys[bId] = target;
+            }
+            showToast('Hardware Memory Loaded', 'Loaded current bindings directly from mouse EEPROM!', 'success');
+        } else {
+            showToast('Read Failed', 'Could not read from mouse hardware memory', 'error');
+        }
+    }
+
+    function handleLogitechButtonFlashed(msg) {
+        const btn = document.getElementById(`btnFlashSingle_${msg.btnId}`);
+        const pId = msg.profileId || state.selectedOnboardProfileId || 1;
+        if (msg.success) {
+            if (btn) {
+                btn.classList.add('save-success');
+                btn.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} <span class="btn-text">Flashed!</span>`;
+            }
+            const badge = document.getElementById(`ommFKeyBadge_${msg.btnId}`);
+            if (badge) badge.textContent = formatOmmBadgeLabel(msg.target);
+            const sel = document.getElementById(`ommSelect_${msg.btnId}`);
+            if (sel) sel.value = msg.target;
+
+            if (state.onboardProfiles && state.onboardProfiles[pId - 1]) {
+                if (!state.onboardProfiles[pId - 1].buttons) state.onboardProfiles[pId - 1].buttons = {};
+                state.onboardProfiles[pId - 1].buttons[msg.btnId] = msg.target;
+            }
+
+            if (pId === (state.activeOnboardProfileId || 1)) {
+                if (!state.hardwareFKeys) state.hardwareFKeys = {};
+                state.hardwareFKeys[msg.btnId] = msg.target;
+                refreshCardsAndStage();
+            }
+
+            showToast('Hardware Flashed', `${msg.btnId} written to Profile ${pId} as ${msg.target}!`, 'success');
+
+            setTimeout(() => {
+                if (btn) {
+                    btn.classList.remove('save-success');
+                    btn.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} <span class="btn-text">⚡ Flash to Mouse</span>`;
+                    btn.disabled = false;
+                }
+            }, 2000);
+        } else {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} <span class="btn-text">⚡ Flash to Mouse</span>`;
+            }
+            showToast('Flash Failed', `Could not write to ${msg.btnId}`, 'error');
+        }
+    }
+
+    function handleLogitechAllFlashed(msg) {
+        const progressBox = document.getElementById('nativeHidProgressBox');
+        const progressFill = document.getElementById('nativeHidProgressFill');
+        const progressText = document.getElementById('nativeHidProgressText');
+        const btnAuto = document.getElementById('btnAutoFlashLogitech');
+        const btnApplyAll = document.getElementById('btnApplyAllOnboard');
+        const txtAuto = document.getElementById('txtAutoFlashBtn');
+
+        if (msg.success) {
+            if (progressFill) progressFill.style.width = '100%';
+            if (progressText) progressText.innerHTML = `<span style="color:#a6e3a1; font-weight:700;">✅ Success! All button bindings flashed to mouse memory.</span>`;
+            if (txtAuto) txtAuto.textContent = 'Hardware Profile Synced!';
+
+            document.querySelectorAll('.omm-save-secondary-btn').forEach(btn => {
+                btn.classList.add('save-success');
+                btn.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} <span class="btn-text">Flashed!</span>`;
+            });
+
+            refreshCardsAndStage();
+            showToast('Hardware Flashed', 'All button assignments written directly into mouse memory via USB!', 'success');
+
+            setTimeout(() => {
+                if (btnAuto) {
+                    btnAuto.disabled = false;
+                    btnAuto.innerHTML = `<svg class="svg-icon"><use href="#icon-zap"></use></svg> <span id="txtAutoFlashBtn">⚡ Preset F13–F21</span>`;
+                }
+                if (btnApplyAll) {
+                    btnApplyAll.disabled = false;
+                    btnApplyAll.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>⚡ Apply All</span>`;
+                }
+                document.querySelectorAll('.omm-save-secondary-btn').forEach(btn => {
+                    btn.classList.remove('save-success');
+                    btn.innerHTML = `${getSvgIcon('keyboard', 'svg-icon-xs')} <span class="btn-text">Inject</span>`;
+                    btn.disabled = false;
+                });
+            }, 2500);
+        } else {
+            if (progressText) progressText.innerHTML = `<span style="color:#f38ba8;">❌ Apply failed</span>`;
+            if (btnAuto) btnAuto.disabled = false;
+            if (btnApplyAll) btnApplyAll.disabled = false;
+            showToast('Apply Failed', 'Unable to write to mouse hardware', 'error');
+        }
     }
 
     // ============================================================================
@@ -8985,6 +9722,57 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
 
         if (btnSave) {
             btnSave.addEventListener('click', saveButtonConfigForm);
+        }
+
+        const btnFlashHw = document.getElementById('btnConfigFlashHardware');
+        const txtFlashHw = document.getElementById('txtConfigFlashBtn');
+        if (btnFlashHw) {
+            btnFlashHw.addEventListener('click', async () => {
+                if (!window.logitechDevice) return;
+                try {
+                    btnFlashHw.disabled = true;
+                    if (!window.logitechDevice.deviceInfo.connected) {
+                        const connected = await window.logitechDevice.connect();
+                        if (!connected) {
+                            btnFlashHw.disabled = false;
+                            return;
+                        }
+                    }
+
+                    const origIdEl = document.getElementById('btnConfigOriginalId');
+                    const keyEl = document.getElementById('btnConfigHardwareKey');
+                    const bId = origIdEl ? origIdEl.value : '';
+                    const targetVal = keyEl ? keyEl.value : '';
+
+                    if (!bId || !targetVal) {
+                        btnFlashHw.disabled = false;
+                        showToast('Notice', 'Select a hardware key first', 'warning');
+                        return;
+                    }
+
+                    const logiBtn = LogitechHID.G502_BUTTONS.find(b => b.buttonId === bId);
+                    const btnIdx = logiBtn ? logiBtn.index : (LOGI_G502_INDICES[bId] !== undefined ? LOGI_G502_INDICES[bId] : 2);
+
+                    await window.logitechDevice.writeButtonBinding(btnIdx, targetVal);
+
+                    btnFlashHw.classList.add('flash-success');
+                    if (txtFlashHw) txtFlashHw.textContent = '✅ Synced to Hardware!';
+
+                    sendToAhk({ action: 'setHardwareFKey', btnId: bId, fkey: targetVal });
+                    showToast('Hardware Updated', `${bId} flashed as ${targetVal} directly in mouse onboard memory!`, 'success');
+
+                    setTimeout(() => {
+                        btnFlashHw.classList.remove('flash-success');
+                        if (txtFlashHw) txtFlashHw.textContent = '⚡ Write to Mouse Hardware';
+                        btnFlashHw.disabled = false;
+                    }, 2500);
+
+                } catch (err) {
+                    console.error('[ConfigFlash error]', err);
+                    btnFlashHw.disabled = false;
+                    showToast('Flash Failed', err.message || 'Unable to write to mouse hardware', 'error');
+                }
+            });
         }
     }
 

@@ -1,4 +1,5 @@
 #Requires AutoHotkey v2.0
+#Warn All, Off
 #SingleInstance Force
 
 ; Ensure settings.ini exists
@@ -101,16 +102,17 @@ OnScriptExit(ExitReason, ExitCode) {
  */
 
 ; Include modular libraries
-#Include "lib/OSD.ahk"
-#Include "lib/OMMHelper.ahk"
-#Include "lib/Profiles.ahk"
-#Include "lib/FocusFollowsMouse.ahk"
-#Include "lib/GuiManager.ahk"
-#Include "lib/WebViewGuiManager.ahk"
-#Include "lib/QuickRemap.ahk"
-#Include "lib/InterceptionDriver.ahk"
-#Include "lib/StartupManager.ahk"
-#Include "lib/SnapTap.ahk"
+#Include "lib\OSD.ahk"
+#Include "lib\ProfileEngine.ahk"
+#Include "lib\LogitechHID.ahk"
+#Include "lib\OMMHelper.ahk"
+#Include "lib\FocusFollowsMouse.ahk"
+#Include "lib\GuiManager.ahk"
+#Include "lib\WebViewGuiManager.ahk"
+#Include "lib\QuickRemap.ahk"
+#Include "lib\InterceptionDriver.ahk"
+#Include "lib\StartupManager.ahk"
+#Include "lib\SnapTap.ahk"
 
 ; --- Application Initialization ---
 A_IconTip := "My Mouse My Choice"

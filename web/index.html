@@ -388,6 +388,25 @@
                 <path
                     d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z" />
             </symbol>
+            <symbol id="icon-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect width="16" height="16" x="4" y="4" rx="2" />
+                <rect width="6" height="6" x="9" y="9" rx="1" />
+                <path d="M15 2v2" /><path d="M15 20v2" /><path d="M2 15h2" /><path d="M2 9h2" />
+                <path d="M20 15h2" /><path d="M20 9h2" /><path d="M9 2v2" /><path d="M9 20v2" />
+            </symbol>
+            <symbol id="icon-battery" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect width="16" height="10" x="2" y="7" rx="2" ry="2" />
+                <line x1="22" x2="22" y1="11" y2="13" />
+            </symbol>
+            <symbol id="icon-battery-charging" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 7h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2" />
+                <path d="M6 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1" />
+                <path d="m11 7-3 5h4l-3 5" />
+                <line x1="22" x2="22" y1="11" y2="13" />
+            </symbol>
         </defs>
     </svg>
 
@@ -412,7 +431,23 @@
             </button>
         </div>
 
-        <div class="header-center"></div>
+        <div class="header-center">
+            <!-- Hardware Onboard & Telemetry Status Pill (OpenMouse / HID++ Engine) -->
+            <button type="button" class="hardware-device-badge" id="btnHeaderHardwareBadge"
+                title="Logitech HID++ Hardware Engine: Click to Connect, Check Battery, or Auto-Pair Onboard Memory">
+                <span class="device-badge-dot" id="deviceBadgeDot"></span>
+                <svg class="svg-icon svg-icon-xs" id="deviceBadgeIcon">
+                    <use href="#icon-cpu"></use>
+                </svg>
+                <span class="device-badge-name" id="deviceBadgeName">Connect Logitech Mouse</span>
+                <span class="device-badge-batt" id="deviceBadgeBatt" style="display: none;">
+                    <svg class="svg-icon svg-icon-xs" id="deviceBattIcon">
+                        <use href="#icon-battery"></use>
+                    </svg>
+                    <span id="deviceBattPct">--%</span>
+                </span>
+            </button>
+        </div>
 
         <div class="header-right">
             <!-- Hidden inputs to maintain 100% synchronization with internal state & AHK -->
@@ -1730,70 +1765,110 @@
         </div>
     </div>
 
-    <!-- ONBOARD MEMORY SETUP & VIRTUAL KEY INJECTOR MODAL -->
-    <div class="modal-backdrop" id="ommSetupModal" style="display: none;">
-        <div class="omm-modal-dialog">
-            <div class="modal-header">
-                <div class="modal-header-titles">
-                    <span class="modal-title"><svg class="svg-icon">
-                            <use href="#icon-zap"></use>
-                        </svg> ONBOARD MEMORY SETUP & VIRTUAL KEY INJECTOR</span>
-                    <span class="modal-subtitle">Inject virtual F13–F24 keys into mouse hardware memory software</span>
+    <!-- ONBOARD MEMORY SETUP & VIRTUAL KEY INJECTOR (Full-Screen Workstation) -->
+    <div class="modal-backdrop omm-fullpage-backdrop" id="ommSetupModal" style="display: none;">
+        <div class="modal-dialog omm-fullpage-dialog">
+            <!-- Full-Page Header -->
+            <div class="modal-header omm-fullpage-header">
+                <div class="omm-header-left">
+                    <button type="button" class="studio-nav-back-btn" id="btnCloseOmmModal" title="Return to Studio (Esc)">
+                        <svg class="svg-icon">
+                            <use href="#icon-arrow-left"></use>
+                        </svg>
+                        <span>BACK TO STUDIO</span>
+                    </button>
+                    <div class="studio-header-divider"></div>
+                    <div class="omm-header-titles">
+                        <div class="omm-title-badge-row">
+                            <span class="omm-title-tag">LOGITECH HARDWARE ONBOARD MEMORY</span>
+                            <span class="omm-device-pill" id="nativeHidDeviceName">G502 X</span>
+                            <span class="omm-status-pill" id="nativeHidDeviceStatus">● Hardware Mode</span>
+                        </div>
+                    </div>
                 </div>
-                <button class="modal-close-btn" id="btnCloseOmmModal"><svg class="svg-icon">
-                        <use href="#icon-x"></use>
-                    </svg></button>
+
+                <!-- Header Actions -->
+                <div class="omm-header-right">
+                    <button type="button" class="native-tool-btn" id="btnResetToDefaults" title="Reset bindings in app to clean factory defaults">
+                        <svg class="svg-icon svg-icon-xs"><use href="#icon-refresh-cw"></use></svg>
+                        <span>↺ Factory Defaults</span>
+                    </button>
+                    <button type="button" class="native-flash-hero-btn" id="btnAutoFlashLogitech" title="Preset virtual keys F13–F21">
+                        <svg class="svg-icon"><use href="#icon-zap"></use></svg>
+                        <span id="txtAutoFlashBtn">⚡ Preset F13–F21</span>
+                    </button>
+                    <button type="button" class="native-tool-btn primary" id="btnApplyAllOnboard" title="Save and apply all button mappings to Studio">
+                        <svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg>
+                        <span>⚡ Apply All</span>
+                    </button>
+                    <button type="button" class="studio-header-btn secondary" id="btnDoneOmmModal">Done</button>
+                </div>
             </div>
 
-            <div class="omm-modal-body" style="padding: 20px 24px; overflow-y: auto;">
-                <!-- Instructions Banner -->
-                <div class="omm-guide-banner">
-                    <div class="omm-guide-title">
-                        <span><svg class="svg-icon svg-icon-sm">
-                                <use href="#icon-clipboard-list"></use>
-                            </svg></span> HOW TO CONFIGURE IN ONBOARD MEMORY MANAGER:
-                    </div>
-                    <div class="omm-steps-list">
-                        <div><strong>1.</strong> Open your mouse's Onboard Memory utility (e.g.
-                            <strong>OMM.exe</strong>, Synapse, etc.).</div>
-                        <div><strong>2.</strong> Click the mouse button you want to configure and select
-                            <strong>Keystroke &rarr; Record</strong>.</div>
-                        <div><strong>3.</strong> Click the matching <strong>"<svg class='svg-icon svg-icon-xs'>
-                                    <use href='#icon-zap'></use>
-                                </svg> Inject Key"</strong> button below — a 3-second countdown will start with audio
-                            beeps.</div>
-                        <div><strong>4.</strong> Switch focus back to the record field during the countdown. The virtual
-                            F-key will be automatically typed!</div>
-                        <div><strong>5.</strong> Save to mouse onboard memory and close the configuration tool. The
-                            button is now fully unlocked for Studio customization!</div>
+            <!-- Dedicated Onboard Hardware Profiles Switcher Ribbon -->
+            <div class="omm-profiles-ribbon">
+                <div class="omm-profiles-tabs-wrapper">
+                    <span class="omm-profiles-title">
+                        <svg class="svg-icon svg-icon-xs"><use href="#icon-layers"></use></svg>
+                        <span>HARDWARE PROFILES:</span>
+                    </span>
+                    <div class="omm-profiles-tabs" id="ommProfilesTabs">
+                        <!-- Populated dynamically via JS: Profile 1..5 -->
                     </div>
                 </div>
+                <div class="omm-profile-quick-actions">
+                    <button type="button" class="omm-make-active-btn" id="btnMakeProfileActive" title="Set this profile as the active profile running on your mouse">
+                        <svg class="svg-icon svg-icon-xs"><use href="#icon-zap"></use></svg>
+                        <span id="txtMakeProfileActive">⚡ Set Active on Mouse</span>
+                    </button>
+                </div>
+            </div>
 
-                <!-- Live Countdown & Status Box -->
+            <!-- Profile Hardware Specs & DPI Ribbon -->
+            <div class="omm-dpi-ribbon" id="ommDpiRibbon">
+                <div class="omm-dpi-info-left">
+                    <span class="omm-dpi-header-tag">DPI PRESETS</span>
+                    <div class="omm-dpi-chips" id="ommDpiChips">
+                        <!-- Populated dynamically: 800, 1200, 1600 (active), 2400, 3200 -->
+                    </div>
+                </div>
+                <div class="omm-dpi-info-right">
+                    <div class="omm-polling-pill">Report Rate: <strong id="ommReportRate">1000 Hz</strong></div>
+                    <div class="omm-sector-pill">EEPROM Target: <strong id="ommSectorIndex">Sector 2 (Profile 1)</strong></div>
+                </div>
+            </div>
+
+            <!-- Sleek Interactive Hardware Status Bar -->
+            <div class="omm-action-bar">
                 <div class="omm-status-box" id="ommStatusBox">
-                    <span class="omm-status-icon" id="ommStatusIcon"><svg class="svg-icon">
-                            <use href="#icon-zap"></use>
-                        </svg></span>
-                    <span class="omm-status-text" id="ommStatusText">Ready. Click any button below to start 3-second
-                        countdown.</span>
+                    <span class="omm-status-icon" id="ommStatusIcon">
+                        <svg class="svg-icon"><use href="#icon-zap"></use></svg>
+                    </span>
+                    <span class="omm-status-text" id="ommStatusText">Direct USB HID++ Active • 1-Click writes directly to mouse memory (No external software required)</span>
                 </div>
+                <button type="button" class="omm-guide-toggle-btn" id="btnToggleOmmGuide" title="Toggle hardware sync info">
+                    <svg class="svg-icon svg-icon-xs"><use href="#icon-clipboard-list"></use></svg>
+                    <span>Direct Sync Info</span>
+                </button>
+            </div>
 
-                <!-- 3x3 Grid of Hardware Buttons with Injection Actions -->
-                <div class="omm-grid" id="ommGrid">
-                    <!-- Populated dynamically via JS: G8, G7, DPI Shift, Forward, Back, Tilt Left, Middle, Tilt Right, G9 -->
+            <!-- Collapsible Guide Drawer (Direct Hardware Info) -->
+            <div class="omm-guide-drawer" id="ommGuideDrawer" style="display: none;">
+                <div class="omm-guide-drawer-inner">
+                    <div class="omm-guide-step"><span class="step-num">1</span> <span><strong>Direct USB Flashing:</strong> Clicking "Flash to Mouse" burns keys directly into your mouse chip over USB HID++.</span></div>
+                    <div class="omm-guide-step"><span class="step-num">2</span> <span><strong>No Third-Party Apps:</strong> You do NOT need OMM.exe, G HUB, or any keystroke recorders.</span></div>
+                    <div class="omm-guide-step"><span class="step-num">3</span> <span><strong>Instant 1-Click Setup:</strong> Click "Preset F13–F21" above to write all buttons in 250ms!</span></div>
+                    <div class="omm-guide-step"><span class="step-num">4</span> <span><strong>Safe &amp; Reversible:</strong> Click "Factory Defaults" anytime to revert your mouse hardware back to factory state.</span></div>
                 </div>
             </div>
 
-            <div class="modal-footer"
-                style="display: flex; justify-content: space-between; align-items: center; padding: 14px 24px;">
-                <span
-                    style="font-size: 11px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px;">
-                    <svg class="svg-icon svg-icon-xs">
-                        <use href="#icon-lightbulb"></use>
-                    </svg> Physical keyboards lack F13-F24 keys. This assistant injects them virtually to eliminate
-                    conflicts with normal typing.
-                </span>
-                <button class="modal-btn cancel" id="btnDoneOmmModal">Done</button>
+            <!-- Main Scrollable Button Grid -->
+            <div class="omm-content-scroll">
+                <div class="omm-grid-container">
+                    <div class="omm-grid" id="ommGrid">
+                        <!-- Populated dynamically via JS: G8, G7, DPI Shift, Forward, Back, Tilt Left, Middle, Tilt Right, G9 -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -2090,6 +2165,16 @@
                                 <option value="">None / Virtual Only (No Hardware Intercept)</option>
                             </optgroup>
                         </select>
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            <button type="button" class="native-flash-hero-btn" id="btnConfigFlashHardware"
+                                style="flex: 1; padding: 8px 14px; font-size: 11.5px; justify-content: center;"
+                                title="Write this key directly to the mouse's onboard memory slot 1 via WebHID">
+                                <svg class="svg-icon svg-icon-xs">
+                                    <use href="#icon-zap"></use>
+                                </svg>
+                                <span id="txtConfigFlashBtn">⚡ Write to Mouse Hardware</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div style="font-size: 12px; color: var(--text-muted); display:flex; align-items:center; gap:6px;">
@@ -3191,6 +3276,7 @@
         </div>
     </div>
 
+    <script src="logitech-hid.js"></script>
     <script src="app.js"></script>
 </body>
 

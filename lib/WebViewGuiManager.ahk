@@ -8,11 +8,6 @@
 
 #Include "WebView2.ahk"
 #Include "JSON.ahk"
-#Include "Profiles.ahk"
-#Include "OSD.ahk"
-#Include "OMMHelper.ahk"
-#Include "StartupManager.ahk"
-#Include "SnapTap.ahk"
 
 class WebViewGuiManager {
     static MainGui := ""
@@ -218,7 +213,8 @@ class WebViewGuiManager {
 
         this.Log("Init: GUI created, HWND=" . g.Hwnd . ", calling CreateControllerAsync with PID=" . currentPid)
 
-        WebView2.CreateControllerAsync(g.Hwnd, 0, userData, "", dllPath).then(
+        webHidOptions := { AdditionalBrowserArguments: "--enable-features=WebHID" }
+        WebView2.CreateControllerAsync(g.Hwnd, webHidOptions, userData, "", dllPath).then(
             this.OnControllerCreated.Bind(this),
             this.OnControllerError.Bind(this)
         )
@@ -817,6 +813,132 @@ class WebViewGuiManager {
             case "injectFKey":
                 targetK := req.Has("key") ? req["key"] : "F20"
                 OMMHelper.StartCountdown(targetK)
+
+            case "getLogitechStatus":
+                st := LogitechHID.GetStatus()
+                this.PostMessage(Map(
+                    "type", "logitechStatus",
+                    "connected", st["connected"],
+                    "name", st["name"],
+                    "hasOnboardProfiles", st["hasOnboardProfiles"],
+                    "activeProfileId", st["activeProfileId"],
+                    "selectedProfileId", st["selectedProfileId"],
+                    "buttons", st["buttons"]
+                ))
+
+            case "loadAllLogitechProfiles":
+                profiles := LogitechHID.ReadAllProfiles()
+                this.PostMessage(Map(
+                    "type", "logitechAllProfilesLoaded",
+                    "connected", true,
+                    "name", LogitechHID.productName,
+                    "activeProfileId", LogitechHID.activeProfileId,
+                    "selectedProfileId", LogitechHID.selectedProfileId,
+                    "profiles", profiles
+                ))
+
+            case "switchLogitechProfile":
+                pId := req.Has("profileId") ? Integer(req["profileId"]) : 1
+                ok := LogitechHID.SetActiveProfileId(pId)
+                this.PostMessage(Map(
+                    "type", "logitechProfileSwitched",
+                    "success", ok,
+                    "activeProfileId", LogitechHID.activeProfileId,
+                    "selectedProfileId", pId
+                ))
+                if (ok) {
+                    OSD.Show("Hardware Profile Activated", "Profile " . pId . " is now ACTIVE on mouse!")
+                    SoundBeep(1600, 180)
+                }
+
+            case "readLogitechHardware":
+                pId := req.Has("profileId") ? Integer(req["profileId"]) : LogitechHID.selectedProfileId
+                btns := LogitechHID.ReadAllButtons(pId)
+                this.PostMessage(Map(
+                    "type", "logitechHardwareButtons",
+                    "success", (btns.Count > 0),
+                    "profileId", pId,
+                    "buttons", btns
+                ))
+                if (btns.Count > 0) {
+                    OSD.Show("Hardware Read", "Read button mappings from Profile " . pId . "!")
+                    SoundBeep(1200, 150)
+                }
+
+            case "resetLogitechDefaults":
+                pId := req.Has("profileId") ? Integer(req["profileId"]) : LogitechHID.selectedProfileId
+                ok := LogitechHID.ResetToFactoryDefaults(pId)
+                btns := LogitechHID.ReadAllButtons(pId)
+                this.PostMessage(Map(
+                    "type", "logitechStatus",
+                    "connected", true,
+                    "name", LogitechHID.productName,
+                    "hasOnboardProfiles", true,
+                    "activeProfileId", LogitechHID.activeProfileId,
+                    "selectedProfileId", pId,
+                    "buttons", btns
+                ))
+                this.PostMessage(Map(
+                    "type", "hardwareFKeysUpdated",
+                    "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport()
+                ))
+                OSD.Show("Hardware Reset", "Restored Profile " . pId . " factory defaults!")
+                SoundBeep(900, 150)
+
+            case "flashLogitechButton":
+                bId := req.Has("btnId") ? req["btnId"] : ""
+                targetVal := req.Has("target") ? req["target"] : ""
+                pId := req.Has("profileId") ? Integer(req["profileId"]) : LogitechHID.selectedProfileId
+                ok := false
+                if (bId != "" && targetVal != "") {
+                    ok := LogitechHID.FlashSingleButton(bId, targetVal, pId)
+                }
+                this.PostMessage(Map(
+                    "type", "logitechButtonFlashed",
+                    "success", ok,
+                    "btnId", bId,
+                    "target", targetVal,
+                    "profileId", pId
+                ))
+                if (ok) {
+                    this.PostMessage(Map(
+                        "type", "hardwareFKeysUpdated",
+                        "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport()
+                    ))
+                    OSD.Show("Hardware Flashed", bId . " ➔ " . targetVal . " (Profile " . pId . ")")
+                    SoundBeep(1400, 150)
+                }
+
+            case "flashLogitechAll":
+                mappingsObj := req.Has("mappings") ? req["mappings"] : Map()
+                pId := req.Has("profileId") ? Integer(req["profileId"]) : LogitechHID.selectedProfileId
+                ok := LogitechHID.FlashAll(mappingsObj, pId)
+                this.PostMessage(Map(
+                    "type", "logitechAllFlashed",
+                    "success", ok,
+                    "profileId", pId
+                ))
+                if (ok) {
+                    this.PostMessage(Map(
+                        "type", "hardwareFKeysUpdated",
+                        "hardwareFKeys", ProfileEngine.GetHardwareFKeysExport()
+                    ))
+                    OSD.Show("Hardware Flashed", "All Buttons Saved to Profile " . pId . "!")
+                    SoundBeep(1500, 250)
+                }
+
+            case "logitechHardwareStatus":
+                devName := req.Has("name") ? req["name"] : "Logitech Mouse"
+                batt := req.Has("batteryLevel") && req["batteryLevel"] != "" ? req["batteryLevel"] : ""
+                this.Log("Logitech HID++ Status: " . devName . (batt != "" ? (" (" . batt . "%)") : ""))
+                if (batt != "") {
+                    try A_IconTip := "My Mouse My Choice`n" . devName . " (" . batt . "%)"
+                }
+
+            case "logitechFKeysFlashed":
+                devName := req.Has("device") ? req["device"] : "Logitech Mouse"
+                OSD.Show("Hardware Synced", devName . " onboard memory updated!")
+                SoundBeep(1400, 200)
 
             case "swapHardwareFKeys":
                 b1 := req.Has("btnId1") ? req["btnId1"] : ""
