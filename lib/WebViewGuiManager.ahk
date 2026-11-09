@@ -471,11 +471,18 @@ class WebViewGuiManager {
     ; =========================================================================
     static OnWebMessageReceived(sender, args) {
         try {
-            jsonStr := args.TryGetWebMessageAsString()
+            jsonStr := ""
+            try {
+                jsonStr := args.TryGetWebMessageAsString()
+            } catch {
+                try jsonStr := args.WebMessageAsJson
+            }
             if (!jsonStr)
                 return
 
-            this.Log("Received IPC: " . jsonStr)
+            if (InStr(jsonStr, '"action":"clientLog"') == 0) {
+                this.Log("Received IPC: " . jsonStr)
+            }
             req := JSON.parse(jsonStr)
             this.DispatchClientAction(req)
         } catch as err {
@@ -671,7 +678,8 @@ class WebViewGuiManager {
                 enabled := req.Has("enabled") ? req["enabled"] : !SnapTap.Enabled
                 SnapTap.SetEnabled(enabled)
                 sMode := HasProp(SnapTap, "Mode") ? SnapTap.Mode : "games"
-                this.PostMessage(Map("type", "snapTapChanged", "enabled", SnapTap.Enabled ? true : false, "mode", sMode))
+                this.PostMessage(Map("type", "snapTapChanged", "enabled", SnapTap.Enabled ? true : false, "mode", sMode
+                ))
                 modeDesc := (sMode = "games") ? "Game Profiles" : "Always Active"
                 OSD.Show("Snap Tap", SnapTap.Enabled ? ("Enabled (" . modeDesc . ")") : "Disabled")
 
@@ -814,6 +822,11 @@ class WebViewGuiManager {
                 targetK := req.Has("key") ? req["key"] : "F20"
                 OMMHelper.StartCountdown(targetK)
 
+            case "clientLog":
+                lvl := req.Has("level") ? req["level"] : "info"
+                txt := req.Has("text") ? req["text"] : ""
+                this.Log("[JS " . lvl . "] " . txt)
+
             case "getLogitechStatus":
                 st := LogitechHID.GetStatus()
                 this.PostMessage(Map(
@@ -823,11 +836,16 @@ class WebViewGuiManager {
                     "hasOnboardProfiles", st["hasOnboardProfiles"],
                     "activeProfileId", st["activeProfileId"],
                     "selectedProfileId", st["selectedProfileId"],
-                    "buttons", st["buttons"]
+                    "buttons", st["buttons"],
+                    "dpis", st.Has("dpis") ? st["dpis"] : [800, 1200, 1600, 2400, 3200],
+                "activeDpiIndex", st.Has("activeDpiIndex") ? st["activeDpiIndex"] : 2,
+                "defaultDpiIndex", st.Has("defaultDpiIndex") ? st["defaultDpiIndex"] : 0
                 ))
 
             case "loadAllLogitechProfiles":
                 profiles := LogitechHID.ReadAllProfiles()
+                force := req.Has("forceRefresh") ? (req["forceRefresh"] ? true : false) : false
+                profiles := LogitechHID.ReadAllProfiles(force)
                 this.PostMessage(Map(
                     "type", "logitechAllProfilesLoaded",
                     "connected", true,
@@ -847,6 +865,13 @@ class WebViewGuiManager {
                     "selectedProfileId", pId
                 ))
                 if (ok) {
+                    btns := LogitechHID.ReadAllButtons(pId)
+                    this.PostMessage(Map(
+                        "type", "logitechHardwareButtons",
+                        "success", true,
+                        "profileId", pId,
+                        "buttons", btns
+                    ))
                     OSD.Show("Hardware Profile Activated", "Profile " . pId . " is now ACTIVE on mouse!")
                     SoundBeep(1600, 180)
                 }

@@ -242,7 +242,7 @@ class LogitechHID {
         this.deviceInfo.connected = true;
         this.deviceInfo.name = device.productName || 'Logitech Gaming Mouse';
         this.deviceInfo.wireless = (device.productName || '').toLowerCase().includes('wireless') ||
-                                   (device.productName || '').toLowerCase().includes('lightspeed');
+            (device.productName || '').toLowerCase().includes('lightspeed');
 
         console.log(`[LogitechHID] Connected to: ${this.deviceInfo.name}`);
 
@@ -730,7 +730,7 @@ class LogitechHID {
         } else {
             // Asynchronous event / notification (e.g. Battery update notification)
             const battIdx = this.featureCache.get(LogitechHID.FEATURE_UNIFIED_BATTERY) ||
-                            this.featureCache.get(LogitechHID.FEATURE_BATTERY_STATUS);
+                this.featureCache.get(LogitechHID.FEATURE_BATTERY_STATUS);
             if (battIdx !== null && featureIdx === battIdx && data.byteLength >= 4) {
                 const newLevel = data.getUint8(3);
                 if (newLevel <= 100) {

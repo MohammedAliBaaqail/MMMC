@@ -510,6 +510,18 @@ function sendToAhk(msgObj) {
     }
 }
 
+// Global JS error telemetry to AHK debug log
+window.addEventListener('error', (e) => {
+    try {
+        sendToAhk({ action: 'clientLog', level: 'error', text: `${e.message} (${e.filename}:${e.lineno})` });
+    } catch (_) { }
+});
+window.addEventListener('unhandledrejection', (e) => {
+    try {
+        sendToAhk({ action: 'clientLog', level: 'error', text: `Unhandled Promise: ${e.reason}` });
+    } catch (_) { }
+});
+
 // Listen for messages from AutoHotkey v2
 if (window.chrome && window.chrome.webview) {
     window.chrome.webview.addEventListener('message', (event) => {
@@ -518,6 +530,9 @@ if (window.chrome && window.chrome.webview) {
             handleEngineMessage(data);
         } catch (e) {
             console.error('Error handling message from AHK:', e, event.data);
+            try {
+                sendToAhk({ action: 'clientLog', level: 'error', text: `AHK IPC Parse/Handling error: ${e.message}` });
+            } catch (_) { }
         }
     });
 }
@@ -969,11 +984,24 @@ function handleEngineMessage(msg) {
 
         case 'logitechAllProfilesLoaded':
             state.activeOnboardProfileId = msg.activeProfileId || 1;
-            state.selectedOnboardProfileId = msg.selectedProfileId || state.activeOnboardProfileId;
-            state.onboardProfiles = msg.profiles || [];
+            state.selectedOnboardProfileId = state.selectedOnboardProfileId || msg.selectedProfileId || state.activeOnboardProfileId;
+            state.onboardProfiles = (msg.profiles && msg.profiles.length > 0) ? msg.profiles : state.onboardProfiles;
+            if (state.onboardProfiles && state.onboardProfiles[state.activeOnboardProfileId - 1]) {
+                const activeProf = state.onboardProfiles[state.activeOnboardProfileId - 1];
+                if (activeProf.buttons) {
+                    if (!state.hardwareFKeys) state.hardwareFKeys = {};
+                    Object.assign(state.hardwareFKeys, activeProf.buttons);
+                }
+            }
+            sendToAhk({
+                action: 'clientLog',
+                level: 'info',
+                text: `Profiles loaded from mouse: count=${state.onboardProfiles ? state.onboardProfiles.length : 0}, active=${state.activeOnboardProfileId}`
+            });
             renderOmmProfilesTabs();
             renderOmmDpiStrip();
             renderOmmGrid();
+            refreshCardsAndStage();
             break;
 
         case 'logitechProfileSwitched':
@@ -8153,666 +8181,665 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
     }
 
     // 3. UNASSIGN / CLEAR HARDWARE KEY
-        const clearDivider = document.createElement('div');
-        clearDivider.className = 'ctx-sub-divider-text';
-        clearDivider.textContent = 'UNASSIGN';
-        submenu.appendChild(clearDivider);
+    const clearDivider = document.createElement('div');
+    clearDivider.className = 'ctx-sub-divider-text';
+    clearDivider.textContent = 'UNASSIGN';
+    submenu.appendChild(clearDivider);
 
-        const clearItem = document.createElement('div');
-        clearItem.className = `ctx-sub-item ${!currentFKey ? 'current-fkey' : ''}`;
-        clearItem.innerHTML = `
+    const clearItem = document.createElement('div');
+    clearItem.className = `ctx-sub-item ${!currentFKey ? 'current-fkey' : ''}`;
+    clearItem.innerHTML = `
         <span class="fkey-tag" style="color:var(--text-muted);">None</span>
         <span class="fkey-assigned-btn" style="color:var(--text-muted);">${!currentFKey ? `${getSvgIcon('check', 'svg-icon-xs')} Current` : 'Clear / Unassign'}</span>
     `;
-        clearItem.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeButtonContextMenu();
-            if (!currentFKey) return;
-            if (state.hardwareFKeys?.[currentBtnId]) {
-                delete state.hardwareFKeys[currentBtnId];
-            }
-            sendToAhk({
-                action: 'setHardwareFKey',
-                btnId: currentBtnId,
-                fkey: ''
-            });
-            sendButtonsToAhk();
-            renderAllCards();
-            if (typeof renderCalibPills === 'function') renderCalibPills();
-            showToast('Hardware Key Cleared', `${currentBtnId} hardware trigger unassigned`);
-        });
-        submenu.appendChild(clearItem);
-    }
-
-    function copyButtonMappingAction(btnId) {
-        const btnInfo = DIAGRAM_POINTS[btnId];
-        const btnName = btnInfo ? btnInfo.name : btnId;
-        const prof = state.mappings[state.currentProfile] || {};
-        const btnMap = prof[btnId] || null;
-
-        state.copiedButtonMapping = {
-            btnId: btnId,
-            btnName: btnName,
-            fromProfile: state.currentProfile,
-            mapping: btnMap ? JSON.parse(JSON.stringify(btnMap)) : null
-        };
-        showToast('Button Mapping Copied', `Copied mapping from ${btnName} (${state.currentProfile})`);
-    }
-
-    function pasteButtonMappingAction(targetBtnId) {
-        if (!state.copiedButtonMapping || !state.copiedButtonMapping.btnId) {
-            showToast('No Mapping Copied', 'Right-click a button and choose "Copy Button Mapping" first.');
-            return;
+    clearItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeButtonContextMenu();
+        if (!currentFKey) return;
+        if (state.hardwareFKeys?.[currentBtnId]) {
+            delete state.hardwareFKeys[currentBtnId];
         }
-        const sourceBtnId = state.copiedButtonMapping.btnId;
-        const sourceName = state.copiedButtonMapping.btnName;
-        const fromProfile = state.copiedButtonMapping.fromProfile || state.currentProfile;
-        const toProfile = state.currentProfile;
-        const targetInfo = DIAGRAM_POINTS[targetBtnId];
-        const targetName = targetInfo ? targetInfo.name : targetBtnId;
-
-        // Optimistically update local mapping for instantaneous UI response
-        if (state.copiedButtonMapping.mapping) {
-            if (!state.mappings[toProfile]) state.mappings[toProfile] = {};
-            state.mappings[toProfile][targetBtnId] = JSON.parse(JSON.stringify(state.copiedButtonMapping.mapping));
-            refreshCardsAndStage();
-            updateSvgLines();
-        }
-
         sendToAhk({
-            action: 'copySingleButtonMapping',
-            fromProfile: fromProfile,
-            toProfile: toProfile,
-            fromBtnId: sourceBtnId,
-            toBtnId: targetBtnId,
-            mapping: state.copiedButtonMapping.mapping
+            action: 'setHardwareFKey',
+            btnId: currentBtnId,
+            fkey: ''
         });
+        sendButtonsToAhk();
+        renderAllCards();
+        if (typeof renderCalibPills === 'function') renderCalibPills();
+        showToast('Hardware Key Cleared', `${currentBtnId} hardware trigger unassigned`);
+    });
+    submenu.appendChild(clearItem);
+}
 
-        const profMsg = (fromProfile !== toProfile) ? `from "${fromProfile}" into "${toProfile}"` : `into ${targetName}`;
-        showToast('Mapping Pasted', `Applied ${sourceName} ${profMsg}`);
+function copyButtonMappingAction(btnId) {
+    const btnInfo = DIAGRAM_POINTS[btnId];
+    const btnName = btnInfo ? btnInfo.name : btnId;
+    const prof = state.mappings[state.currentProfile] || {};
+    const btnMap = prof[btnId] || null;
+
+    state.copiedButtonMapping = {
+        btnId: btnId,
+        btnName: btnName,
+        fromProfile: state.currentProfile,
+        mapping: btnMap ? JSON.parse(JSON.stringify(btnMap)) : null
+    };
+    showToast('Button Mapping Copied', `Copied mapping from ${btnName} (${state.currentProfile})`);
+}
+
+function pasteButtonMappingAction(targetBtnId) {
+    if (!state.copiedButtonMapping || !state.copiedButtonMapping.btnId) {
+        showToast('No Mapping Copied', 'Right-click a button and choose "Copy Button Mapping" first.');
+        return;
+    }
+    const sourceBtnId = state.copiedButtonMapping.btnId;
+    const sourceName = state.copiedButtonMapping.btnName;
+    const fromProfile = state.copiedButtonMapping.fromProfile || state.currentProfile;
+    const toProfile = state.currentProfile;
+    const targetInfo = DIAGRAM_POINTS[targetBtnId];
+    const targetName = targetInfo ? targetInfo.name : targetBtnId;
+
+    // Optimistically update local mapping for instantaneous UI response
+    if (state.copiedButtonMapping.mapping) {
+        if (!state.mappings[toProfile]) state.mappings[toProfile] = {};
+        state.mappings[toProfile][targetBtnId] = JSON.parse(JSON.stringify(state.copiedButtonMapping.mapping));
+        refreshCardsAndStage();
+        updateSvgLines();
     }
 
-    // ============================================================================
-    // ONBOARD MEMORY MANAGER (OMM) SETUP & F-KEY INJECTOR MODAL
-    // ============================================================================
-    const LOGI_DEFAULT_FKEYS = {
-        'Middle': 'F13',
-        'Back': 'F22',
-        'DpiShift': 'F15',
-        'Forward': 'F16',
-        'TiltLeft': 'F17',
-        'TiltRight': 'F18',
-        'ProfileCycle': 'F19',
-        'G8': 'F20',
-        'G7': 'F21'
-    };
+    sendToAhk({
+        action: 'copySingleButtonMapping',
+        fromProfile: fromProfile,
+        toProfile: toProfile,
+        fromBtnId: sourceBtnId,
+        toBtnId: targetBtnId,
+        mapping: state.copiedButtonMapping.mapping
+    });
 
-    const LOGI_FACTORY_DEFAULTS = {
-        'Middle': 'Middle',
-        'Back': 'Back',
-        'DpiShift': 'DpiShift',
-        'Forward': 'Forward',
-        'TiltLeft': 'TiltLeft',
-        'TiltRight': 'TiltRight',
-        'ProfileCycle': 'ProfileCycle',
-        'G8': 'DpiUp',
-        'G7': 'DpiDown'
-    };
+    const profMsg = (fromProfile !== toProfile) ? `from "${fromProfile}" into "${toProfile}"` : `into ${targetName}`;
+    showToast('Mapping Pasted', `Applied ${sourceName} ${profMsg}`);
+}
 
-    const OMM_BUTTONS = [
-        { btnId: 'Middle', defaultFKey: 'Middle', label: 'Mouse 3 (Middle Click)' },
-        { btnId: 'Back', defaultFKey: 'Back', label: 'G4 (Browser Back)' },
-        { btnId: 'DpiShift', defaultFKey: 'DpiShift', label: 'DPI Shift (Sniper)' },
-        { btnId: 'Forward', defaultFKey: 'Forward', label: 'G5 (Browser Forward)' },
-        { btnId: 'TiltLeft', defaultFKey: 'TiltLeft', label: 'Tilt Wheel Left' },
-        { btnId: 'TiltRight', defaultFKey: 'TiltRight', label: 'Tilt Wheel Right' },
-        { btnId: 'ProfileCycle', defaultFKey: 'ProfileCycle', label: 'G9 (Profile Cycle)' },
-        { btnId: 'G8', defaultFKey: 'DpiUp', label: 'G8 (DPI Up)' },
-        { btnId: 'G7', defaultFKey: 'DpiDown', label: 'G7 (DPI Down)' }
-    ];
+// ============================================================================
+// ONBOARD MEMORY MANAGER (OMM) SETUP & F-KEY INJECTOR MODAL
+// ============================================================================
+const LOGI_DEFAULT_FKEYS = {
+    'Middle': 'F13',
+    'Back': 'F14',
+    'DpiShift': 'F15',
+    'Forward': 'F16',
+    'G7': 'F17',
+    'G8': 'F18',
+    'ProfileCycle': 'F19',
+    'TiltLeft': 'F20',
+    'TiltRight': 'F21'
+};
 
-    function initOmmModal() {
-        const btnOpenHeader = document.getElementById('btnOpenOmmModal');
-        const btnOpenStage = document.getElementById('btnOpenOmmSetup');
-        const btnClose = document.getElementById('btnCloseOmmModal');
-        const btnDone = document.getElementById('btnDoneOmmModal');
-        const modal = document.getElementById('ommSetupModal');
+const LOGI_FACTORY_DEFAULTS = {
+    'Middle': 'Middle',
+    'Back': 'Back',
+    'DpiShift': 'DpiShift',
+    'Forward': 'Forward',
+    'TiltLeft': 'TiltLeft',
+    'TiltRight': 'TiltRight',
+    'ProfileCycle': 'ProfileCycle',
+    'G8': 'DpiUp',
+    'G7': 'DpiDown'
+};
 
-        if (btnOpenHeader) btnOpenHeader.addEventListener('click', openOmmModal);
-        if (btnOpenStage) btnOpenStage.addEventListener('click', openOmmModal);
-        if (btnClose) btnClose.addEventListener('click', closeOmmModal);
-        if (btnDone) btnDone.addEventListener('click', closeOmmModal);
+const OMM_BUTTONS = [
+    { btnId: 'Middle', defaultFKey: 'Middle', label: 'Mouse 3 (Middle Click)' },
+    { btnId: 'Back', defaultFKey: 'Back', label: 'G4 (Browser Back)' },
+    { btnId: 'DpiShift', defaultFKey: 'DpiShift', label: 'DPI Shift (Sniper)' },
+    { btnId: 'Forward', defaultFKey: 'Forward', label: 'G5 (Browser Forward)' },
+    { btnId: 'TiltLeft', defaultFKey: 'TiltLeft', label: 'Tilt Wheel Left' },
+    { btnId: 'TiltRight', defaultFKey: 'TiltRight', label: 'Tilt Wheel Right' },
+    { btnId: 'ProfileCycle', defaultFKey: 'ProfileCycle', label: 'G9 (Profile Cycle)' },
+    { btnId: 'G8', defaultFKey: 'DpiUp', label: 'G8 (DPI Up)' },
+    { btnId: 'G7', defaultFKey: 'DpiDown', label: 'G7 (DPI Down)' }
+];
 
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) closeOmmModal();
-            });
-        }
+function initOmmModal() {
+    const btnOpenHeader = document.getElementById('btnOpenOmmModal');
+    const btnHeaderBadge = document.getElementById('btnHeaderHardwareBadge');
+    const btnOpenStage = document.getElementById('btnOpenOmmSetup');
+    const btnClose = document.getElementById('btnCloseOmmModal');
+    const btnDone = document.getElementById('btnDoneOmmModal');
+    const modal = document.getElementById('ommSetupModal');
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
-                closeOmmModal();
-            }
+    if (btnOpenHeader) btnOpenHeader.addEventListener('click', openOmmModal);
+    if (btnHeaderBadge) btnHeaderBadge.addEventListener('click', openOmmModal);
+    if (btnOpenStage) btnOpenStage.addEventListener('click', openOmmModal);
+    if (btnClose) btnClose.addEventListener('click', closeOmmModal);
+    if (btnDone) btnDone.addEventListener('click', closeOmmModal);
+
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeOmmModal();
         });
+    }
 
-        // Toggle Quick Guide Drawer
-        const btnToggleGuide = document.getElementById('btnToggleOmmGuide');
-        const guideDrawer = document.getElementById('ommGuideDrawer');
-        if (btnToggleGuide && guideDrawer) {
-            btnToggleGuide.addEventListener('click', () => {
-                const isHidden = (guideDrawer.style.display === 'none');
-                guideDrawer.style.display = isHidden ? 'block' : 'none';
-                btnToggleGuide.classList.toggle('active', isHidden);
-            });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
+            closeOmmModal();
         }
+    });
 
-        // 1-Click Preset Matrix
-        const btnAutoFlash = document.getElementById('btnAutoFlashLogitech');
-        if (btnAutoFlash) {
-            btnAutoFlash.addEventListener('click', () => {
-                const targetProf = state.selectedOnboardProfileId || 1;
-                if (!state.hardwareFKeys) state.hardwareFKeys = {};
-                for (const bId in LOGI_DEFAULT_FKEYS) {
-                    const sel = document.getElementById(`ommSelect_${bId}`);
-                    if (sel) sel.value = LOGI_DEFAULT_FKEYS[bId];
-                    const badge = document.getElementById(`ommFKeyBadge_${bId}`);
-                    if (badge) badge.textContent = LOGI_DEFAULT_FKEYS[bId];
-                    if (targetProf === (state.activeOnboardProfileId || 1)) {
-                        state.hardwareFKeys[bId] = LOGI_DEFAULT_FKEYS[bId];
-                    }
+    // Toggle Quick Guide Drawer
+    const btnToggleGuide = document.getElementById('btnToggleOmmGuide');
+    const guideDrawer = document.getElementById('ommGuideDrawer');
+    if (btnToggleGuide && guideDrawer) {
+        btnToggleGuide.addEventListener('click', () => {
+            const isHidden = (guideDrawer.style.display === 'none');
+            guideDrawer.style.display = isHidden ? 'block' : 'none';
+            btnToggleGuide.classList.toggle('active', isHidden);
+        });
+    }
+
+    // Manual Read from Mouse EEPROM
+    const btnReload = document.getElementById('btnReloadHardwareMemory');
+    if (btnReload) {
+        btnReload.addEventListener('click', () => {
+            showToast('Reading Mouse Memory', 'Fetching live onboard profiles from mouse hardware...', 'info');
+            sendToAhk({ action: 'loadAllLogitechProfiles', forceRefresh: true });
+        });
+    }
+
+    // 1-Click Preset Matrix
+    const btnAutoFlash = document.getElementById('btnAutoFlashLogitech');
+    if (btnAutoFlash) {
+        btnAutoFlash.addEventListener('click', () => {
+            const targetProf = state.selectedOnboardProfileId || 1;
+            if (!state.hardwareFKeys) state.hardwareFKeys = {};
+            for (const bId in LOGI_DEFAULT_FKEYS) {
+                const sel = document.getElementById(`ommSelect_${bId}`);
+                if (sel) sel.value = LOGI_DEFAULT_FKEYS[bId];
+                const badge = document.getElementById(`ommFKeyBadge_${bId}`);
+                if (badge) badge.textContent = LOGI_DEFAULT_FKEYS[bId];
+                if (targetProf === (state.activeOnboardProfileId || 1)) {
+                    state.hardwareFKeys[bId] = LOGI_DEFAULT_FKEYS[bId];
                 }
+            }
 
-                if (state.onboardProfiles && state.onboardProfiles[targetProf - 1]) {
-                    state.onboardProfiles[targetProf - 1].buttons = Object.assign({}, LOGI_DEFAULT_FKEYS);
-                }
+            if (state.onboardProfiles && state.onboardProfiles[targetProf - 1]) {
+                state.onboardProfiles[targetProf - 1].buttons = Object.assign({}, LOGI_DEFAULT_FKEYS);
+            }
 
-                refreshCardsAndStage();
+            refreshCardsAndStage();
 
-                sendToAhk({
-                    action: 'flashLogitechAll',
-                    mappings: LOGI_DEFAULT_FKEYS,
-                    profileId: targetProf
-                });
-
-                showToast('Flashing Mouse Memory', `Writing F13–F21 preset directly to Profile ${targetProf} over USB...`, 'info');
+            sendToAhk({
+                action: 'flashLogitechAll',
+                mappings: LOGI_DEFAULT_FKEYS,
+                profileId: targetProf
             });
-        }
 
-        // Apply All Buttons to Studio & Physical Mouse Memory
-        const btnApplyAll = document.getElementById('btnApplyAllOnboard');
-        if (btnApplyAll) {
-            btnApplyAll.addEventListener('click', () => {
-                const targetProf = state.selectedOnboardProfileId || 1;
-                const mappings = {};
-                if (!state.hardwareFKeys) state.hardwareFKeys = {};
-                for (const bId in LOGI_DEFAULT_FKEYS) {
-                    const sel = document.getElementById(`ommSelect_${bId}`);
-                    const val = sel ? sel.value : (LOGI_DEFAULT_FKEYS[bId] || 'F13');
-                    mappings[bId] = val;
-                    const badge = document.getElementById(`ommFKeyBadge_${bId}`);
-                    if (badge) badge.textContent = val;
-                    if (targetProf === (state.activeOnboardProfileId || 1)) {
-                        state.hardwareFKeys[bId] = val;
-                    }
+            showToast('Flashing Mouse Memory', `Writing F13–F21 preset directly to Profile ${targetProf} over USB...`, 'info');
+        });
+    }
+
+    // Apply All Buttons to Studio & Physical Mouse Memory
+    const btnApplyAll = document.getElementById('btnApplyAllOnboard');
+    if (btnApplyAll) {
+        btnApplyAll.addEventListener('click', () => {
+            const targetProf = state.selectedOnboardProfileId || 1;
+            const mappings = {};
+            if (!state.hardwareFKeys) state.hardwareFKeys = {};
+            for (const bId in LOGI_DEFAULT_FKEYS) {
+                const sel = document.getElementById(`ommSelect_${bId}`);
+                const val = sel ? sel.value : (LOGI_DEFAULT_FKEYS[bId] || 'F13');
+                mappings[bId] = val;
+                const badge = document.getElementById(`ommFKeyBadge_${bId}`);
+                if (badge) badge.textContent = val;
+                if (targetProf === (state.activeOnboardProfileId || 1)) {
+                    state.hardwareFKeys[bId] = val;
                 }
+            }
 
-                if (state.onboardProfiles && state.onboardProfiles[targetProf - 1]) {
-                    state.onboardProfiles[targetProf - 1].buttons = Object.assign({}, mappings);
-                }
+            if (state.onboardProfiles && state.onboardProfiles[targetProf - 1]) {
+                state.onboardProfiles[targetProf - 1].buttons = Object.assign({}, mappings);
+            }
 
-                refreshCardsAndStage();
+            refreshCardsAndStage();
 
-                sendToAhk({
-                    action: 'flashLogitechAll',
-                    mappings: mappings,
-                    profileId: targetProf
-                });
+            sendToAhk({
+                action: 'flashLogitechAll',
+                mappings: mappings,
+                profileId: targetProf
+            });
 
-                btnApplyAll.classList.add('save-success');
-                btnApplyAll.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>⚡ Flashing All...</span>`;
-                showToast('Flashing Hardware', `Sending all button assignments directly to Profile ${targetProf} via USB...`, 'info');
+            btnApplyAll.classList.add('save-success');
+            btnApplyAll.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>⚡ Flashing All...</span>`;
+            showToast('Flashing Hardware', `Sending all button assignments directly to Profile ${targetProf} via USB...`, 'info');
 
-                // Visual feedback on all card save buttons
+            // Visual feedback on all card save buttons
+            document.querySelectorAll('.omm-save-secondary-btn').forEach(btn => {
+                btn.classList.add('save-success');
+                btn.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} <span class="btn-text">Saved!</span>`;
+            });
+
+            setTimeout(() => {
+                btnApplyAll.classList.remove('save-success');
+                btnApplyAll.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>⚡ Apply All</span>`;
                 document.querySelectorAll('.omm-save-secondary-btn').forEach(btn => {
-                    btn.classList.add('save-success');
-                    btn.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} <span class="btn-text">Saved!</span>`;
+                    btn.classList.remove('save-success');
+                    btn.innerHTML = `${getSvgIcon('save', 'svg-icon-xs')} <span class="btn-text">Save</span>`;
                 });
-
-                setTimeout(() => {
-                    btnApplyAll.classList.remove('save-success');
-                    btnApplyAll.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>⚡ Apply All</span>`;
-                    document.querySelectorAll('.omm-save-secondary-btn').forEach(btn => {
-                        btn.classList.remove('save-success');
-                        btn.innerHTML = `${getSvgIcon('save', 'svg-icon-xs')} <span class="btn-text">Save</span>`;
-                    });
-                }, 2000);
-            });
-        }
-
-        // Make Selected Profile Active in Hardware
-        const btnMakeActive = document.getElementById('btnMakeProfileActive');
-        if (btnMakeActive) {
-            btnMakeActive.addEventListener('click', () => {
-                const profId = state.selectedOnboardProfileId || 1;
-                btnMakeActive.disabled = true;
-                btnMakeActive.innerHTML = `${getSvgIcon('loader-2', 'spin svg-icon-xs')} <span>Switching...</span>`;
-                sendToAhk({
-                    action: 'switchLogitechProfile',
-                    profileId: profId
-                });
-            });
-        }
-
-        // Reset to Logitech Factory Defaults Button
-        const btnResetDefaults = document.getElementById('btnResetToDefaults');
-        if (btnResetDefaults) {
-            btnResetDefaults.addEventListener('click', () => {
-                const targetProf = state.selectedOnboardProfileId || 1;
-                if (!state.hardwareFKeys) state.hardwareFKeys = {};
-                for (const bId in LOGI_FACTORY_DEFAULTS) {
-                    const sel = document.getElementById(`ommSelect_${bId}`);
-                    if (sel) sel.value = LOGI_FACTORY_DEFAULTS[bId];
-                    const badge = document.getElementById(`ommFKeyBadge_${bId}`);
-                    if (badge) badge.textContent = LOGI_FACTORY_DEFAULTS[bId];
-                    if (targetProf === (state.activeOnboardProfileId || 1)) {
-                        state.hardwareFKeys[bId] = LOGI_FACTORY_DEFAULTS[bId];
-                    }
-                }
-                if (state.onboardProfiles && state.onboardProfiles[targetProf - 1]) {
-                    state.onboardProfiles[targetProf - 1].buttons = Object.assign({}, LOGI_FACTORY_DEFAULTS);
-                }
-                refreshCardsAndStage();
-                sendToAhk({
-                    action: 'resetLogitechDefaults',
-                    profileId: targetProf
-                });
-                showToast('Factory Defaults', `Reset Profile ${targetProf} to clean Logitech mouse defaults!`, 'success');
-            });
-        }
-
-        renderOmmProfilesTabs();
-        renderOmmDpiStrip();
-        renderOmmGrid();
+            }, 2000);
+        });
     }
 
-    function initLogitechTelemetry() {
-        const badgeBtn = document.getElementById('btnHeaderHardwareBadge');
-        const badgeName = document.getElementById('deviceBadgeName');
-        const badgeBatt = document.getElementById('deviceBadgeBatt');
-        const battPct = document.getElementById('deviceBattPct');
-        const battIcon = document.getElementById('deviceBattIcon');
+    // Make Selected Profile Active in Hardware
+    const btnMakeActive = document.getElementById('btnMakeProfileActive');
+    if (btnMakeActive) {
+        btnMakeActive.addEventListener('click', () => {
+            const profId = state.selectedOnboardProfileId || 1;
+            btnMakeActive.disabled = true;
+            btnMakeActive.innerHTML = `${getSvgIcon('loader-2', 'spin svg-icon-xs')} <span>Switching...</span>`;
+            sendToAhk({
+                action: 'switchLogitechProfile',
+                profileId: profId
+            });
+        });
+    }
 
-        if (!window.logitechDevice) return;
-
-        // Listen for device state and battery telemetry updates
-        window.logitechDevice.onStatusChange = (info) => {
-            if (!badgeBtn) return;
-            if (info.connected) {
-                badgeBtn.classList.add('connected');
-                badgeBtn.title = `${info.name} (Connected via HID++) — Click for Hardware Setup`;
-                if (badgeName) badgeName.textContent = info.name;
-
-                if (info.batteryLevel !== null && badgeBatt) {
-                    badgeBatt.style.display = 'inline-flex';
-                    if (battPct) battPct.textContent = `${info.batteryLevel}%`;
-                    if (battIcon) {
-                        const iconName = info.isCharging ? 'icon-battery-charging' : 'icon-battery';
-                        battIcon.innerHTML = `<use href="#${iconName}"></use>`;
-                    }
-                } else if (badgeBatt) {
-                    badgeBatt.style.display = 'none';
+    // Reset to Logitech Factory Defaults Button
+    const btnResetDefaults = document.getElementById('btnResetToDefaults');
+    if (btnResetDefaults) {
+        btnResetDefaults.addEventListener('click', () => {
+            const targetProf = state.selectedOnboardProfileId || 1;
+            if (!state.hardwareFKeys) state.hardwareFKeys = {};
+            for (const bId in LOGI_FACTORY_DEFAULTS) {
+                const sel = document.getElementById(`ommSelect_${bId}`);
+                if (sel) sel.value = LOGI_FACTORY_DEFAULTS[bId];
+                const badge = document.getElementById(`ommFKeyBadge_${bId}`);
+                if (badge) badge.textContent = LOGI_FACTORY_DEFAULTS[bId];
+                if (targetProf === (state.activeOnboardProfileId || 1)) {
+                    state.hardwareFKeys[bId] = LOGI_FACTORY_DEFAULTS[bId];
                 }
-
-                // Sync with AutoHotkey backend
-                if (window.chrome && window.chrome.webview) {
-                    window.chrome.webview.postMessage({
-                        action: 'logitechHardwareStatus',
-                        name: info.name,
-                        connected: true,
-                        batteryLevel: info.batteryLevel,
-                        isCharging: info.isCharging
-                    });
-                }
-            } else {
-                badgeBtn.classList.remove('connected');
-                badgeBtn.title = 'Logitech HID++ Hardware Engine: Click to Connect, Check Battery, or Auto-Pair Onboard Memory';
-                if (badgeName) badgeName.textContent = 'Connect Logitech Mouse';
-                if (badgeBatt) badgeBatt.style.display = 'none';
             }
-        };
-
-        if (badgeBtn) {
-            badgeBtn.addEventListener('click', async () => {
-                if (!window.logitechDevice.deviceInfo.connected) {
-                    try {
-                        const connected = await window.logitechDevice.connect();
-                        if (connected) {
-                            showToast('Hardware Connected', `Connected to ${window.logitechDevice.deviceInfo.name}`);
-                        }
-                    } catch (err) {
-                        showToast('Connection Cancelled', err.message || 'No device selected', 'warning');
-                    }
-                } else {
-                    openOmmModal();
-                }
-            });
-        }
-
-        // Attempt automatic background reconnection to previously authorized devices
-        setTimeout(() => {
-            window.logitechDevice.autoConnect().catch(() => {});
-        }, 1200);
-
-        // Periodic battery refresh every 3 minutes if connected
-        setInterval(() => {
-            if (window.logitechDevice && window.logitechDevice.deviceInfo.connected) {
-                window.logitechDevice.refreshBattery().catch(() => {});
+            if (state.onboardProfiles && state.onboardProfiles[targetProf - 1]) {
+                state.onboardProfiles[targetProf - 1].buttons = Object.assign({}, LOGI_FACTORY_DEFAULTS);
             }
-        }, 180000);
+            refreshCardsAndStage();
+            sendToAhk({
+                action: 'resetLogitechDefaults',
+                profileId: targetProf
+            });
+            showToast('Factory Defaults', `Reset Profile ${targetProf} to clean Logitech mouse defaults!`, 'success');
+        });
     }
 
-    function openOmmModal() {
-        renderOmmProfilesTabs();
-        renderOmmDpiStrip();
-        renderOmmGrid();
-        handleOmmReset();
-        const modal = document.getElementById('ommSetupModal');
-        if (modal) {
-            modal.classList.add('open');
-            modal.style.display = 'flex';
+    renderOmmProfilesTabs();
+    renderOmmDpiStrip();
+    renderOmmGrid();
+}
+
+function initLogitechTelemetry() {
+    const badgeBtn = document.getElementById('btnHeaderHardwareBadge');
+    const badgeName = document.getElementById('deviceBadgeName');
+    const badgeBatt = document.getElementById('deviceBadgeBatt');
+    const battPct = document.getElementById('deviceBattPct');
+    const battIcon = document.getElementById('deviceBattIcon');
+
+    if (!window.logitechDevice) return;
+
+    // Listen for device state and battery telemetry updates
+    window.logitechDevice.onStatusChange = (info) => {
+        if (!badgeBtn) return;
+        if (info.connected) {
+            badgeBtn.classList.add('connected');
+            badgeBtn.title = `${info.name} (Connected via HID++) — Click for Hardware Setup`;
+            if (badgeName) badgeName.textContent = info.name;
+
+            if (info.batteryLevel !== null && badgeBatt) {
+                badgeBatt.style.display = 'inline-flex';
+                if (battPct) battPct.textContent = `${info.batteryLevel}%`;
+                if (battIcon) {
+                    const iconName = info.isCharging ? 'icon-battery-charging' : 'icon-battery';
+                    battIcon.innerHTML = `<use href="#${iconName}"></use>`;
+                }
+            } else if (badgeBatt) {
+                badgeBatt.style.display = 'none';
+            }
+
+            // Sync with AutoHotkey backend
+            sendToAhk({
+                action: 'logitechHardwareStatus',
+                name: info.name,
+                connected: true,
+                batteryLevel: info.batteryLevel,
+                isCharging: info.isCharging
+            });
+        } else {
+            badgeBtn.classList.remove('connected');
+            badgeBtn.title = 'Logitech HID++ Hardware Engine: Click to Connect, Check Battery, or Auto-Pair Onboard Memory';
+            if (badgeName) badgeName.textContent = 'Connect Logitech Mouse';
+            if (badgeBatt) badgeBatt.style.display = 'none';
         }
-        sendToAhk({ action: 'getLogitechStatus' });
-        sendToAhk({ action: 'loadAllLogitechProfiles' });
-    }
-
-    function closeOmmModal() {
-        const modal = document.getElementById('ommSetupModal');
-        if (modal) {
-            modal.classList.remove('open');
-            modal.style.display = 'none';
-        }
-    }
-
-    const LOGI_G502_INDICES = {
-        'LeftClick': 0, 'RightClick': 1, 'Middle': 2, 'Back': 3, 'Forward': 4,
-        'DpiShift': 5, 'G7': 6, 'G8': 7, 'TiltLeft': 8, 'TiltRight': 9, 'ProfileCycle': 10
     };
 
-    function formatOmmBadgeLabel(val) {
-        if (!val) return 'Middle';
-        const u = val.toUpperCase();
-        if (/^F(1[3-9]|2[0-4])$/.test(u)) return u;
-        if (/^F([1-9]|1[0-2])$/.test(u)) return u;
-        if (/^[A-Z]$/.test(u)) return u;
-        if (/^[0-9]$/.test(u)) return u;
-        switch (val) {
-            case 'LeftClick': return 'Mouse 1';
-            case 'RightClick': return 'Mouse 2';
-            case 'Middle': return 'Mouse 3';
-            case 'Back': return 'Mouse 4';
-            case 'Forward': return 'Mouse 5';
-            case 'TiltLeft': return 'Tilt Left';
-            case 'TiltRight': return 'Tilt Right';
-            case 'DpiUp': return 'Next DPI';
-            case 'DpiDown': return 'Prev DPI';
-            case 'DpiShift': return 'DPI Shift';
-            case 'DpiCycle': return 'DPI Cycle';
-            case 'ProfileCycle': return 'Cycle Profiles';
-            case 'Disabled': return 'Disabled';
-            default:
-                if (val.startsWith('Key_0x')) return val.replace('Key_0x', '0x');
-                return val;
-        }
+    if (badgeBtn) {
+        badgeBtn.addEventListener('click', () => {
+            openOmmModal();
+        });
     }
 
-    function renderHardwareTargetOptions(currentVal) {
-        const cur = (currentVal || '').toUpperCase();
-        let matched = false;
+    // Attempt automatic background reconnection to previously authorized devices
+    setTimeout(() => {
+        window.logitechDevice.autoConnect().catch(() => { });
+    }, 1200);
 
-        // 1. Virtual F-Keys (F13..F24)
-        const fkeys = ['F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'F21', 'F22', 'F23', 'F24'];
-        let html = `<optgroup label="Virtual F-Keys (Studio Macro Layer)">`;
-        fkeys.forEach(fk => {
-            const isSel = (cur === fk);
-            if (isSel) matched = true;
-            html += `<option value="${fk}" ${isSel ? 'selected' : ''}>⚡ ${fk} (Virtual F-Key)</option>`;
-        });
-        html += `</optgroup>`;
-
-        // 2. Keyboard Keystrokes (A-Z)
-        html += `<optgroup label="Keyboard Keystrokes (A-Z)">`;
-        const letters = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
-        letters.forEach(letter => {
-            const isSel = (cur === letter);
-            if (isSel) matched = true;
-            html += `<option value="${letter}" ${isSel ? 'selected' : ''}>Key '${letter}'</option>`;
-        });
-        html += `</optgroup>`;
-
-        // 3. Numbers & Standard Keyboard Keys
-        html += `<optgroup label="Keyboard Numbers & Keys">`;
-        const stdKeys = [
-            { val: '1', label: "Key '1'" },
-            { val: '2', label: "Key '2'" },
-            { val: '3', label: "Key '3'" },
-            { val: '4', label: "Key '4'" },
-            { val: '5', label: "Key '5'" },
-            { val: '6', label: "Key '6'" },
-            { val: '7', label: "Key '7'" },
-            { val: '8', label: "Key '8'" },
-            { val: '9', label: "Key '9'" },
-            { val: '0', label: "Key '0'" },
-            { val: 'Enter', label: 'Enter (Return)' },
-            { val: 'Escape', label: 'Escape (Esc)' },
-            { val: 'Tab', label: 'Tab' },
-            { val: 'Space', label: 'Spacebar' },
-            { val: 'Backspace', label: 'Backspace' },
-            { val: 'Delete', label: 'Delete' }
-        ];
-        stdKeys.forEach(k => {
-            const isSel = (cur === k.val.toUpperCase());
-            if (isSel) matched = true;
-            html += `<option value="${k.val}" ${isSel ? 'selected' : ''}>${k.label}</option>`;
-        });
-        html += `</optgroup>`;
-
-        // 4. Standard Function Keys (F1..F12)
-        html += `<optgroup label="Standard Function Keys (F1-F12)">`;
-        for (let i = 1; i <= 12; i++) {
-            const fnName = `F${i}`;
-            const isSel = (cur === fnName);
-            if (isSel) matched = true;
-            html += `<option value="${fnName}" ${isSel ? 'selected' : ''}>${fnName}</option>`;
+    // Periodic battery refresh every 3 minutes if connected
+    setInterval(() => {
+        if (window.logitechDevice && window.logitechDevice.deviceInfo.connected) {
+            window.logitechDevice.refreshBattery().catch(() => { });
         }
-        html += `</optgroup>`;
+    }, 180000);
+}
 
-        // 5. Standard Mouse Functions
-        html += `<optgroup label="Standard Mouse Functions">`;
-        const mouseDefs = [
-            { val: 'LeftClick', label: 'Left Click (Mouse 1)' },
-            { val: 'RightClick', label: 'Right Click (Mouse 2)' },
-            { val: 'Middle', label: 'Middle Click (Mouse 3)' },
-            { val: 'Back', label: 'Back Button (Mouse 4 / G4)' },
-            { val: 'Forward', label: 'Forward Button (Mouse 5 / G5)' },
-            { val: 'TiltLeft', label: 'Wheel Tilt Left' },
-            { val: 'TiltRight', label: 'Wheel Tilt Right' }
-        ];
-        mouseDefs.forEach(m => {
-            const isSel = (cur === m.val.toUpperCase());
-            if (isSel) matched = true;
-            html += `<option value="${m.val}" ${isSel ? 'selected' : ''}>${m.label}</option>`;
-        });
-        html += `</optgroup>`;
+function openOmmModal() {
+    renderOmmProfilesTabs();
+    renderOmmDpiStrip();
+    renderOmmGrid();
+    handleOmmReset();
+    const modal = document.getElementById('ommSetupModal');
+    if (modal) {
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+    }
+    sendToAhk({ action: 'loadAllLogitechProfiles', forceRefresh: false });
+}
 
-        // 6. Hardware DPI & Profile Controls
-        html += `<optgroup label="Hardware DPI & Profile Controls">`;
-        const dpiDefs = [
-            { val: 'DpiUp', label: 'Next DPI (DPI Up / G8)' },
-            { val: 'DpiDown', label: 'Previous DPI (DPI Down / G7)' },
-            { val: 'DpiShift', label: 'DPI Shift (Sniper / Paddle)' },
-            { val: 'DpiCycle', label: 'DPI Cycle' },
-            { val: 'ProfileCycle', label: 'Cycle Profiles (G9)' }
-        ];
-        dpiDefs.forEach(d => {
-            const isSel = (cur === d.val.toUpperCase());
-            if (isSel) matched = true;
-            html += `<option value="${d.val}" ${isSel ? 'selected' : ''}>${d.label}</option>`;
-        });
-        html += `</optgroup>`;
+function closeOmmModal() {
+    const modal = document.getElementById('ommSetupModal');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+    }
+}
 
-        // 7. Special / Custom
-        html += `<optgroup label="Special">`;
-        const isDis = (cur === 'DISABLED');
-        if (isDis) matched = true;
-        html += `<option value="Disabled" ${isDis ? 'selected' : ''}>Disabled / No-Op</option>`;
+const LOGI_G502_INDICES = {
+    'LeftClick': 0, 'RightClick': 1, 'Middle': 2, 'Back': 3, 'Forward': 4,
+    'DpiShift': 5, 'G7': 6, 'G8': 7, 'TiltLeft': 8, 'TiltRight': 9, 'ProfileCycle': 10
+};
 
-        // If hardware memory contains any other custom key not in standard list, render it selected
-        if (!matched && currentVal && currentVal !== 'Disabled') {
-            html += `<option value="${currentVal}" selected>★ ${currentVal} (Hardware Stored)</option>`;
-        }
-        html += `</optgroup>`;
+function formatOmmBadgeLabel(val) {
+    if (!val) return 'Middle';
+    const u = val.toUpperCase();
+    if (/^F(1[3-9]|2[0-4])$/.test(u)) return u;
+    if (/^F([1-9]|1[0-2])$/.test(u)) return u;
+    if (/^[A-Z]$/.test(u)) return u;
+    if (/^[0-9]$/.test(u)) return u;
+    switch (val) {
+        case 'LeftClick': return 'Mouse 1';
+        case 'RightClick': return 'Mouse 2';
+        case 'Middle': return 'Mouse 3';
+        case 'Back': return 'Mouse 4';
+        case 'Forward': return 'Mouse 5';
+        case 'TiltLeft': return 'Tilt Left';
+        case 'TiltRight': return 'Tilt Right';
+        case 'DpiUp': return 'Next DPI';
+        case 'DpiDown': return 'Prev DPI';
+        case 'DpiShift': return 'DPI Shift';
+        case 'DpiCycle': return 'DPI Cycle';
+        case 'ProfileCycle': return 'Cycle Profiles';
+        case 'Disabled': return 'Disabled';
+        default:
+            if (val.startsWith('Key_0x')) return val.replace('Key_0x', '0x');
+            return val;
+    }
+}
 
-        return html;
+function renderHardwareTargetOptions(currentVal) {
+    const cur = (currentVal || '').toUpperCase();
+    let matched = false;
+
+    // 1. Virtual F-Keys (F13..F24)
+    const fkeys = ['F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'F21', 'F22', 'F23', 'F24'];
+    let html = `<optgroup label="Virtual F-Keys (Studio Macro Layer)">`;
+    fkeys.forEach(fk => {
+        const isSel = (cur === fk);
+        if (isSel) matched = true;
+        html += `<option value="${fk}" ${isSel ? 'selected' : ''}>⚡ ${fk} (Virtual F-Key)</option>`;
+    });
+    html += `</optgroup>`;
+
+    // 2. Keyboard Keystrokes (A-Z)
+    html += `<optgroup label="Keyboard Keystrokes (A-Z)">`;
+    const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+    letters.forEach(letter => {
+        const isSel = (cur === letter);
+        if (isSel) matched = true;
+        html += `<option value="${letter}" ${isSel ? 'selected' : ''}>Key '${letter}'</option>`;
+    });
+    html += `</optgroup>`;
+
+    // 3. Numbers & Standard Keyboard Keys
+    html += `<optgroup label="Keyboard Numbers & Keys">`;
+    const stdKeys = [
+        { val: '1', label: "Key '1'" },
+        { val: '2', label: "Key '2'" },
+        { val: '3', label: "Key '3'" },
+        { val: '4', label: "Key '4'" },
+        { val: '5', label: "Key '5'" },
+        { val: '6', label: "Key '6'" },
+        { val: '7', label: "Key '7'" },
+        { val: '8', label: "Key '8'" },
+        { val: '9', label: "Key '9'" },
+        { val: '0', label: "Key '0'" },
+        { val: 'Enter', label: 'Enter (Return)' },
+        { val: 'Escape', label: 'Escape (Esc)' },
+        { val: 'Tab', label: 'Tab' },
+        { val: 'Space', label: 'Spacebar' },
+        { val: 'Backspace', label: 'Backspace' },
+        { val: 'Delete', label: 'Delete' }
+    ];
+    stdKeys.forEach(k => {
+        const isSel = (cur === k.val.toUpperCase());
+        if (isSel) matched = true;
+        html += `<option value="${k.val}" ${isSel ? 'selected' : ''}>${k.label}</option>`;
+    });
+    html += `</optgroup>`;
+
+    // 4. Standard Function Keys (F1..F12)
+    html += `<optgroup label="Standard Function Keys (F1-F12)">`;
+    for (let i = 1; i <= 12; i++) {
+        const fnName = `F${i}`;
+        const isSel = (cur === fnName);
+        if (isSel) matched = true;
+        html += `<option value="${fnName}" ${isSel ? 'selected' : ''}>${fnName}</option>`;
+    }
+    html += `</optgroup>`;
+
+    // 5. Standard Mouse Functions
+    html += `<optgroup label="Standard Mouse Functions">`;
+    const mouseDefs = [
+        { val: 'LeftClick', label: 'Left Click (Mouse 1)' },
+        { val: 'RightClick', label: 'Right Click (Mouse 2)' },
+        { val: 'Middle', label: 'Middle Click (Mouse 3)' },
+        { val: 'Back', label: 'Back Button (Mouse 4 / G4)' },
+        { val: 'Forward', label: 'Forward Button (Mouse 5 / G5)' },
+        { val: 'TiltLeft', label: 'Wheel Tilt Left' },
+        { val: 'TiltRight', label: 'Wheel Tilt Right' }
+    ];
+    mouseDefs.forEach(m => {
+        const isSel = (cur === m.val.toUpperCase());
+        if (isSel) matched = true;
+        html += `<option value="${m.val}" ${isSel ? 'selected' : ''}>${m.label}</option>`;
+    });
+    html += `</optgroup>`;
+
+    // 6. Hardware DPI & Profile Controls
+    html += `<optgroup label="Hardware DPI & Profile Controls">`;
+    const dpiDefs = [
+        { val: 'DpiUp', label: 'Next DPI (DPI Up / G8)' },
+        { val: 'DpiDown', label: 'Previous DPI (DPI Down / G7)' },
+        { val: 'DpiShift', label: 'DPI Shift (Sniper / Paddle)' },
+        { val: 'DpiCycle', label: 'DPI Cycle' },
+        { val: 'ProfileCycle', label: 'Cycle Profiles (G9)' }
+    ];
+    dpiDefs.forEach(d => {
+        const isSel = (cur === d.val.toUpperCase());
+        if (isSel) matched = true;
+        html += `<option value="${d.val}" ${isSel ? 'selected' : ''}>${d.label}</option>`;
+    });
+    html += `</optgroup>`;
+
+    // 7. Special / Custom
+    html += `<optgroup label="Special">`;
+    const isDis = (cur === 'DISABLED');
+    if (isDis) matched = true;
+    html += `<option value="Disabled" ${isDis ? 'selected' : ''}>Disabled / No-Op</option>`;
+
+    // If hardware memory contains any other custom key not in standard list, render it selected
+    if (!matched && currentVal && currentVal !== 'Disabled') {
+        html += `<option value="${currentVal}" selected>★ ${currentVal} (Hardware Stored)</option>`;
+    }
+    html += `</optgroup>`;
+
+    return html;
+}
+
+function renderOmmProfilesTabs() {
+    const container = document.getElementById('ommProfilesTabs');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!state.onboardProfiles || state.onboardProfiles.length === 0) {
+        state.onboardProfiles = [1, 2, 3, 4, 5].map(id => ({
+            id: id,
+            name: `Profile ${id}`,
+            isActive: (id === (state.activeOnboardProfileId || 1)),
+            sector: id,
+            buttons: Object.assign({}, LOGI_FACTORY_DEFAULTS),
+            dpis: [800, 1200, 1600, 2400, 3200],
+            activeDpiIndex: 2
+        }));
     }
 
-    function renderOmmProfilesTabs() {
-        const container = document.getElementById('ommProfilesTabs');
-        if (!container) return;
-        container.innerHTML = '';
+    const activeHwId = state.activeOnboardProfileId || 1;
+    const selectedId = state.selectedOnboardProfileId || activeHwId;
+    state.selectedOnboardProfileId = selectedId;
 
-        if (!state.onboardProfiles || state.onboardProfiles.length === 0) {
-            state.onboardProfiles = [1, 2, 3, 4, 5].map(id => ({
-                id: id,
-                name: `Profile ${id}`,
-                isActive: (id === (state.activeOnboardProfileId || 1)),
-                sector: id,
-                buttons: Object.assign({}, LOGI_FACTORY_DEFAULTS),
-                dpis: [800, 1200, 1600, 2400, 3200],
-                activeDpiIndex: 2
-            }));
-        }
+    state.onboardProfiles.forEach(prof => {
+        const isSelected = (prof.id === selectedId);
+        const isHwActive = (prof.id === activeHwId);
 
-        const activeHwId = state.activeOnboardProfileId || 1;
-        const selectedId = state.selectedOnboardProfileId || activeHwId;
-        state.selectedOnboardProfileId = selectedId;
+        const tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = `omm-profile-tab ${isSelected ? 'selected' : ''}`;
+        tab.title = `Profile ${prof.id} (EEPROM Sector ${prof.sector || prof.id})${isHwActive ? ' — Currently ACTIVE on mouse' : ''}`;
 
-        state.onboardProfiles.forEach(prof => {
-            const isSelected = (prof.id === selectedId);
-            const isHwActive = (prof.id === activeHwId);
+        const badgeHtml = isHwActive
+            ? `<span class="tab-badge active-hw">● ACTIVE</span>`
+            : `<span class="tab-badge">Slot ${prof.id}</span>`;
 
-            const tab = document.createElement('button');
-            tab.type = 'button';
-            tab.className = `omm-profile-tab ${isSelected ? 'selected' : ''}`;
-            tab.title = `Profile ${prof.id} (EEPROM Sector ${prof.sector || prof.id})${isHwActive ? ' — Currently ACTIVE on mouse' : ''}`;
+        tab.innerHTML = `<span>Profile ${prof.id}</span> ${badgeHtml}`;
 
-            const badgeHtml = isHwActive
-                ? `<span class="tab-badge active-hw">● ACTIVE</span>`
-                : `<span class="tab-badge">Slot ${prof.id}</span>`;
-
-            tab.innerHTML = `<span>Profile ${prof.id}</span> ${badgeHtml}`;
-
-            tab.addEventListener('click', () => {
-                state.selectedOnboardProfileId = prof.id;
-                renderOmmProfilesTabs();
-                renderOmmDpiStrip();
-                renderOmmGrid();
-            });
-
-            container.appendChild(tab);
+        tab.addEventListener('click', () => {
+            state.selectedOnboardProfileId = prof.id;
+            renderOmmProfilesTabs();
+            renderOmmDpiStrip();
+            renderOmmGrid();
         });
 
-        // Update the "Make Active on Mouse" action button
-        const btnMakeActive = document.getElementById('btnMakeProfileActive');
-        if (btnMakeActive) {
-            const isSelectedActive = (selectedId === activeHwId);
-            if (isSelectedActive) {
-                btnMakeActive.classList.add('is-active-now');
-                btnMakeActive.disabled = true;
-                btnMakeActive.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>● Active Profile</span>`;
-                btnMakeActive.title = `Profile ${selectedId} is already running on the physical mouse`;
-            } else {
-                btnMakeActive.classList.remove('is-active-now');
-                btnMakeActive.disabled = false;
-                btnMakeActive.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-zap"></use></svg> <span>⚡ Switch Mouse to Profile ${selectedId}</span>`;
-                btnMakeActive.title = `Switch physical mouse to run from Profile ${selectedId} in hardware`;
-            }
+        container.appendChild(tab);
+    });
+
+    // Update the "Make Active on Mouse" action button
+    const btnMakeActive = document.getElementById('btnMakeProfileActive');
+    if (btnMakeActive) {
+        const isSelectedActive = (selectedId === activeHwId);
+        if (isSelectedActive) {
+            btnMakeActive.classList.add('is-active-now');
+            btnMakeActive.disabled = true;
+            btnMakeActive.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>● Active Profile</span>`;
+            btnMakeActive.title = `Profile ${selectedId} is already running on the physical mouse`;
+        } else {
+            btnMakeActive.classList.remove('is-active-now');
+            btnMakeActive.disabled = false;
+            btnMakeActive.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-zap"></use></svg> <span>⚡ Switch Mouse to Profile ${selectedId}</span>`;
+            btnMakeActive.title = `Switch physical mouse to run from Profile ${selectedId} in hardware`;
         }
     }
+}
 
-    function renderOmmDpiStrip() {
-        const curProfId = state.selectedOnboardProfileId || state.activeOnboardProfileId || 1;
-        const prof = (state.onboardProfiles && state.onboardProfiles[curProfId - 1]) || null;
-        const dpis = (prof && prof.dpis && prof.dpis.length) ? prof.dpis : [800, 1200, 1600, 2400, 3200];
-        const activeDpiIdx = (prof && typeof prof.activeDpiIndex === 'number') ? prof.activeDpiIndex : 2;
+function renderOmmDpiStrip() {
+    const curProfId = state.selectedOnboardProfileId || state.activeOnboardProfileId || 1;
+    const prof = (state.onboardProfiles && state.onboardProfiles[curProfId - 1]) || null;
+    const dpis = (prof && prof.dpis && prof.dpis.length) ? prof.dpis : [800, 1200, 1600, 2400, 3200];
+    const activeDpiIdx = (prof && typeof prof.activeDpiIndex === 'number') ? prof.activeDpiIndex : 2;
 
-        const chipsContainer = document.getElementById('ommDpiChips');
-        if (chipsContainer) {
-            chipsContainer.innerHTML = dpis.map((dpi, idx) => {
-                const isActive = (idx === activeDpiIdx);
-                return `<span class="omm-dpi-chip ${isActive ? 'active' : ''}">${dpi} DPI${isActive ? ' ★' : ''}</span>`;
-            }).join('');
-        }
-
-        const sectorEl = document.getElementById('ommSectorIndex');
-        if (sectorEl) {
-            const sec = (prof && prof.sector) ? prof.sector : curProfId;
-            sectorEl.textContent = `Sector ${sec} (Profile ${curProfId})`;
-        }
-
-        const rateEl = document.getElementById('ommReportRate');
-        if (rateEl) {
-            rateEl.textContent = '1000 Hz';
-        }
+    const chipsContainer = document.getElementById('ommDpiChips');
+    if (chipsContainer) {
+        chipsContainer.innerHTML = dpis.map((dpi, idx) => {
+            const isActive = (idx === activeDpiIdx);
+            return `<span class="omm-dpi-chip ${isActive ? 'active' : ''}">${dpi} DPI${isActive ? ' ★' : ''}</span>`;
+        }).join('');
     }
 
-    function renderOmmGrid() {
-        const grid = document.getElementById('ommGrid');
-        if (!grid) return;
-        grid.innerHTML = '';
+    const sectorEl = document.getElementById('ommSectorIndex');
+    if (sectorEl) {
+        const sec = (prof && prof.sector) ? prof.sector : curProfId;
+        sectorEl.textContent = `Sector ${sec} (Profile ${curProfId})`;
+    }
 
-        const curProfId = state.selectedOnboardProfileId || state.activeOnboardProfileId || 1;
-        const curProf = (state.onboardProfiles && state.onboardProfiles[curProfId - 1]);
-        const profButtons = curProf ? curProf.buttons : null;
+    const rateEl = document.getElementById('ommReportRate');
+    if (rateEl) {
+        rateEl.textContent = '1000 Hz';
+    }
+}
 
-        // Collect all buttons in the active layout that are assignable (exclude standard primary left/right/scrolls)
-        const items = [];
-        const seenButtons = new Set();
+function renderOmmGrid() {
+    const grid = document.getElementById('ommGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
 
-        for (const btnId in DIAGRAM_POINTS) {
-            if (btnId === 'LeftClick' || btnId === 'RightClick' || btnId === 'WheelUp' || btnId === 'WheelDown') continue;
-            const pt = DIAGRAM_POINTS[btnId];
-            const currentFKey = (profButtons && profButtons[btnId])
-                || (curProfId === (state.activeOnboardProfileId || 1) && state.hardwareFKeys && state.hardwareFKeys[btnId])
+    const curProfId = state.selectedOnboardProfileId || state.activeOnboardProfileId || 1;
+    const curProf = (state.onboardProfiles && state.onboardProfiles[curProfId - 1]);
+    const profButtons = curProf ? curProf.buttons : null;
+
+    // Collect all buttons in the active layout that are assignable (exclude standard primary left/right/scrolls)
+    const items = [];
+    const seenButtons = new Set();
+
+    for (const btnId in DIAGRAM_POINTS) {
+        if (btnId === 'LeftClick' || btnId === 'RightClick' || btnId === 'WheelUp' || btnId === 'WheelDown') continue;
+        const pt = DIAGRAM_POINTS[btnId];
+        const currentFKey = (profButtons && profButtons[btnId] !== undefined)
+            ? profButtons[btnId]
+            : ((curProfId === (state.activeOnboardProfileId || 1) && state.hardwareFKeys && state.hardwareFKeys[btnId])
                 || LOGI_FACTORY_DEFAULTS[btnId]
-                || '';
+                || '');
+        items.push({
+            btnId: btnId,
+            label: pt.name || btnId,
+            fKey: currentFKey
+        });
+        seenButtons.add(btnId);
+    }
+
+    if (items.length === 0) {
+        OMM_BUTTONS.forEach(item => {
+            const currentFKey = (profButtons && profButtons[item.btnId] !== undefined)
+                ? profButtons[item.btnId]
+                : ((curProfId === (state.activeOnboardProfileId || 1) && state.hardwareFKeys && state.hardwareFKeys[item.btnId])
+                    || item.defaultFKey);
             items.push({
-                btnId: btnId,
-                label: pt.name || btnId,
+                btnId: item.btnId,
+                label: item.label,
                 fKey: currentFKey
             });
-            seenButtons.add(btnId);
-        }
+        });
+    }
 
-        if (items.length === 0) {
-            OMM_BUTTONS.forEach(item => {
-                const currentFKey = (profButtons && profButtons[item.btnId])
-                    || (curProfId === (state.activeOnboardProfileId || 1) && state.hardwareFKeys && state.hardwareFKeys[item.btnId])
-                    || item.defaultFKey;
-                items.push({
-                    btnId: item.btnId,
-                    label: item.label,
-                    fKey: currentFKey
-                });
-            });
-        }
+    items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'omm-card';
+        card.id = `ommCard_${item.btnId}`;
+        const curVal = item.fKey || LOGI_FACTORY_DEFAULTS[item.btnId] || 'Middle';
 
-        items.forEach(item => {
-            const card = document.createElement('div');
-            card.className = 'omm-card';
-            card.id = `ommCard_${item.btnId}`;
-            const curVal = item.fKey || LOGI_FACTORY_DEFAULTS[item.btnId] || 'Middle';
-
-            card.innerHTML = `
+        card.innerHTML = `
             <div class="omm-card-header">
                 <span class="omm-card-title">${item.label}</span>
                 <span class="omm-card-fkey" id="ommFKeyBadge_${item.btnId}">${formatOmmBadgeLabel(curVal)}</span>
@@ -8834,1360 +8861,1373 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
             </div>
         `;
 
-            const selectEl = card.querySelector(`#ommSelect_${item.btnId}`);
-            if (selectEl) {
-                selectEl.addEventListener('change', () => {
+        const selectEl = card.querySelector(`#ommSelect_${item.btnId}`);
+        if (selectEl) {
+            selectEl.addEventListener('change', () => {
+                const badge = card.querySelector(`#ommFKeyBadge_${item.btnId}`);
+                if (badge) badge.textContent = formatOmmBadgeLabel(selectEl.value);
+                if (curProf && curProf.buttons) {
+                    curProf.buttons[item.btnId] = selectEl.value;
+                }
+                if (curProfId === (state.activeOnboardProfileId || 1)) {
+                    if (!state.hardwareFKeys) state.hardwareFKeys = {};
+                    state.hardwareFKeys[item.btnId] = selectEl.value;
+                }
+            });
+        }
+
+        // Direct Hardware Flash Button (Instant USB HID++ Write)
+        const flashSingleBtn = card.querySelector(`#btnFlashSingle_${item.btnId}`);
+        if (flashSingleBtn) {
+            flashSingleBtn.addEventListener('click', () => {
+                const targetVal = selectEl ? selectEl.value : curVal;
+                flashSingleBtn.classList.add('save-success');
+                flashSingleBtn.innerHTML = `${getSvgIcon('loader-2', 'spin svg-icon-xs')} <span class="btn-text">Flashing...</span>`;
+                if (curProf && curProf.buttons) {
+                    curProf.buttons[item.btnId] = targetVal;
+                }
+                if (curProfId === (state.activeOnboardProfileId || 1)) {
+                    if (!state.hardwareFKeys) state.hardwareFKeys = {};
+                    state.hardwareFKeys[item.btnId] = targetVal;
+                    refreshCardsAndStage();
+                }
+                sendToAhk({
+                    action: 'flashLogitechButton',
+                    btnId: item.btnId,
+                    target: targetVal,
+                    profileId: curProfId
+                });
+            });
+        }
+
+        // Optional Legacy Inject Button
+        const injectBtn = card.querySelector(`#btnInjectLegacy_${item.btnId}`);
+        if (injectBtn) {
+            injectBtn.addEventListener('click', () => {
+                let keyToInject = selectEl ? selectEl.value : curVal;
+                if (!/^F(1[3-9]|2[0-4])$/i.test(keyToInject)) {
+                    const fallbackFKey = LOGI_DEFAULT_FKEYS[item.btnId] || 'F13';
+                    keyToInject = fallbackFKey;
+                    if (selectEl) selectEl.value = fallbackFKey;
                     const badge = card.querySelector(`#ommFKeyBadge_${item.btnId}`);
-                    if (badge) badge.textContent = formatOmmBadgeLabel(selectEl.value);
-                    if (curProf && curProf.buttons) {
-                        curProf.buttons[item.btnId] = selectEl.value;
-                    }
-                    if (curProfId === (state.activeOnboardProfileId || 1)) {
-                        if (!state.hardwareFKeys) state.hardwareFKeys = {};
-                        state.hardwareFKeys[item.btnId] = selectEl.value;
-                    }
+                    if (badge) badge.textContent = fallbackFKey;
+                }
+                sendToAhk({
+                    action: 'injectFKey',
+                    key: keyToInject,
+                    buttonId: item.btnId
                 });
+            });
+        }
+
+        grid.appendChild(card);
+    });
+}
+
+function handleOmmTick(secondsLeft, key) {
+    const box = document.getElementById('ommStatusBox');
+    const icon = document.getElementById('ommStatusIcon');
+    const text = document.getElementById('ommStatusText');
+    if (!box || !text) return;
+
+    box.className = 'omm-status-box active-countdown';
+    if (icon) icon.innerHTML = getSvgIcon('loader-2', 'spin');
+    text.textContent = `Focus OMM record field! Injecting ${key} in ${secondsLeft}s...`;
+}
+
+function handleOmmDone(key) {
+    const box = document.getElementById('ommStatusBox');
+    const icon = document.getElementById('ommStatusIcon');
+    const text = document.getElementById('ommStatusText');
+    if (!box || !text) return;
+
+    box.className = 'omm-status-box success';
+    if (icon) icon.innerHTML = getSvgIcon('check');
+    text.textContent = `>>> SENT {${key}} TO OMM! Click SAVE in OMM to store in mouse memory. <<<`;
+    showToast('Injected Key', `Typed {${key}} into OMM! Click SAVE in OMM to save to hardware.`, 'success');
+}
+
+function handleOmmReset() {
+    const box = document.getElementById('ommStatusBox');
+    const icon = document.getElementById('ommStatusIcon');
+    const text = document.getElementById('ommStatusText');
+    if (!box || !text) return;
+
+    box.className = 'omm-status-box';
+    if (icon) icon.innerHTML = getSvgIcon('zap');
+    text.textContent = 'Ready. Click any button below to start 3-second countdown.';
+}
+
+function handleLogitechStatus(msg) {
+    const badgeBtn = document.getElementById('btnHeaderHardwareBadge');
+    const badgeName = document.getElementById('deviceBadgeName');
+    const heroName = document.getElementById('nativeHidDeviceName');
+    const heroStatus = document.getElementById('nativeHidDeviceStatus');
+
+    if (msg.connected) {
+        if (badgeBtn) {
+            badgeBtn.classList.add('connected');
+            badgeBtn.title = `${msg.name} (Direct Win32 HID++ Hardware Connected)`;
+        }
+        if (badgeName) badgeName.textContent = msg.name || 'Logitech G502 X';
+        if (heroName) heroName.textContent = msg.name || 'Logitech G502 X';
+        if (heroStatus) {
+            heroStatus.innerHTML = `<span style="color:#a6e3a1; font-weight:700;">● Connected (Direct Win32 HID++)</span>`;
+        }
+        if (msg.activeProfileId) state.activeOnboardProfileId = msg.activeProfileId;
+        if (msg.selectedProfileId) state.selectedOnboardProfileId = msg.selectedProfileId;
+        if (msg.buttons && typeof msg.buttons === 'object') {
+            const actId = msg.activeProfileId || state.activeOnboardProfileId || 1;
+            if (!state.onboardProfiles || state.onboardProfiles.length === 0) {
+                state.onboardProfiles = [1, 2, 3, 4, 5].map(id => ({
+                    id: id,
+                    name: `Profile ${id}`,
+                    isActive: (id === actId),
+                    sector: id,
+                    buttons: Object.assign({}, LOGI_FACTORY_DEFAULTS),
+                    dpis: (id === actId && msg.dpis) ? [...msg.dpis] : [800, 1200, 1600, 2400, 3200],
+                    activeDpiIndex: (id === actId && typeof msg.activeDpiIndex === 'number') ? msg.activeDpiIndex : 2
+                }));
             }
-
-            // Direct Hardware Flash Button (Instant USB HID++ Write)
-            const flashSingleBtn = card.querySelector(`#btnFlashSingle_${item.btnId}`);
-            if (flashSingleBtn) {
-                flashSingleBtn.addEventListener('click', () => {
-                    const targetVal = selectEl ? selectEl.value : curVal;
-                    flashSingleBtn.classList.add('save-success');
-                    flashSingleBtn.innerHTML = `${getSvgIcon('loader-2', 'spin svg-icon-xs')} <span class="btn-text">Flashing...</span>`;
-                    if (curProf && curProf.buttons) {
-                        curProf.buttons[item.btnId] = targetVal;
-                    }
-                    if (curProfId === (state.activeOnboardProfileId || 1)) {
-                        if (!state.hardwareFKeys) state.hardwareFKeys = {};
-                        state.hardwareFKeys[item.btnId] = targetVal;
-                        refreshCardsAndStage();
-                    }
-                    sendToAhk({
-                        action: 'flashLogitechButton',
-                        btnId: item.btnId,
-                        target: targetVal,
-                        profileId: curProfId
-                    });
-                });
-            }
-
-            // Optional Legacy Inject Button
-            const injectBtn = card.querySelector(`#btnInjectLegacy_${item.btnId}`);
-            if (injectBtn) {
-                injectBtn.addEventListener('click', () => {
-                    let keyToInject = selectEl ? selectEl.value : curVal;
-                    if (!/^F(1[3-9]|2[0-4])$/i.test(keyToInject)) {
-                        const fallbackFKey = LOGI_DEFAULT_FKEYS[item.btnId] || 'F13';
-                        keyToInject = fallbackFKey;
-                        if (selectEl) selectEl.value = fallbackFKey;
-                        const badge = card.querySelector(`#ommFKeyBadge_${item.btnId}`);
-                        if (badge) badge.textContent = fallbackFKey;
-                    }
-                    sendToAhk({
-                        action: 'injectFKey',
-                        key: keyToInject,
-                        buttonId: item.btnId
-                    });
-                });
-            }
-
-            grid.appendChild(card);
-        });
-    }
-
-    function handleOmmTick(secondsLeft, key) {
-        const box = document.getElementById('ommStatusBox');
-        const icon = document.getElementById('ommStatusIcon');
-        const text = document.getElementById('ommStatusText');
-        if (!box || !text) return;
-
-        box.className = 'omm-status-box active-countdown';
-        if (icon) icon.innerHTML = getSvgIcon('loader-2', 'spin');
-        text.textContent = `Focus OMM record field! Injecting ${key} in ${secondsLeft}s...`;
-    }
-
-    function handleOmmDone(key) {
-        const box = document.getElementById('ommStatusBox');
-        const icon = document.getElementById('ommStatusIcon');
-        const text = document.getElementById('ommStatusText');
-        if (!box || !text) return;
-
-        box.className = 'omm-status-box success';
-        if (icon) icon.innerHTML = getSvgIcon('check');
-        text.textContent = `>>> SENT {${key}} TO OMM! Click SAVE in OMM to store in mouse memory. <<<`;
-        showToast('Injected Key', `Typed {${key}} into OMM! Click SAVE in OMM to save to hardware.`, 'success');
-    }
-
-    function handleOmmReset() {
-        const box = document.getElementById('ommStatusBox');
-        const icon = document.getElementById('ommStatusIcon');
-        const text = document.getElementById('ommStatusText');
-        if (!box || !text) return;
-
-        box.className = 'omm-status-box';
-        if (icon) icon.innerHTML = getSvgIcon('zap');
-        text.textContent = 'Ready. Click any button below to start 3-second countdown.';
-    }
-
-    function handleLogitechStatus(msg) {
-        const badgeBtn = document.getElementById('btnHeaderHardwareBadge');
-        const badgeName = document.getElementById('deviceBadgeName');
-        const heroName = document.getElementById('nativeHidDeviceName');
-        const heroStatus = document.getElementById('nativeHidDeviceStatus');
-
-        if (msg.connected) {
-            if (badgeBtn) {
-                badgeBtn.classList.add('connected');
-                badgeBtn.title = `${msg.name} (Direct Win32 HID++ Hardware Connected)`;
-            }
-            if (badgeName) badgeName.textContent = msg.name || 'Logitech G502 X';
-            if (heroName) heroName.textContent = msg.name || 'Logitech G502 X';
-            if (heroStatus) {
-                heroStatus.innerHTML = `<span style="color:#a6e3a1; font-weight:700;">● Connected (Direct Win32 HID++)</span>`;
-            }
-            if (msg.activeProfileId) state.activeOnboardProfileId = msg.activeProfileId;
-            if (msg.selectedProfileId) state.selectedOnboardProfileId = msg.selectedProfileId;
-            if (msg.buttons && typeof msg.buttons === 'object') {
-                for (const bId in msg.buttons) {
-                    const sel = document.getElementById(`ommSelect_${bId}`);
-                    if (sel) sel.value = msg.buttons[bId];
-                    const badge = document.getElementById(`ommFKeyBadge_${bId}`);
-                    if (badge) badge.textContent = formatOmmBadgeLabel(msg.buttons[bId]);
+            if (state.onboardProfiles && state.onboardProfiles[actId - 1]) {
+                state.onboardProfiles[actId - 1].buttons = Object.assign({}, msg.buttons);
+                if (msg.dpis && Array.isArray(msg.dpis)) {
+                    state.onboardProfiles[actId - 1].dpis = [...msg.dpis];
+                }
+                if (typeof msg.activeDpiIndex === 'number') {
+                    state.onboardProfiles[actId - 1].activeDpiIndex = msg.activeDpiIndex;
                 }
             }
-            renderOmmProfilesTabs();
-            renderOmmDpiStrip();
-        } else {
-            if (badgeBtn) {
-                badgeBtn.classList.remove('connected');
-                badgeBtn.title = 'Mouse Hardware Offline';
-            }
-            if (badgeName) badgeName.textContent = 'Hardware Offline';
-            if (heroStatus) {
-                heroStatus.innerHTML = `<span style="color:#f38ba8;">● Disconnected</span>`;
-            }
-        }
-    }
+            if (!state.hardwareFKeys) state.hardwareFKeys = {};
+            Object.assign(state.hardwareFKeys, msg.buttons);
 
-    function handleLogitechHardwareButtons(msg) {
-        const progressBox = document.getElementById('nativeHidProgressBox');
-        if (progressBox) progressBox.style.display = 'none';
-        const btnRead = document.getElementById('btnReadOnboard');
-        if (btnRead) btnRead.disabled = false;
-
-        if (msg.success && msg.buttons) {
             for (const bId in msg.buttons) {
-                const target = msg.buttons[bId];
                 const sel = document.getElementById(`ommSelect_${bId}`);
-                if (sel) sel.value = target;
+                if (sel) sel.value = msg.buttons[bId];
                 const badge = document.getElementById(`ommFKeyBadge_${bId}`);
-                if (badge) badge.textContent = formatOmmBadgeLabel(target);
-                if (!state.hardwareFKeys) state.hardwareFKeys = {};
-                state.hardwareFKeys[bId] = target;
+                if (badge) badge.textContent = formatOmmBadgeLabel(msg.buttons[bId]);
             }
-            showToast('Hardware Memory Loaded', 'Loaded current bindings directly from mouse EEPROM!', 'success');
-        } else {
-            showToast('Read Failed', 'Could not read from mouse hardware memory', 'error');
+        }
+        renderOmmProfilesTabs();
+        renderOmmDpiStrip();
+        renderOmmGrid();
+    } else {
+        if (badgeBtn) {
+            badgeBtn.classList.remove('connected');
+            badgeBtn.title = 'Mouse Hardware Offline';
+        }
+        if (badgeName) badgeName.textContent = 'Hardware Offline';
+        if (heroStatus) {
+            heroStatus.innerHTML = `<span style="color:#f38ba8;">● Disconnected</span>`;
         }
     }
+}
 
-    function handleLogitechButtonFlashed(msg) {
-        const btn = document.getElementById(`btnFlashSingle_${msg.btnId}`);
-        const pId = msg.profileId || state.selectedOnboardProfileId || 1;
-        if (msg.success) {
-            if (btn) {
-                btn.classList.add('save-success');
-                btn.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} <span class="btn-text">Flashed!</span>`;
-            }
-            const badge = document.getElementById(`ommFKeyBadge_${msg.btnId}`);
-            if (badge) badge.textContent = formatOmmBadgeLabel(msg.target);
-            const sel = document.getElementById(`ommSelect_${msg.btnId}`);
-            if (sel) sel.value = msg.target;
+function handleLogitechHardwareButtons(msg) {
+    const progressBox = document.getElementById('nativeHidProgressBox');
+    if (progressBox) progressBox.style.display = 'none';
+    const btnRead = document.getElementById('btnReadOnboard');
+    if (btnRead) btnRead.disabled = false;
 
-            if (state.onboardProfiles && state.onboardProfiles[pId - 1]) {
-                if (!state.onboardProfiles[pId - 1].buttons) state.onboardProfiles[pId - 1].buttons = {};
-                state.onboardProfiles[pId - 1].buttons[msg.btnId] = msg.target;
-            }
-
-            if (pId === (state.activeOnboardProfileId || 1)) {
-                if (!state.hardwareFKeys) state.hardwareFKeys = {};
-                state.hardwareFKeys[msg.btnId] = msg.target;
-                refreshCardsAndStage();
-            }
-
-            showToast('Hardware Flashed', `${msg.btnId} written to Profile ${pId} as ${msg.target}!`, 'success');
-
-            setTimeout(() => {
-                if (btn) {
-                    btn.classList.remove('save-success');
-                    btn.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} <span class="btn-text">⚡ Flash to Mouse</span>`;
-                    btn.disabled = false;
-                }
-            }, 2000);
-        } else {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} <span class="btn-text">⚡ Flash to Mouse</span>`;
-            }
-            showToast('Flash Failed', `Could not write to ${msg.btnId}`, 'error');
+    if (msg.success && msg.buttons) {
+        for (const bId in msg.buttons) {
+            const target = msg.buttons[bId];
+            const sel = document.getElementById(`ommSelect_${bId}`);
+            if (sel) sel.value = target;
+            const badge = document.getElementById(`ommFKeyBadge_${bId}`);
+            if (badge) badge.textContent = formatOmmBadgeLabel(target);
+            if (!state.hardwareFKeys) state.hardwareFKeys = {};
+            state.hardwareFKeys[bId] = target;
         }
+        showToast('Hardware Memory Loaded', 'Loaded current bindings directly from mouse EEPROM!', 'success');
+    } else {
+        showToast('Read Failed', 'Could not read from mouse hardware memory', 'error');
     }
+}
 
-    function handleLogitechAllFlashed(msg) {
-        const progressBox = document.getElementById('nativeHidProgressBox');
-        const progressFill = document.getElementById('nativeHidProgressFill');
-        const progressText = document.getElementById('nativeHidProgressText');
-        const btnAuto = document.getElementById('btnAutoFlashLogitech');
-        const btnApplyAll = document.getElementById('btnApplyAllOnboard');
-        const txtAuto = document.getElementById('txtAutoFlashBtn');
+function handleLogitechButtonFlashed(msg) {
+    const btn = document.getElementById(`btnFlashSingle_${msg.btnId}`);
+    const pId = msg.profileId || state.selectedOnboardProfileId || 1;
+    if (msg.success) {
+        if (btn) {
+            btn.classList.add('save-success');
+            btn.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} <span class="btn-text">Flashed!</span>`;
+        }
+        const badge = document.getElementById(`ommFKeyBadge_${msg.btnId}`);
+        if (badge) badge.textContent = formatOmmBadgeLabel(msg.target);
+        const sel = document.getElementById(`ommSelect_${msg.btnId}`);
+        if (sel) sel.value = msg.target;
 
-        if (msg.success) {
-            if (progressFill) progressFill.style.width = '100%';
-            if (progressText) progressText.innerHTML = `<span style="color:#a6e3a1; font-weight:700;">✅ Success! All button bindings flashed to mouse memory.</span>`;
-            if (txtAuto) txtAuto.textContent = 'Hardware Profile Synced!';
+        if (state.onboardProfiles && state.onboardProfiles[pId - 1]) {
+            if (!state.onboardProfiles[pId - 1].buttons) state.onboardProfiles[pId - 1].buttons = {};
+            state.onboardProfiles[pId - 1].buttons[msg.btnId] = msg.target;
+        }
 
-            document.querySelectorAll('.omm-save-secondary-btn').forEach(btn => {
-                btn.classList.add('save-success');
-                btn.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} <span class="btn-text">Flashed!</span>`;
-            });
-
+        if (pId === (state.activeOnboardProfileId || 1)) {
+            if (!state.hardwareFKeys) state.hardwareFKeys = {};
+            state.hardwareFKeys[msg.btnId] = msg.target;
             refreshCardsAndStage();
-            showToast('Hardware Flashed', 'All button assignments written directly into mouse memory via USB!', 'success');
-
-            setTimeout(() => {
-                if (btnAuto) {
-                    btnAuto.disabled = false;
-                    btnAuto.innerHTML = `<svg class="svg-icon"><use href="#icon-zap"></use></svg> <span id="txtAutoFlashBtn">⚡ Preset F13–F21</span>`;
-                }
-                if (btnApplyAll) {
-                    btnApplyAll.disabled = false;
-                    btnApplyAll.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>⚡ Apply All</span>`;
-                }
-                document.querySelectorAll('.omm-save-secondary-btn').forEach(btn => {
-                    btn.classList.remove('save-success');
-                    btn.innerHTML = `${getSvgIcon('keyboard', 'svg-icon-xs')} <span class="btn-text">Inject</span>`;
-                    btn.disabled = false;
-                });
-            }, 2500);
-        } else {
-            if (progressText) progressText.innerHTML = `<span style="color:#f38ba8;">❌ Apply failed</span>`;
-            if (btnAuto) btnAuto.disabled = false;
-            if (btnApplyAll) btnApplyAll.disabled = false;
-            showToast('Apply Failed', 'Unable to write to mouse hardware', 'error');
-        }
-    }
-
-    // ============================================================================
-    // BUTTON RENAMING MODAL & CUSTOM DISPLAY NAMES
-    // ============================================================================
-    function initButtonRenameModal() {
-        const btnSave = document.getElementById('btnSaveRenameModal');
-        const btnReset = document.getElementById('btnResetRenameModal');
-        const btnCancel = document.getElementById('btnCancelRenameModal');
-        const btnClose = document.getElementById('btnCloseRenameModal');
-        const input = document.getElementById('txtButtonCustomName');
-        const modal = document.getElementById('buttonRenameModal');
-
-        if (btnSave) btnSave.addEventListener('click', saveButtonRenameModal);
-        if (btnReset) btnReset.addEventListener('click', resetToDefaultButtonRenameModal);
-        if (btnCancel) btnCancel.addEventListener('click', closeButtonRenameModal);
-        if (btnClose) btnClose.addEventListener('click', closeButtonRenameModal);
-
-        if (input) {
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    saveButtonRenameModal();
-                } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    closeButtonRenameModal();
-                }
-            });
         }
 
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    closeButtonRenameModal();
-                }
-            });
-        }
-    }
-
-    function openButtonRenameModal(btnId) {
-        if (!btnId) return;
-        state.renameTargetButton = btnId;
-
-        const modal = document.getElementById('buttonRenameModal');
-        if (!modal) return;
-
-        const currentCustom = (state.customButtonNames && state.customButtonNames[btnId]) || '';
-        const defInfo = DIAGRAM_POINTS[btnId] || { name: btnId, tag: btnId };
-
-        const titleEl = document.getElementById('renameModalTitle');
-        const subEl = document.getElementById('renameModalSubtitle');
-        const input = document.getElementById('txtButtonCustomName');
-
-        if (titleEl) titleEl.textContent = `RENAME BUTTON — ${defInfo.tag || btnId}`;
-        if (subEl) subEl.textContent = `Original: ${defInfo.name}`;
-        if (input) {
-            input.value = currentCustom;
-            input.placeholder = `e.g. ${defInfo.tag || btnId}`;
-        }
-
-        modal.classList.add('open');
-        modal.style.display = 'flex';
+        showToast('Hardware Flashed', `${msg.btnId} written to Profile ${pId} as ${msg.target}!`, 'success');
 
         setTimeout(() => {
-            if (input) {
-                input.focus();
-                input.select();
+            if (btn) {
+                btn.classList.remove('save-success');
+                btn.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} <span class="btn-text">⚡ Flash to Mouse</span>`;
+                btn.disabled = false;
             }
-        }, 100);
-    }
-
-    function closeButtonRenameModal() {
-        const modal = document.getElementById('buttonRenameModal');
-        if (modal) {
-            modal.classList.remove('open');
-            modal.style.display = 'none';
+        }, 2000);
+    } else {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `${getSvgIcon('zap', 'svg-icon-xs')} <span class="btn-text">⚡ Flash to Mouse</span>`;
         }
+        showToast('Flash Failed', `Could not write to ${msg.btnId}`, 'error');
     }
+}
 
-    function saveButtonRenameModal() {
-        if (!state.renameTargetButton) return;
-        const input = document.getElementById('txtButtonCustomName');
-        const newName = input ? input.value.trim() : '';
-        setButtonCustomName(state.renameTargetButton, newName);
-        closeButtonRenameModal();
-    }
+function handleLogitechAllFlashed(msg) {
+    const progressBox = document.getElementById('nativeHidProgressBox');
+    const progressFill = document.getElementById('nativeHidProgressFill');
+    const progressText = document.getElementById('nativeHidProgressText');
+    const btnAuto = document.getElementById('btnAutoFlashLogitech');
+    const btnApplyAll = document.getElementById('btnApplyAllOnboard');
+    const txtAuto = document.getElementById('txtAutoFlashBtn');
 
-    function resetToDefaultButtonRenameModal() {
-        if (!state.renameTargetButton) return;
-        setButtonCustomName(state.renameTargetButton, '');
-        closeButtonRenameModal();
-    }
+    if (msg.success) {
+        if (progressFill) progressFill.style.width = '100%';
+        if (progressText) progressText.innerHTML = `<span style="color:#a6e3a1; font-weight:700;">✅ Success! All button bindings flashed to mouse memory.</span>`;
+        if (txtAuto) txtAuto.textContent = 'Hardware Profile Synced!';
 
-    function setButtonCustomName(btnId, newName) {
-        if (!btnId) return;
-        newName = (newName || '').trim();
-
-        if (!state.customButtonNames) {
-            state.customButtonNames = {};
-        }
-
-        if (newName) {
-            state.customButtonNames[btnId] = newName;
-        } else {
-            delete state.customButtonNames[btnId];
-        }
-
-        // Send IPC to AutoHotkey v2 backend
-        sendToAhk({
-            action: 'setButtonName',
-            btnId: btnId,
-            name: newName
+        document.querySelectorAll('.omm-save-secondary-btn').forEach(btn => {
+            btn.classList.add('save-success');
+            btn.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} <span class="btn-text">Flashed!</span>`;
         });
 
-        // Immediately update UI
         refreshCardsAndStage();
-        updateSvgLines();
-        if (state.selectedButton === btnId) {
-            selectButton(btnId);
-        }
+        showToast('Hardware Flashed', 'All button assignments written directly into mouse memory via USB!', 'success');
 
-        showToast('Button Renamed', newName ? `Renamed to "${newName}"` : `Restored ${btnId} to default name`);
-    }
-
-    // ============================================================================
-    // CUSTOM MOUSE IMAGE & BUTTONS CONFIGURATION
-    // ============================================================================
-    function sendButtonsToAhk() {
-        const buttonsList = [];
-        for (const bId in DIAGRAM_POINTS) {
-            const pt = DIAGRAM_POINTS[bId];
-            const fkey = state.hardwareFKeys?.[bId] || '';
-            buttonsList.push({
-                id: bId,
-                name: pt.name || bId,
-                tag: pt.tag || bId,
-                side: pt.side || 'left',
-                x: Math.round(pt.x),
-                y: Math.round(pt.y),
-                hardwareKey: fkey,
-                fkey: fkey
+        setTimeout(() => {
+            if (btnAuto) {
+                btnAuto.disabled = false;
+                btnAuto.innerHTML = `<svg class="svg-icon"><use href="#icon-zap"></use></svg> <span id="txtAutoFlashBtn">⚡ Preset F13–F21</span>`;
+            }
+            if (btnApplyAll) {
+                btnApplyAll.disabled = false;
+                btnApplyAll.innerHTML = `<svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg> <span>⚡ Apply All</span>`;
+            }
+            document.querySelectorAll('.omm-save-secondary-btn').forEach(btn => {
+                btn.classList.remove('save-success');
+                btn.innerHTML = `${getSvgIcon('keyboard', 'svg-icon-xs')} <span class="btn-text">Inject</span>`;
+                btn.disabled = false;
             });
-        }
-        sendToAhk({
-            action: 'saveCustomButtons',
-            buttons: buttonsList
+        }, 2500);
+    } else {
+        if (progressText) progressText.innerHTML = `<span style="color:#f38ba8;">❌ Apply failed</span>`;
+        if (btnAuto) btnAuto.disabled = false;
+        if (btnApplyAll) btnApplyAll.disabled = false;
+        showToast('Apply Failed', 'Unable to write to mouse hardware', 'error');
+    }
+}
+
+// ============================================================================
+// BUTTON RENAMING MODAL & CUSTOM DISPLAY NAMES
+// ============================================================================
+function initButtonRenameModal() {
+    const btnSave = document.getElementById('btnSaveRenameModal');
+    const btnReset = document.getElementById('btnResetRenameModal');
+    const btnCancel = document.getElementById('btnCancelRenameModal');
+    const btnClose = document.getElementById('btnCloseRenameModal');
+    const input = document.getElementById('txtButtonCustomName');
+    const modal = document.getElementById('buttonRenameModal');
+
+    if (btnSave) btnSave.addEventListener('click', saveButtonRenameModal);
+    if (btnReset) btnReset.addEventListener('click', resetToDefaultButtonRenameModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeButtonRenameModal);
+    if (btnClose) btnClose.addEventListener('click', closeButtonRenameModal);
+
+    if (input) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveButtonRenameModal();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeButtonRenameModal();
+            }
         });
     }
 
-    const POPULAR_MOUSE_PRESETS = [
-        {
-            id: 'g502x',
-            name: 'Default Multi-Button Mouse',
-            tag: 'Standard',
-            badge: '13 Controls',
-            desc: 'Universal 11+ control layout with side buttons, sniper paddle, dual DPI selectors, and tilt wheel.',
-            image: '../assets/g502x.png',
-            buttons: DEFAULT_BUTTONS_CONFIG
-        },
-        {
-            id: 'basilisk_v3',
-            name: 'Razer Basilisk V3 / Pro',
-            tag: 'Razer',
-            badge: '11 Controls',
-            desc: 'Ergonomic shape with multi-function sniper trigger paddle, smart-reel tilt wheel, and chroma RGB.',
-            image: '../assets/razer_basilisk_v3.png',
-            buttons: [
-                { id: 'LeftClick', x: 260, y: 100, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: '' },
-                { id: 'Sniper', x: 265, y: 275, side: 'left', name: 'Multi-Function Paddle', tag: 'SNIP', hardwareKey: 'F15' },
-                { id: 'Forward', x: 285, y: 235, side: 'left', name: 'Side Forward (M5)', tag: 'M5', hardwareKey: 'F16' },
-                { id: 'Back', x: 355, y: 280, side: 'left', name: 'Side Back (M4)', tag: 'M4', hardwareKey: 'F14' },
-                { id: 'RightClick', x: 395, y: 100, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: '' },
-                { id: 'TiltLeft', x: 320, y: 70, side: 'right', name: 'Wheel Tilt Left', tag: 'TL', hardwareKey: 'F17' },
-                { id: 'WheelUp', x: 300, y: 35, side: 'right', name: 'Wheel Scroll Up', tag: 'W-UP', hardwareKey: '' },
-                { id: 'Middle', x: 350, y: 60, side: 'right', name: 'Wheel Click (M3)', tag: 'MID', hardwareKey: 'F13' },
-                { id: 'WheelDown', x: 380, y: 70, side: 'right', name: 'Wheel Scroll Down', tag: 'W-DN', hardwareKey: '' },
-                { id: 'TiltRight', x: 380, y: 30, side: 'right', name: 'Wheel Tilt Right', tag: 'TR', hardwareKey: 'F18' },
-                { id: 'ScrollMode', x: 420, y: 95, side: 'right', name: 'Smart-Reel Mode Button', tag: 'MODE', hardwareKey: 'F19' },
-                { id: 'DpiCycle', x: 455, y: 120, side: 'right', name: 'DPI Stage Cycle', tag: 'DPI', hardwareKey: 'F20' }
-            ]
-        },
-        {
-            id: 'naga_v2',
-            name: 'Razer Naga V2 Pro (MMO)',
-            tag: 'Razer',
-            badge: '16 Controls (12-Key Grid)',
-            desc: '12-button mechanical thumb grid for MMO/macros, dual-mode tilt wheel, and top DPI switches.',
-            image: '../assets/razer_naga_v2.png',
-            buttons: [
-                { id: 'LeftClick', x: 245, y: 95, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: '' },
-                { id: 'Grid1', x: 275, y: 250, side: 'left', name: 'MMO Key 1', tag: '1', hardwareKey: 'F14' },
-                { id: 'Grid2', x: 305, y: 265, side: 'left', name: 'MMO Key 2', tag: '2', hardwareKey: 'F15' },
-                { id: 'Grid3', x: 340, y: 290, side: 'left', name: 'MMO Key 3', tag: '3', hardwareKey: 'F16' },
-                { id: 'Grid4', x: 250, y: 275, side: 'left', name: 'MMO Key 4', tag: '4', hardwareKey: 'F22' },
-                { id: 'Grid5', x: 280, y: 295, side: 'left', name: 'MMO Key 5', tag: '5', hardwareKey: '' },
-                { id: 'Grid6', x: 315, y: 320, side: 'left', name: 'MMO Key 6', tag: '6', hardwareKey: '' },
-                { id: 'Grid7', x: 230, y: 305, side: 'left', name: 'MMO Key 7', tag: '7', hardwareKey: '' },
-                { id: 'Grid8', x: 260, y: 330, side: 'left', name: 'MMO Key 8', tag: '8', hardwareKey: '' },
-                { id: 'Grid9', x: 295, y: 355, side: 'left', name: 'MMO Key 9', tag: '9', hardwareKey: '' },
-                { id: 'Grid10', x: 215, y: 335, side: 'left', name: 'MMO Key 10', tag: '10', hardwareKey: '' },
-                { id: 'Grid11', x: 240, y: 360, side: 'left', name: 'MMO Key 11', tag: '11', hardwareKey: '' },
-                { id: 'Grid12', x: 275, y: 390, side: 'left', name: 'MMO Key 12', tag: '12', hardwareKey: '' },
-                { id: 'RightClick', x: 390, y: 95, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: '' },
-                { id: 'TiltLeft', x: 320, y: 70, side: 'right', name: 'Wheel Tilt Left', tag: 'TL', hardwareKey: 'F17' },
-                { id: 'WheelUp', x: 305, y: 40, side: 'right', name: 'Wheel Scroll Up', tag: 'W-UP', hardwareKey: '' },
-                { id: 'Middle', x: 350, y: 65, side: 'right', name: 'Wheel Click (M3)', tag: 'MID', hardwareKey: 'F13' },
-                { id: 'WheelDown', x: 375, y: 75, side: 'right', name: 'Wheel Scroll Down', tag: 'W-DN', hardwareKey: '' },
-                { id: 'TiltRight', x: 380, y: 35, side: 'right', name: 'Wheel Tilt Right', tag: 'TR', hardwareKey: 'F18' },
-                { id: 'DpiUp', x: 440, y: 110, side: 'right', name: 'DPI Up Button', tag: 'DPI+', hardwareKey: 'F20' },
-                { id: 'DpiDown', x: 475, y: 135, side: 'right', name: 'DPI Down Button', tag: 'DPI-', hardwareKey: 'F21' }
-            ]
-        },
-        {
-            id: 'g604',
-            name: '6-Button Thumb Grid Mouse',
-            tag: 'MMO / MOBA',
-            badge: '15 Controls (6 Thumb)',
-            desc: '6 thumb keys, dual top index DPI keys, dual-mode metal hyperfast scroll wheel.',
-            image: '../assets/logitech_g604.png',
-            buttons: [
-                { id: 'LeftClick', x: 189, y: 10, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: '' },
-                { id: 'G8', x: 110, y: 49, side: 'left', name: 'G8 (DPI Up)', tag: 'G8', hardwareKey: 'F20' },
-                { id: 'G7', x: 164, y: 86, side: 'left', name: 'G7 (DPI Down)', tag: 'G7', hardwareKey: 'F21' },
-                { id: 'ThumbG4', x: 209, y: 190, side: 'left', name: 'Thumb G4 (Top Front)', tag: 'G4', hardwareKey: 'F16' },
-                { id: 'ThumbG5', x: 275, y: 238, side: 'left', name: 'Thumb G5 (Top Mid)', tag: 'G5', hardwareKey: 'F14' },
-                { id: 'ThumbG6', x: 343, y: 296, side: 'left', name: 'Thumb G6 (Top Rear)', tag: 'G6', hardwareKey: 'F15' },
-                { id: 'ThumbG7', x: 205, y: 239, side: 'left', name: 'Thumb G7 (Bot Front)', tag: 'G7S', hardwareKey: 'F22' },
-                { id: 'ThumbG8', x: 264, y: 287, side: 'left', name: 'Thumb G8 (Bot Mid)', tag: 'G8S', hardwareKey: 'F23' },
-                { id: 'ThumbG9', x: 330, y: 332, side: 'left', name: 'Thumb G9 (Bot Rear)', tag: 'G9S', hardwareKey: 'F24' },
-                { id: 'RightClick', x: 452, y: -15, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: '' },
-                { id: 'TiltLeft', x: 271, y: -2, side: 'right', name: 'Wheel Tilt Left', tag: 'TL', hardwareKey: 'F17' },
-                { id: 'WheelUp', x: 252, y: -62, side: 'right', name: 'Wheel Scroll Up', tag: 'W-UP', hardwareKey: '' },
-                { id: 'Middle', x: 324, y: -40, side: 'right', name: 'Wheel Click (M3)', tag: 'MID', hardwareKey: 'F13' },
-                { id: 'WheelDown', x: 371, y: 3, side: 'right', name: 'Wheel Scroll Down', tag: 'W-DN', hardwareKey: '' },
-                { id: 'TiltRight', x: 373, y: -57, side: 'right', name: 'Wheel Tilt Right', tag: 'TR', hardwareKey: 'F18' },
-                { id: 'ProfileCycle', x: 454, y: 75, side: 'right', name: 'Profile / Mode Button', tag: 'PROF', hardwareKey: 'F19' }
-            ]
-        },
-        {
-            id: 'gprox',
-            name: 'Minimalist Lightweight Mouse',
-            tag: 'Esports',
-            badge: '5 Buttons (FPS)',
-            desc: 'Ultra-lightweight competitive esports mouse with clean ambidextrous ergonomics.',
-            image: '../assets/logitech_gprox.png',
-            buttons: [
-                { id: 'LeftClick', x: 275, y: 155, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: '' },
-                { id: 'Forward', x: 365, y: 260, side: 'left', name: 'Side Forward (M5)', tag: 'M5', hardwareKey: 'F16' },
-                { id: 'Back', x: 420, y: 305, side: 'left', name: 'Side Back (M4)', tag: 'M4', hardwareKey: 'F14' },
-                { id: 'RightClick', x: 415, y: 150, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: '' },
-                { id: 'WheelUp', x: 325, y: 80, side: 'right', name: 'Wheel Scroll Up', tag: 'W-UP', hardwareKey: '' },
-                { id: 'Middle', x: 360, y: 110, side: 'right', name: 'Wheel Click (M3)', tag: 'MID', hardwareKey: 'F13' },
-                { id: 'WheelDown', x: 390, y: 120, side: 'right', name: 'Wheel Scroll Down', tag: 'W-DN', hardwareKey: '' }
-            ]
-        },
-        {
-            id: 'rival5',
-            name: 'SteelSeries Rival 5',
-            tag: 'SteelSeries',
-            badge: '9 Controls (Flick Switch)',
-            desc: 'Multi-genre ergonomic mouse with quick-action silver sniper trigger and up/down flick switch.',
-            image: '../assets/steelseries_rival5.png',
-            buttons: [
-                { id: 'LeftClick', x: 260, y: 120, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: '' },
-                { id: 'Sniper', x: 280, y: 295, side: 'left', name: 'Silver Quick-Action Trigger', tag: 'SNIP', hardwareKey: 'F15' },
-                { id: 'FlickUp', x: 325, y: 230, side: 'left', name: 'Flick Switch Up', tag: 'FL-UP', hardwareKey: 'F20' },
-                { id: 'FlickDown', x: 365, y: 255, side: 'left', name: 'Flick Switch Down', tag: 'FL-DN', hardwareKey: 'F21' },
-                { id: 'Forward', x: 320, y: 270, side: 'left', name: 'Side Forward (M5)', tag: 'M5', hardwareKey: 'F16' },
-                { id: 'Back', x: 360, y: 290, side: 'left', name: 'Side Back (M4)', tag: 'M4', hardwareKey: 'F14' },
-                { id: 'RightClick', x: 405, y: 105, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: '' },
-                { id: 'WheelUp', x: 310, y: 50, side: 'right', name: 'Wheel Scroll Up', tag: 'W-UP', hardwareKey: '' },
-                { id: 'Middle', x: 350, y: 80, side: 'right', name: 'Wheel Click (M3)', tag: 'MID', hardwareKey: 'F13' },
-                { id: 'WheelDown', x: 380, y: 90, side: 'right', name: 'Wheel Scroll Down', tag: 'W-DN', hardwareKey: '' },
-                { id: 'DpiSwitch', x: 435, y: 125, side: 'right', name: 'CPI / DPI Switch', tag: 'CPI', hardwareKey: 'F19' }
-            ]
-        }
-    ];
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeButtonRenameModal();
+            }
+        });
+    }
+}
 
-    function getCurrentButtonsConfigExport() {
-        const list = [];
-        for (const btnId in DIAGRAM_POINTS) {
-            const pt = DIAGRAM_POINTS[btnId];
-            list.push({
-                id: btnId,
-                x: pt.x,
-                y: pt.y,
-                side: pt.side || 'left',
-                name: pt.name || btnId,
-                tag: pt.tag || btnId,
-                hardwareKey: (state.hardwareFKeys && state.hardwareFKeys[btnId]) ? state.hardwareFKeys[btnId] : ''
-            });
-        }
-        return list;
+function openButtonRenameModal(btnId) {
+    if (!btnId) return;
+    state.renameTargetButton = btnId;
+
+    const modal = document.getElementById('buttonRenameModal');
+    if (!modal) return;
+
+    const currentCustom = (state.customButtonNames && state.customButtonNames[btnId]) || '';
+    const defInfo = DIAGRAM_POINTS[btnId] || { name: btnId, tag: btnId };
+
+    const titleEl = document.getElementById('renameModalTitle');
+    const subEl = document.getElementById('renameModalSubtitle');
+    const input = document.getElementById('txtButtonCustomName');
+
+    if (titleEl) titleEl.textContent = `RENAME BUTTON — ${defInfo.tag || btnId}`;
+    if (subEl) subEl.textContent = `Original: ${defInfo.name}`;
+    if (input) {
+        input.value = currentCustom;
+        input.placeholder = `e.g. ${defInfo.tag || btnId}`;
     }
 
-    function initMouseImageModal() {
-        const btnOpen = document.getElementById('btnChangeMouseImage');
-        const modal = document.getElementById('mouseImageModal');
-        const btnClose = document.getElementById('btnCloseMouseImageModal');
-        const btnCancel = document.getElementById('btnCancelMouseImageModal');
-        const btnBrowse = document.getElementById('btnBrowseMouseImage');
-        const btnSaveCurrent = document.getElementById('btnSaveCurrentAsPreset');
-        const fileInput = document.getElementById('mouseImageFileInput');
-        const btnReset = document.getElementById('btnResetMouseImage');
-        const previewImg = document.getElementById('customImagePreview');
-        const presetGrid = document.getElementById('mousePresetGrid');
-        const presetNameEl = document.getElementById('presetSelectedName');
-        const presetDescEl = document.getElementById('presetSelectedDesc');
-        const btnApplyImage = document.getElementById('btnApplyPresetImage');
-        const btnApplyWithLayout = document.getElementById('btnApplyPresetWithLayout');
+    modal.classList.add('open');
+    modal.style.display = 'flex';
 
-        // New Preset Modal Elements
-        const newPresetModal = document.getElementById('newMousePresetModal');
-        const btnCloseNewModal = document.getElementById('btnCloseNewMousePresetModal');
-        const btnCancelNewModal = document.getElementById('btnCancelNewMousePreset');
-        const btnConfirmNewPreset = document.getElementById('btnConfirmSaveNewMousePreset');
-        const newPresetThumb = document.getElementById('newPresetThumbPreview');
-        const txtNewPresetName = document.getElementById('txtNewPresetName');
-        const txtNewPresetBadge = document.getElementById('txtNewPresetBadge');
-
-        let pendingCustomImageData = '';
-
-        if (!modal) return;
-
-        let selectedPreset = POPULAR_MOUSE_PRESETS[0];
-
-        function getAllPresets() {
-            return [...POPULAR_MOUSE_PRESETS, ...(state.customMousePresets || [])];
+    setTimeout(() => {
+        if (input) {
+            input.focus();
+            input.select();
         }
+    }, 100);
+}
 
-        function detectCurrentPreset() {
-            const mouseImg = document.getElementById('mouseImg');
-            const curSrc = (mouseImg && mouseImg.src) ? mouseImg.src.toLowerCase() : '';
-            const all = getAllPresets();
-            for (const preset of all) {
-                const presetFilename = preset.image.split('/').pop().split('?')[0].toLowerCase();
-                if (presetFilename && curSrc.includes(presetFilename)) {
-                    return preset;
-                }
+function closeButtonRenameModal() {
+    const modal = document.getElementById('buttonRenameModal');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.display = 'none';
+    }
+}
+
+function saveButtonRenameModal() {
+    if (!state.renameTargetButton) return;
+    const input = document.getElementById('txtButtonCustomName');
+    const newName = input ? input.value.trim() : '';
+    setButtonCustomName(state.renameTargetButton, newName);
+    closeButtonRenameModal();
+}
+
+function resetToDefaultButtonRenameModal() {
+    if (!state.renameTargetButton) return;
+    setButtonCustomName(state.renameTargetButton, '');
+    closeButtonRenameModal();
+}
+
+function setButtonCustomName(btnId, newName) {
+    if (!btnId) return;
+    newName = (newName || '').trim();
+
+    if (!state.customButtonNames) {
+        state.customButtonNames = {};
+    }
+
+    if (newName) {
+        state.customButtonNames[btnId] = newName;
+    } else {
+        delete state.customButtonNames[btnId];
+    }
+
+    // Send IPC to AutoHotkey v2 backend
+    sendToAhk({
+        action: 'setButtonName',
+        btnId: btnId,
+        name: newName
+    });
+
+    // Immediately update UI
+    refreshCardsAndStage();
+    updateSvgLines();
+    if (state.selectedButton === btnId) {
+        selectButton(btnId);
+    }
+
+    showToast('Button Renamed', newName ? `Renamed to "${newName}"` : `Restored ${btnId} to default name`);
+}
+
+// ============================================================================
+// CUSTOM MOUSE IMAGE & BUTTONS CONFIGURATION
+// ============================================================================
+function sendButtonsToAhk() {
+    const buttonsList = [];
+    for (const bId in DIAGRAM_POINTS) {
+        const pt = DIAGRAM_POINTS[bId];
+        const fkey = state.hardwareFKeys?.[bId] || '';
+        buttonsList.push({
+            id: bId,
+            name: pt.name || bId,
+            tag: pt.tag || bId,
+            side: pt.side || 'left',
+            x: Math.round(pt.x),
+            y: Math.round(pt.y),
+            hardwareKey: fkey,
+            fkey: fkey
+        });
+    }
+    sendToAhk({
+        action: 'saveCustomButtons',
+        buttons: buttonsList
+    });
+}
+
+const POPULAR_MOUSE_PRESETS = [
+    {
+        id: 'g502x',
+        name: 'Default Multi-Button Mouse',
+        tag: 'Standard',
+        badge: '13 Controls',
+        desc: 'Universal 11+ control layout with side buttons, sniper paddle, dual DPI selectors, and tilt wheel.',
+        image: '../assets/g502x.png',
+        buttons: DEFAULT_BUTTONS_CONFIG
+    },
+    {
+        id: 'basilisk_v3',
+        name: 'Razer Basilisk V3 / Pro',
+        tag: 'Razer',
+        badge: '11 Controls',
+        desc: 'Ergonomic shape with multi-function sniper trigger paddle, smart-reel tilt wheel, and chroma RGB.',
+        image: '../assets/razer_basilisk_v3.png',
+        buttons: [
+            { id: 'LeftClick', x: 260, y: 100, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: '' },
+            { id: 'Sniper', x: 265, y: 275, side: 'left', name: 'Multi-Function Paddle', tag: 'SNIP', hardwareKey: 'F15' },
+            { id: 'Forward', x: 285, y: 235, side: 'left', name: 'Side Forward (M5)', tag: 'M5', hardwareKey: 'F16' },
+            { id: 'Back', x: 355, y: 280, side: 'left', name: 'Side Back (M4)', tag: 'M4', hardwareKey: 'F14' },
+            { id: 'RightClick', x: 395, y: 100, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: '' },
+            { id: 'TiltLeft', x: 320, y: 70, side: 'right', name: 'Wheel Tilt Left', tag: 'TL', hardwareKey: 'F17' },
+            { id: 'WheelUp', x: 300, y: 35, side: 'right', name: 'Wheel Scroll Up', tag: 'W-UP', hardwareKey: '' },
+            { id: 'Middle', x: 350, y: 60, side: 'right', name: 'Wheel Click (M3)', tag: 'MID', hardwareKey: 'F13' },
+            { id: 'WheelDown', x: 380, y: 70, side: 'right', name: 'Wheel Scroll Down', tag: 'W-DN', hardwareKey: '' },
+            { id: 'TiltRight', x: 380, y: 30, side: 'right', name: 'Wheel Tilt Right', tag: 'TR', hardwareKey: 'F18' },
+            { id: 'ScrollMode', x: 420, y: 95, side: 'right', name: 'Smart-Reel Mode Button', tag: 'MODE', hardwareKey: 'F19' },
+            { id: 'DpiCycle', x: 455, y: 120, side: 'right', name: 'DPI Stage Cycle', tag: 'DPI', hardwareKey: 'F20' }
+        ]
+    },
+    {
+        id: 'naga_v2',
+        name: 'Razer Naga V2 Pro (MMO)',
+        tag: 'Razer',
+        badge: '16 Controls (12-Key Grid)',
+        desc: '12-button mechanical thumb grid for MMO/macros, dual-mode tilt wheel, and top DPI switches.',
+        image: '../assets/razer_naga_v2.png',
+        buttons: [
+            { id: 'LeftClick', x: 245, y: 95, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: '' },
+            { id: 'Grid1', x: 275, y: 250, side: 'left', name: 'MMO Key 1', tag: '1', hardwareKey: 'F14' },
+            { id: 'Grid2', x: 305, y: 265, side: 'left', name: 'MMO Key 2', tag: '2', hardwareKey: 'F15' },
+            { id: 'Grid3', x: 340, y: 290, side: 'left', name: 'MMO Key 3', tag: '3', hardwareKey: 'F16' },
+            { id: 'Grid4', x: 250, y: 275, side: 'left', name: 'MMO Key 4', tag: '4', hardwareKey: 'F22' },
+            { id: 'Grid5', x: 280, y: 295, side: 'left', name: 'MMO Key 5', tag: '5', hardwareKey: '' },
+            { id: 'Grid6', x: 315, y: 320, side: 'left', name: 'MMO Key 6', tag: '6', hardwareKey: '' },
+            { id: 'Grid7', x: 230, y: 305, side: 'left', name: 'MMO Key 7', tag: '7', hardwareKey: '' },
+            { id: 'Grid8', x: 260, y: 330, side: 'left', name: 'MMO Key 8', tag: '8', hardwareKey: '' },
+            { id: 'Grid9', x: 295, y: 355, side: 'left', name: 'MMO Key 9', tag: '9', hardwareKey: '' },
+            { id: 'Grid10', x: 215, y: 335, side: 'left', name: 'MMO Key 10', tag: '10', hardwareKey: '' },
+            { id: 'Grid11', x: 240, y: 360, side: 'left', name: 'MMO Key 11', tag: '11', hardwareKey: '' },
+            { id: 'Grid12', x: 275, y: 390, side: 'left', name: 'MMO Key 12', tag: '12', hardwareKey: '' },
+            { id: 'RightClick', x: 390, y: 95, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: '' },
+            { id: 'TiltLeft', x: 320, y: 70, side: 'right', name: 'Wheel Tilt Left', tag: 'TL', hardwareKey: 'F17' },
+            { id: 'WheelUp', x: 305, y: 40, side: 'right', name: 'Wheel Scroll Up', tag: 'W-UP', hardwareKey: '' },
+            { id: 'Middle', x: 350, y: 65, side: 'right', name: 'Wheel Click (M3)', tag: 'MID', hardwareKey: 'F13' },
+            { id: 'WheelDown', x: 375, y: 75, side: 'right', name: 'Wheel Scroll Down', tag: 'W-DN', hardwareKey: '' },
+            { id: 'TiltRight', x: 380, y: 35, side: 'right', name: 'Wheel Tilt Right', tag: 'TR', hardwareKey: 'F18' },
+            { id: 'DpiUp', x: 440, y: 110, side: 'right', name: 'DPI Up Button', tag: 'DPI+', hardwareKey: 'F20' },
+            { id: 'DpiDown', x: 475, y: 135, side: 'right', name: 'DPI Down Button', tag: 'DPI-', hardwareKey: 'F21' }
+        ]
+    },
+    {
+        id: 'g604',
+        name: '6-Button Thumb Grid Mouse',
+        tag: 'MMO / MOBA',
+        badge: '15 Controls (6 Thumb)',
+        desc: '6 thumb keys, dual top index DPI keys, dual-mode metal hyperfast scroll wheel.',
+        image: '../assets/logitech_g604.png',
+        buttons: [
+            { id: 'LeftClick', x: 189, y: 10, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: '' },
+            { id: 'G8', x: 110, y: 49, side: 'left', name: 'G8 (DPI Up)', tag: 'G8', hardwareKey: 'F20' },
+            { id: 'G7', x: 164, y: 86, side: 'left', name: 'G7 (DPI Down)', tag: 'G7', hardwareKey: 'F21' },
+            { id: 'ThumbG4', x: 209, y: 190, side: 'left', name: 'Thumb G4 (Top Front)', tag: 'G4', hardwareKey: 'F16' },
+            { id: 'ThumbG5', x: 275, y: 238, side: 'left', name: 'Thumb G5 (Top Mid)', tag: 'G5', hardwareKey: 'F14' },
+            { id: 'ThumbG6', x: 343, y: 296, side: 'left', name: 'Thumb G6 (Top Rear)', tag: 'G6', hardwareKey: 'F15' },
+            { id: 'ThumbG7', x: 205, y: 239, side: 'left', name: 'Thumb G7 (Bot Front)', tag: 'G7S', hardwareKey: 'F22' },
+            { id: 'ThumbG8', x: 264, y: 287, side: 'left', name: 'Thumb G8 (Bot Mid)', tag: 'G8S', hardwareKey: 'F23' },
+            { id: 'ThumbG9', x: 330, y: 332, side: 'left', name: 'Thumb G9 (Bot Rear)', tag: 'G9S', hardwareKey: 'F24' },
+            { id: 'RightClick', x: 452, y: -15, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: '' },
+            { id: 'TiltLeft', x: 271, y: -2, side: 'right', name: 'Wheel Tilt Left', tag: 'TL', hardwareKey: 'F17' },
+            { id: 'WheelUp', x: 252, y: -62, side: 'right', name: 'Wheel Scroll Up', tag: 'W-UP', hardwareKey: '' },
+            { id: 'Middle', x: 324, y: -40, side: 'right', name: 'Wheel Click (M3)', tag: 'MID', hardwareKey: 'F13' },
+            { id: 'WheelDown', x: 371, y: 3, side: 'right', name: 'Wheel Scroll Down', tag: 'W-DN', hardwareKey: '' },
+            { id: 'TiltRight', x: 373, y: -57, side: 'right', name: 'Wheel Tilt Right', tag: 'TR', hardwareKey: 'F18' },
+            { id: 'ProfileCycle', x: 454, y: 75, side: 'right', name: 'Profile / Mode Button', tag: 'PROF', hardwareKey: 'F19' }
+        ]
+    },
+    {
+        id: 'gprox',
+        name: 'Minimalist Lightweight Mouse',
+        tag: 'Esports',
+        badge: '5 Buttons (FPS)',
+        desc: 'Ultra-lightweight competitive esports mouse with clean ambidextrous ergonomics.',
+        image: '../assets/logitech_gprox.png',
+        buttons: [
+            { id: 'LeftClick', x: 275, y: 155, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: '' },
+            { id: 'Forward', x: 365, y: 260, side: 'left', name: 'Side Forward (M5)', tag: 'M5', hardwareKey: 'F16' },
+            { id: 'Back', x: 420, y: 305, side: 'left', name: 'Side Back (M4)', tag: 'M4', hardwareKey: 'F14' },
+            { id: 'RightClick', x: 415, y: 150, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: '' },
+            { id: 'WheelUp', x: 325, y: 80, side: 'right', name: 'Wheel Scroll Up', tag: 'W-UP', hardwareKey: '' },
+            { id: 'Middle', x: 360, y: 110, side: 'right', name: 'Wheel Click (M3)', tag: 'MID', hardwareKey: 'F13' },
+            { id: 'WheelDown', x: 390, y: 120, side: 'right', name: 'Wheel Scroll Down', tag: 'W-DN', hardwareKey: '' }
+        ]
+    },
+    {
+        id: 'rival5',
+        name: 'SteelSeries Rival 5',
+        tag: 'SteelSeries',
+        badge: '9 Controls (Flick Switch)',
+        desc: 'Multi-genre ergonomic mouse with quick-action silver sniper trigger and up/down flick switch.',
+        image: '../assets/steelseries_rival5.png',
+        buttons: [
+            { id: 'LeftClick', x: 260, y: 120, side: 'left', name: 'Left Click (M1)', tag: 'M1', hardwareKey: '' },
+            { id: 'Sniper', x: 280, y: 295, side: 'left', name: 'Silver Quick-Action Trigger', tag: 'SNIP', hardwareKey: 'F15' },
+            { id: 'FlickUp', x: 325, y: 230, side: 'left', name: 'Flick Switch Up', tag: 'FL-UP', hardwareKey: 'F20' },
+            { id: 'FlickDown', x: 365, y: 255, side: 'left', name: 'Flick Switch Down', tag: 'FL-DN', hardwareKey: 'F21' },
+            { id: 'Forward', x: 320, y: 270, side: 'left', name: 'Side Forward (M5)', tag: 'M5', hardwareKey: 'F16' },
+            { id: 'Back', x: 360, y: 290, side: 'left', name: 'Side Back (M4)', tag: 'M4', hardwareKey: 'F14' },
+            { id: 'RightClick', x: 405, y: 105, side: 'right', name: 'Right Click (M2)', tag: 'M2', hardwareKey: '' },
+            { id: 'WheelUp', x: 310, y: 50, side: 'right', name: 'Wheel Scroll Up', tag: 'W-UP', hardwareKey: '' },
+            { id: 'Middle', x: 350, y: 80, side: 'right', name: 'Wheel Click (M3)', tag: 'MID', hardwareKey: 'F13' },
+            { id: 'WheelDown', x: 380, y: 90, side: 'right', name: 'Wheel Scroll Down', tag: 'W-DN', hardwareKey: '' },
+            { id: 'DpiSwitch', x: 435, y: 125, side: 'right', name: 'CPI / DPI Switch', tag: 'CPI', hardwareKey: 'F19' }
+        ]
+    }
+];
+
+function getCurrentButtonsConfigExport() {
+    const list = [];
+    for (const btnId in DIAGRAM_POINTS) {
+        const pt = DIAGRAM_POINTS[btnId];
+        list.push({
+            id: btnId,
+            x: pt.x,
+            y: pt.y,
+            side: pt.side || 'left',
+            name: pt.name || btnId,
+            tag: pt.tag || btnId,
+            hardwareKey: (state.hardwareFKeys && state.hardwareFKeys[btnId]) ? state.hardwareFKeys[btnId] : ''
+        });
+    }
+    return list;
+}
+
+function initMouseImageModal() {
+    const btnOpen = document.getElementById('btnChangeMouseImage');
+    const modal = document.getElementById('mouseImageModal');
+    const btnClose = document.getElementById('btnCloseMouseImageModal');
+    const btnCancel = document.getElementById('btnCancelMouseImageModal');
+    const btnBrowse = document.getElementById('btnBrowseMouseImage');
+    const btnSaveCurrent = document.getElementById('btnSaveCurrentAsPreset');
+    const fileInput = document.getElementById('mouseImageFileInput');
+    const btnReset = document.getElementById('btnResetMouseImage');
+    const previewImg = document.getElementById('customImagePreview');
+    const presetGrid = document.getElementById('mousePresetGrid');
+    const presetNameEl = document.getElementById('presetSelectedName');
+    const presetDescEl = document.getElementById('presetSelectedDesc');
+    const btnApplyImage = document.getElementById('btnApplyPresetImage');
+    const btnApplyWithLayout = document.getElementById('btnApplyPresetWithLayout');
+
+    // New Preset Modal Elements
+    const newPresetModal = document.getElementById('newMousePresetModal');
+    const btnCloseNewModal = document.getElementById('btnCloseNewMousePresetModal');
+    const btnCancelNewModal = document.getElementById('btnCancelNewMousePreset');
+    const btnConfirmNewPreset = document.getElementById('btnConfirmSaveNewMousePreset');
+    const newPresetThumb = document.getElementById('newPresetThumbPreview');
+    const txtNewPresetName = document.getElementById('txtNewPresetName');
+    const txtNewPresetBadge = document.getElementById('txtNewPresetBadge');
+
+    let pendingCustomImageData = '';
+
+    if (!modal) return;
+
+    let selectedPreset = POPULAR_MOUSE_PRESETS[0];
+
+    function getAllPresets() {
+        return [...POPULAR_MOUSE_PRESETS, ...(state.customMousePresets || [])];
+    }
+
+    function detectCurrentPreset() {
+        const mouseImg = document.getElementById('mouseImg');
+        const curSrc = (mouseImg && mouseImg.src) ? mouseImg.src.toLowerCase() : '';
+        const all = getAllPresets();
+        for (const preset of all) {
+            const presetFilename = preset.image.split('/').pop().split('?')[0].toLowerCase();
+            if (presetFilename && curSrc.includes(presetFilename)) {
+                return preset;
             }
-            return all[0] || POPULAR_MOUSE_PRESETS[0];
         }
+        return all[0] || POPULAR_MOUSE_PRESETS[0];
+    }
 
-        function renderPresetCards() {
-            if (!presetGrid) return;
-            presetGrid.innerHTML = '';
+    function renderPresetCards() {
+        if (!presetGrid) return;
+        presetGrid.innerHTML = '';
 
-            const all = getAllPresets();
+        const all = getAllPresets();
 
-            all.forEach(preset => {
-                const card = document.createElement('div');
-                const isActive = selectedPreset && selectedPreset.id === preset.id;
-                const isCustom = !!preset.isCustom;
-                card.className = `mouse-preset-card ${isActive ? 'active' : ''}`;
-                card.dataset.presetId = preset.id;
+        all.forEach(preset => {
+            const card = document.createElement('div');
+            const isActive = selectedPreset && selectedPreset.id === preset.id;
+            const isCustom = !!preset.isCustom;
+            card.className = `mouse-preset-card ${isActive ? 'active' : ''}`;
+            card.dataset.presetId = preset.id;
 
-                card.innerHTML = `
+            card.innerHTML = `
                 ${isCustom ? `<button type="button" class="preset-delete-btn" title="Delete custom mouse preset">${getSvgIcon('trash-2', 'svg-icon-xs')}</button>` : ''}
                 <img src="${preset.image}" alt="${preset.name}" class="mouse-preset-thumb">
                 <div class="mouse-preset-name" title="${preset.name}">${preset.name}</div>
                 <div class="mouse-preset-badge ${isCustom ? 'custom-badge' : ''}">${preset.badge || (isCustom ? 'Custom' : '')}</div>
             `;
 
-                if (isCustom) {
-                    const delBtn = card.querySelector('.preset-delete-btn');
-                    if (delBtn) {
-                        delBtn.addEventListener('click', async (e) => {
-                            e.stopPropagation();
-                            const ok = await showConfirmDialog({
-                                title: 'Delete Custom Mouse Option',
-                                message: `Are you sure you want to delete custom mouse option "${preset.name}"?`,
-                                details: 'This custom mouse model option will be permanently removed.',
-                                confirmText: 'Delete Option',
-                                cancelText: 'Cancel',
-                                type: 'danger',
-                                icon: 'trash-2'
-                            });
-                            if (ok) {
-                                sendToAhk({
-                                    action: 'deleteCustomMousePreset',
-                                    presetId: preset.id
-                                });
-                                state.customMousePresets = (state.customMousePresets || []).filter(p => p.id !== preset.id);
-                                if (selectedPreset && selectedPreset.id === preset.id) {
-                                    selectedPreset = POPULAR_MOUSE_PRESETS[0];
-                                    updateSelectedPresetUI();
-                                }
-                                renderPresetCards();
-                            }
+            if (isCustom) {
+                const delBtn = card.querySelector('.preset-delete-btn');
+                if (delBtn) {
+                    delBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const ok = await showConfirmDialog({
+                            title: 'Delete Custom Mouse Option',
+                            message: `Are you sure you want to delete custom mouse option "${preset.name}"?`,
+                            details: 'This custom mouse model option will be permanently removed.',
+                            confirmText: 'Delete Option',
+                            cancelText: 'Cancel',
+                            type: 'danger',
+                            icon: 'trash-2'
                         });
-                    }
-                }
-
-                card.addEventListener('click', () => {
-                    selectedPreset = preset;
-                    updateSelectedPresetUI();
-                });
-
-                presetGrid.appendChild(card);
-            });
-        }
-
-        window.renderPresetCardsGlobal = renderPresetCards;
-
-        function updateSelectedPresetUI() {
-            if (!selectedPreset) return;
-
-            // Highlight active card
-            if (presetGrid) {
-                const cards = presetGrid.querySelectorAll('.mouse-preset-card');
-                cards.forEach(c => {
-                    c.classList.toggle('active', c.dataset.presetId === selectedPreset.id);
-                });
-            }
-
-            // Update preview image, name, and description
-            if (previewImg) previewImg.src = selectedPreset.image;
-            if (presetNameEl) presetNameEl.textContent = selectedPreset.name;
-            if (presetDescEl) presetDescEl.textContent = selectedPreset.desc;
-        }
-
-        function openModal() {
-            selectedPreset = detectCurrentPreset();
-            renderPresetCards();
-            updateSelectedPresetUI();
-            modal.style.display = 'flex';
-        }
-
-        function closeModal() {
-            modal.style.display = 'none';
-        }
-
-        function openNewModal(defaultName, imgSrc) {
-            pendingCustomImageData = imgSrc;
-            if (newPresetThumb) newPresetThumb.src = imgSrc;
-            if (txtNewPresetName) txtNewPresetName.value = defaultName || 'Custom Mouse';
-            if (txtNewPresetBadge) txtNewPresetBadge.value = 'Custom';
-            if (newPresetModal) newPresetModal.style.display = 'flex';
-        }
-
-        function closeNewModal() {
-            if (newPresetModal) newPresetModal.style.display = 'none';
-        }
-
-        if (btnOpen) btnOpen.addEventListener('click', openModal);
-        if (btnClose) btnClose.addEventListener('click', closeModal);
-        if (btnCancel) btnCancel.addEventListener('click', closeModal);
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal();
-        });
-
-        if (btnCloseNewModal) btnCloseNewModal.addEventListener('click', closeNewModal);
-        if (btnCancelNewModal) btnCancelNewModal.addEventListener('click', closeNewModal);
-        if (newPresetModal) {
-            newPresetModal.addEventListener('click', (e) => {
-                if (e.target === newPresetModal) closeNewModal();
-            });
-        }
-
-        // Apply Preset: Image Only
-        if (btnApplyImage) {
-            btnApplyImage.addEventListener('click', () => {
-                if (!selectedPreset) return;
-                const mouseImg = document.getElementById('mouseImg');
-                if (mouseImg) mouseImg.src = selectedPreset.image;
-
-                sendToAhk({
-                    action: 'saveMouseImage',
-                    image: selectedPreset.image
-                });
-
-                showToast('Mouse Image', `Applied ${selectedPreset.name} visual`);
-                setTimeout(updateSvgLines, 100);
-                closeModal();
-            });
-        }
-
-        // Apply Preset: Image + Recommended Button Layout
-        if (btnApplyWithLayout) {
-            btnApplyWithLayout.addEventListener('click', () => {
-                if (!selectedPreset) return;
-                const mouseImg = document.getElementById('mouseImg');
-                if (mouseImg) mouseImg.src = selectedPreset.image;
-
-                // Save image path
-                sendToAhk({
-                    action: 'saveMouseImage',
-                    image: selectedPreset.image
-                });
-
-                // Save buttons layout
-                if (selectedPreset.buttons && selectedPreset.buttons.length > 0) {
-                    sendToAhk({
-                        action: 'saveCustomButtons',
-                        buttons: selectedPreset.buttons
+                        if (ok) {
+                            sendToAhk({
+                                action: 'deleteCustomMousePreset',
+                                presetId: preset.id
+                            });
+                            state.customMousePresets = (state.customMousePresets || []).filter(p => p.id !== preset.id);
+                            if (selectedPreset && selectedPreset.id === preset.id) {
+                                selectedPreset = POPULAR_MOUSE_PRESETS[0];
+                                updateSelectedPresetUI();
+                            }
+                            renderPresetCards();
+                        }
                     });
-
-                    // Clear manual card offsets so layout flows naturally
-                    sendToAhk({ action: 'resetCardOffsets' });
-                    state.cardOffsets = {};
-
-                    // Apply immediately to frontend stage
-                    applyButtonsConfig(selectedPreset.buttons);
                 }
+            }
 
-                showToast('Mouse Model Applied', `Loaded ${selectedPreset.name} layout`);
-                setTimeout(updateSvgLines, 150);
-                closeModal();
-            });
-        }
-
-        // Custom File Browse -> Prompts to Save as Permanent Preset
-        if (btnBrowse && fileInput) {
-            btnBrowse.addEventListener('click', () => {
-                fileInput.value = '';
-                fileInput.click();
-            });
-
-            fileInput.addEventListener('change', () => {
-                const file = fileInput.files && fileInput.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const dataUrl = e.target.result;
-                    const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
-                    openNewModal(cleanName, dataUrl);
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        // Save Current Layout as New Preset
-        if (btnSaveCurrent) {
-            btnSaveCurrent.addEventListener('click', () => {
-                const mouseImg = document.getElementById('mouseImg');
-                const curSrc = (mouseImg && mouseImg.src) ? mouseImg.src : '../assets/g502x.png';
-                openNewModal('My Custom Setup', curSrc);
-            });
-        }
-
-        // Confirm Save in New Mouse Preset Modal
-        if (btnConfirmNewPreset) {
-            btnConfirmNewPreset.addEventListener('click', () => {
-                const name = (txtNewPresetName && txtNewPresetName.value.trim())
-                    ? txtNewPresetName.value.trim()
-                    : 'Custom Mouse';
-                const badge = (txtNewPresetBadge && txtNewPresetBadge.value.trim())
-                    ? txtNewPresetBadge.value.trim()
-                    : 'Custom';
-
-                const pId = 'custom_' + Date.now();
-                const currentButtons = getCurrentButtonsConfigExport();
-
-                const newPreset = {
-                    id: pId,
-                    name: name,
-                    desc: `Custom user mouse model (${name})`,
-                    badge: badge,
-                    image: pendingCustomImageData,
-                    isCustom: true,
-                    buttons: currentButtons
-                };
-
-                // Send to AHK backend for permanent storage in settings.ini & assets/
-                sendToAhk({
-                    action: 'saveCustomMousePreset',
-                    preset: newPreset
-                });
-
-                // Update local state immediately
-                state.customMousePresets = state.customMousePresets || [];
-                state.customMousePresets.push(newPreset);
-                selectedPreset = newPreset;
-
-                // Apply immediately to the live stage
-                const mouseImg = document.getElementById('mouseImg');
-                if (mouseImg) mouseImg.src = pendingCustomImageData;
-                if (previewImg) previewImg.src = pendingCustomImageData;
-
-                renderPresetCards();
+            card.addEventListener('click', () => {
+                selectedPreset = preset;
                 updateSelectedPresetUI();
-                setTimeout(updateSvgLines, 100);
-
-                closeNewModal();
-                showToast('Mouse Option Saved', `Permanently added "${name}" to your mouse gallery!`);
             });
-        }
 
-        // Reset to Default Mouse Layout
-        if (btnReset) {
-            btnReset.addEventListener('click', () => {
-                const defPath = '../assets/g502x.png';
-                if (previewImg) previewImg.src = defPath;
-                const mouseImg = document.getElementById('mouseImg');
-                if (mouseImg) mouseImg.src = defPath;
-
-                sendToAhk({ action: 'resetMouseImage' });
-                sendToAhk({ action: 'resetCustomButtons' });
-                sendToAhk({ action: 'resetDiagramPoints' });
-
-                state.cardOffsets = {};
-                applyButtonsConfig(DEFAULT_BUTTONS_CONFIG);
-
-                showToast('Mouse Layout Reset', 'Restored default mouse factory layout');
-                setTimeout(updateSvgLines, 100);
-                closeModal();
-            });
-        }
-    }
-
-    function initButtonConfigModal() {
-        const btnAdd = document.getElementById('btnAddCustomButton');
-        const modal = document.getElementById('buttonConfigModal');
-        const btnClose = document.getElementById('btnCloseButtonConfigModal');
-        const btnCancel = document.getElementById('btnCancelButtonConfig');
-        const btnSave = document.getElementById('btnSaveButtonConfig');
-
-        if (!modal) return;
-
-        if (btnAdd) {
-            btnAdd.addEventListener('click', () => {
-                openButtonConfigModal();
-            });
-        }
-
-        if (btnClose) {
-            btnClose.addEventListener('click', () => {
-                modal.style.display = 'none';
-            });
-        }
-
-        if (btnCancel) {
-            btnCancel.addEventListener('click', () => {
-                modal.style.display = 'none';
-            });
-        }
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.style.display = 'none';
+            presetGrid.appendChild(card);
         });
-
-        if (btnSave) {
-            btnSave.addEventListener('click', saveButtonConfigForm);
-        }
-
-        const btnFlashHw = document.getElementById('btnConfigFlashHardware');
-        const txtFlashHw = document.getElementById('txtConfigFlashBtn');
-        if (btnFlashHw) {
-            btnFlashHw.addEventListener('click', async () => {
-                if (!window.logitechDevice) return;
-                try {
-                    btnFlashHw.disabled = true;
-                    if (!window.logitechDevice.deviceInfo.connected) {
-                        const connected = await window.logitechDevice.connect();
-                        if (!connected) {
-                            btnFlashHw.disabled = false;
-                            return;
-                        }
-                    }
-
-                    const origIdEl = document.getElementById('btnConfigOriginalId');
-                    const keyEl = document.getElementById('btnConfigHardwareKey');
-                    const bId = origIdEl ? origIdEl.value : '';
-                    const targetVal = keyEl ? keyEl.value : '';
-
-                    if (!bId || !targetVal) {
-                        btnFlashHw.disabled = false;
-                        showToast('Notice', 'Select a hardware key first', 'warning');
-                        return;
-                    }
-
-                    const logiBtn = LogitechHID.G502_BUTTONS.find(b => b.buttonId === bId);
-                    const btnIdx = logiBtn ? logiBtn.index : (LOGI_G502_INDICES[bId] !== undefined ? LOGI_G502_INDICES[bId] : 2);
-
-                    await window.logitechDevice.writeButtonBinding(btnIdx, targetVal);
-
-                    btnFlashHw.classList.add('flash-success');
-                    if (txtFlashHw) txtFlashHw.textContent = '✅ Synced to Hardware!';
-
-                    sendToAhk({ action: 'setHardwareFKey', btnId: bId, fkey: targetVal });
-                    showToast('Hardware Updated', `${bId} flashed as ${targetVal} directly in mouse onboard memory!`, 'success');
-
-                    setTimeout(() => {
-                        btnFlashHw.classList.remove('flash-success');
-                        if (txtFlashHw) txtFlashHw.textContent = '⚡ Write to Mouse Hardware';
-                        btnFlashHw.disabled = false;
-                    }, 2500);
-
-                } catch (err) {
-                    console.error('[ConfigFlash error]', err);
-                    btnFlashHw.disabled = false;
-                    showToast('Flash Failed', err.message || 'Unable to write to mouse hardware', 'error');
-                }
-            });
-        }
     }
 
-    function openButtonConfigModal(btnId) {
-        const modal = document.getElementById('buttonConfigModal');
-        if (!modal) return;
+    window.renderPresetCardsGlobal = renderPresetCards;
 
-        const titleEl = document.getElementById('btnConfigModalTitle');
-        const origIdEl = document.getElementById('btnConfigOriginalId');
-        const idEl = document.getElementById('btnConfigId');
-        const nameEl = document.getElementById('btnConfigName');
-        const tagEl = document.getElementById('btnConfigTag');
-        const sideEl = document.getElementById('btnConfigSide');
-        const keyEl = document.getElementById('btnConfigHardwareKey');
+    function updateSelectedPresetUI() {
+        if (!selectedPreset) return;
 
-        const curKey = (btnId && state.hardwareFKeys?.[btnId]) || '';
-
-        // Dynamically annotate hardware key options with availability and in-use status
-        if (keyEl) {
-            keyEl.innerHTML = '';
-
-            // 1. ORIGINAL / NATIVE MOUSE BUTTONS
-            const nativeGroup = document.createElement('optgroup');
-            nativeGroup.label = '── ORIGINAL / NATIVE BUTTONS (DIRECT INTERCEPT) ──';
-            nativeGroup.className = 'optgroup-native';
-
-            const nativeDefs = [
-                { val: 'LButton', name: 'Left Click (Mouse 1)', defaultFor: 'LeftClick' },
-                { val: 'RButton', name: 'Right Click (Mouse 2)', defaultFor: 'RightClick' },
-                { val: 'MButton', name: 'Middle Click (Mouse 3)', defaultFor: 'Middle' },
-                { val: 'XButton1', name: 'Back Button (Mouse 4)', defaultFor: 'Back' },
-                { val: 'XButton2', name: 'Forward Button (Mouse 5)', defaultFor: 'Forward' },
-                { val: 'WheelLeft', name: 'Wheel Tilt Left', defaultFor: 'TiltLeft' },
-                { val: 'WheelRight', name: 'Wheel Tilt Right', defaultFor: 'TiltRight' }
-            ];
-
-            nativeDefs.forEach(def => {
-                const el = document.createElement('option');
-                el.value = def.val;
-                let inUseBy = '';
-                if (state.hardwareFKeys) {
-                    for (const b in state.hardwareFKeys) {
-                        if (state.hardwareFKeys[b] === def.val) {
-                            inUseBy = b;
-                            break;
-                        }
-                    }
-                }
-                const isOrigForThis = (def.defaultFor === btnId);
-                const origTag = isOrigForThis ? ' [ORIGINAL]' : '';
-
-                if (inUseBy === btnId) {
-                    el.textContent = `⚡ ${def.val} (${def.name})${origTag} — (Current Active)`;
-                } else if (inUseBy) {
-                    const otherTagName = DIAGRAM_POINTS[inUseBy]?.tag || inUseBy;
-                    el.textContent = `⚡ ${def.val} (${def.name})${origTag} — [In use: ${otherTagName}] (Will reassign)`;
-                } else {
-                    el.textContent = `⚡ ${def.val} (${def.name})${origTag} — (Direct • No OMM)`;
-                }
-                nativeGroup.appendChild(el);
+        // Highlight active card
+        if (presetGrid) {
+            const cards = presetGrid.querySelectorAll('.mouse-preset-card');
+            cards.forEach(c => {
+                c.classList.toggle('active', c.dataset.presetId === selectedPreset.id);
             });
-            keyEl.appendChild(nativeGroup);
-
-            // 2. VIRTUAL F-KEYS (LOGITECH ONBOARD MEMORY)
-            const fkeyGroup = document.createElement('optgroup');
-            fkeyGroup.label = '── VIRTUAL F-KEYS (LOGITECH ONBOARD MEMORY) ──';
-
-            const fkeyDefs = [
-                { val: 'F13', label: 'F13 (Default: Mouse 3 / Middle)' },
-                { val: 'F14', label: 'F14 (Default: Back / Mouse 4)' },
-                { val: 'F15', label: 'F15 (Default: DPI Shift / Sniper)' },
-                { val: 'F16', label: 'F16 (Default: Forward / Mouse 5)' },
-                { val: 'F17', label: 'F17 (Default: Tilt Left)' },
-                { val: 'F18', label: 'F18 (Default: Tilt Right)' },
-                { val: 'F19', label: 'F19 (Default: Profile Cycle / G9)' },
-                { val: 'F20', label: 'F20 (Default: DPI Up / G8)' },
-                { val: 'F21', label: 'F21 (Default: DPI Down / G7)' },
-                { val: 'F22', label: 'F22 (Available Key)' },
-                { val: 'F23', label: 'F23 (Available Key)' },
-                { val: 'F24', label: 'F24 (Available Key)' }
-            ];
-
-            fkeyDefs.forEach(opt => {
-                const el = document.createElement('option');
-                el.value = opt.val;
-                let inUseBy = '';
-                if (state.hardwareFKeys) {
-                    for (const b in state.hardwareFKeys) {
-                        if (state.hardwareFKeys[b] === opt.val) {
-                            inUseBy = b;
-                            break;
-                        }
-                    }
-                }
-                if (inUseBy === btnId) {
-                    el.textContent = `${opt.label} — (Current Active)`;
-                } else if (inUseBy) {
-                    const otherTagName = DIAGRAM_POINTS[inUseBy]?.tag || inUseBy;
-                    el.textContent = `${opt.label} — [In use: ${otherTagName}] (Will reassign)`;
-                } else {
-                    el.textContent = `${opt.label} — (Available)`;
-                }
-                fkeyGroup.appendChild(el);
-            });
-            keyEl.appendChild(fkeyGroup);
-
-            // 3. NO HARDWARE TRIGGER
-            const virtualGroup = document.createElement('optgroup');
-            virtualGroup.label = '── NO HARDWARE TRIGGER ──';
-            const noneEl = document.createElement('option');
-            noneEl.value = '';
-            noneEl.textContent = 'None / Virtual Only (No Hardware Intercept)';
-            virtualGroup.appendChild(noneEl);
-            keyEl.appendChild(virtualGroup);
-
-            keyEl.value = curKey;
         }
 
-    if (btnId && DIAGRAM_POINTS[btnId]) {
-                // Edit existing button
-                const pt = DIAGRAM_POINTS[btnId];
-                if (titleEl) titleEl.textContent = 'CONFIGURE BUTTON';
-                if (origIdEl) origIdEl.value = btnId;
-                if (idEl) {
-                    idEl.value = btnId;
-                    idEl.disabled = true;
-                }
-                if (nameEl) nameEl.value = pt.name || btnId;
-                if (tagEl) tagEl.value = pt.tag || btnId;
-                if (sideEl) sideEl.value = pt.side || 'left';
-            } else {
-                // Add new button
-                if (titleEl) titleEl.textContent = 'ADD MOUSE BUTTON';
-                if (origIdEl) origIdEl.value = '';
-                if (idEl) {
-                    idEl.value = '';
-                    idEl.disabled = false;
-                }
-                if (nameEl) nameEl.value = '';
-                if (tagEl) tagEl.value = '';
-                if (sideEl) sideEl.value = 'left';
-            }
+        // Update preview image, name, and description
+        if (previewImg) previewImg.src = selectedPreset.image;
+        if (presetNameEl) presetNameEl.textContent = selectedPreset.name;
+        if (presetDescEl) presetDescEl.textContent = selectedPreset.desc;
+    }
 
-            modal.style.display = 'flex';
-            setTimeout(() => {
-                if (idEl && !idEl.disabled) {
-                    idEl.focus();
-                } else if (nameEl) {
-                    nameEl.focus();
-                }
-            }, 50);
-        }
+    function openModal() {
+        selectedPreset = detectCurrentPreset();
+        renderPresetCards();
+        updateSelectedPresetUI();
+        modal.style.display = 'flex';
+    }
 
-        function saveButtonConfigForm() {
-            const modal = document.getElementById('buttonConfigModal');
-            const origId = document.getElementById('btnConfigOriginalId').value.trim();
-            let id = document.getElementById('btnConfigId').value.trim().replace(/[^a-zA-Z0-9_]/g, '');
-            const name = document.getElementById('btnConfigName').value.trim() || id;
-            const tag = document.getElementById('btnConfigTag').value.trim() || id.slice(0, 5);
-            const side = document.getElementById('btnConfigSide').value || 'left';
-            const fkey = document.getElementById('btnConfigHardwareKey').value || '';
+    function closeModal() {
+        modal.style.display = 'none';
+    }
 
-            if (!origId && !id) {
-                showToast('Validation Error', 'Please enter a valid Button ID');
-                return;
-            }
+    function openNewModal(defaultName, imgSrc) {
+        pendingCustomImageData = imgSrc;
+        if (newPresetThumb) newPresetThumb.src = imgSrc;
+        if (txtNewPresetName) txtNewPresetName.value = defaultName || 'Custom Mouse';
+        if (txtNewPresetBadge) txtNewPresetBadge.value = 'Custom';
+        if (newPresetModal) newPresetModal.style.display = 'flex';
+    }
 
-            const targetId = origId || id;
+    function closeNewModal() {
+        if (newPresetModal) newPresetModal.style.display = 'none';
+    }
 
-            if (!origId && DIAGRAM_POINTS[targetId]) {
-                showToast('Validation Error', `Button ID "${targetId}" already exists`);
-                return;
-            }
+    if (btnOpen) btnOpen.addEventListener('click', openModal);
+    if (btnClose) btnClose.addEventListener('click', closeModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeModal);
 
-            if (origId && DIAGRAM_POINTS[origId]) {
-                // Update existing button
-                const existing = DIAGRAM_POINTS[origId];
-                existing.name = name;
-                existing.tag = tag;
-                existing.side = side;
-            } else {
-                // Create new button
-                const btnCount = Object.keys(DIAGRAM_POINTS).length;
-                const defX = (side === 'right') ? 430 : 250;
-                const defY = 120 + ((btnCount * 28) % 260);
-                DIAGRAM_POINTS[targetId] = {
-                    x: defX,
-                    y: defY,
-                    side: side,
-                    name: name,
-                    tag: tag
-                };
-            }
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
 
-            // Hardware key mapping - STRICT 1-TO-1 UNIQUENESS
-            if (fkey) {
-                // Enforce: do not allow more than one button with the same F button
-                for (const otherBtn in state.hardwareFKeys) {
-                    if (otherBtn !== targetId && state.hardwareFKeys[otherBtn] === fkey) {
-                        delete state.hardwareFKeys[otherBtn];
-                        const otherName = DIAGRAM_POINTS[otherBtn]?.name || otherBtn;
-                        showToast('F-Key Reassigned', `${fkey} transferred to ${name}. Cleared from ${otherName} (no duplicate F-keys).`);
-                    }
-                }
-                state.hardwareFKeys[targetId] = fkey;
-            } else if (state.hardwareFKeys?.[targetId]) {
-                delete state.hardwareFKeys[targetId];
-            }
+    if (btnCloseNewModal) btnCloseNewModal.addEventListener('click', closeNewModal);
+    if (btnCancelNewModal) btnCancelNewModal.addEventListener('click', closeNewModal);
+    if (newPresetModal) {
+        newPresetModal.addEventListener('click', (e) => {
+            if (e.target === newPresetModal) closeNewModal();
+        });
+    }
 
-            if (modal) modal.style.display = 'none';
-
-            renderAllCards();
-            if (typeof renderCalibPills === 'function') {
-                renderCalibPills();
-            }
-            selectButton(targetId);
-            sendButtonsToAhk();
-            showToast('Button Saved', `Configured button: ${name}`);
-        }
-
-        async function confirmDeleteButton(btnId) {
-            if (!DIAGRAM_POINTS[btnId]) return;
-
-            if (btnId === 'LeftClick' || btnId === 'RightClick') {
-                showToast('Action Prohibited', 'Primary mouse click buttons (Left/Right Click) cannot be deleted.');
-                return;
-            }
-
-            const btnName = DIAGRAM_POINTS[btnId]?.name || btnId;
-            const ok = await showConfirmDialog({
-                title: 'Delete Mouse Button',
-                message: `Are you sure you want to delete "${btnName}"?`,
-                details: 'This will remove the button target and callout card from the interactive diagram.',
-                confirmText: 'Delete Button',
-                cancelText: 'Cancel',
-                type: 'danger',
-                icon: 'trash-2'
-            });
-            if (!ok) {
-                return;
-            }
-
-            delete DIAGRAM_POINTS[btnId];
-            if (state.hardwareFKeys?.[btnId]) {
-                delete state.hardwareFKeys[btnId];
-            }
-            if (state.cardOffsets?.[btnId]) {
-                delete state.cardOffsets[btnId];
-            }
-            if (state.customButtonNames?.[btnId]) {
-                delete state.customButtonNames[btnId];
-            }
-
-            if (state.selectedButton === btnId) {
-                const remaining = Object.keys(DIAGRAM_POINTS);
-                state.selectedButton = remaining[0] || 'G8';
-            }
-
-            renderAllCards();
-            if (typeof renderCalibPills === 'function') {
-                renderCalibPills();
-            }
-            selectButton(state.selectedButton);
+    // Apply Preset: Image Only
+    if (btnApplyImage) {
+        btnApplyImage.addEventListener('click', () => {
+            if (!selectedPreset) return;
+            const mouseImg = document.getElementById('mouseImg');
+            if (mouseImg) mouseImg.src = selectedPreset.image;
 
             sendToAhk({
-                action: 'deleteCustomButton',
-                btnId: btnId
+                action: 'saveMouseImage',
+                image: selectedPreset.image
             });
-            sendButtonsToAhk();
-            showToast('Button Deleted', `Removed ${btnName}`);
-        }
 
-        // ============================================================================
-        // COMPLETE STUDIO BACKUP & RESTORE (IMPORT & EXPORT EVERYTHING)
-        // ============================================================================
-        let pendingBackupData = null;
+            showToast('Mouse Image', `Applied ${selectedPreset.name} visual`);
+            setTimeout(updateSvgLines, 100);
+            closeModal();
+        });
+    }
 
-        function generateFullBackupPayload() {
-            // Gather all mouse buttons in current layout
-            const buttonsList = [];
-            for (const [btnId, pt] of Object.entries(DIAGRAM_POINTS)) {
-                buttonsList.push({
-                    id: btnId,
-                    name: pt.name || btnId,
-                    tag: pt.tag || '',
-                    side: pt.side || 'left',
-                    x: Math.round(pt.x),
-                    y: Math.round(pt.y),
-                    hardwareKey: state.hardwareFKeys?.[btnId] || ''
+    // Apply Preset: Image + Recommended Button Layout
+    if (btnApplyWithLayout) {
+        btnApplyWithLayout.addEventListener('click', () => {
+            if (!selectedPreset) return;
+            const mouseImg = document.getElementById('mouseImg');
+            if (mouseImg) mouseImg.src = selectedPreset.image;
+
+            // Save image path
+            sendToAhk({
+                action: 'saveMouseImage',
+                image: selectedPreset.image
+            });
+
+            // Save buttons layout
+            if (selectedPreset.buttons && selectedPreset.buttons.length > 0) {
+                sendToAhk({
+                    action: 'saveCustomButtons',
+                    buttons: selectedPreset.buttons
                 });
+
+                // Clear manual card offsets so layout flows naturally
+                sendToAhk({ action: 'resetCardOffsets' });
+                state.cardOffsets = {};
+
+                // Apply immediately to frontend stage
+                applyButtonsConfig(selectedPreset.buttons);
             }
 
-            const mouseImgEl = document.getElementById('mouseImg');
-            const currentMouseImage = mouseImgEl ? mouseImgEl.getAttribute('src') : '../assets/g502x.png';
+            showToast('Mouse Model Applied', `Loaded ${selectedPreset.name} layout`);
+            setTimeout(updateSvgLines, 150);
+            closeModal();
+        });
+    }
 
-            return {
-                app: "My_Mouse_My_Choice",
-                version: "2.0.0",
-                timestamp: new Date().toISOString(),
-                general: {
-                    defaultProfile: state.profiles?.find(p => p.isDefault)?.name || 'Desktop',
-                    alwaysOnTop: !!state.isAlwaysOnTop,
-                    autoSwitch: !!state.autoSwitch,
-                    lockedProfile: state.lockedProfile || '',
-                    rapidFire: !!state.isRapidFire,
-                    showOSD: document.getElementById('chkShowOSD')?.checked ?? true,
-                    muteWhenFocused: !!state.muteWhenFocused,
-                    gameKeyDelay: Number(state.gameKeyDelay) || 20,
-                    mouseImage: currentMouseImage
-                },
-                profiles: (state.profiles || []).map(p => ({
-                    name: p.name,
-                    targetExe: p.targetExe || '',
-                    icon: p.icon || 'generic',
-                    isDefault: !!p.isDefault,
-                    switchOnHover: !!p.switchOnHover,
-                    osdIconOnly: !!p.osdIconOnly,
-                    desc: p.desc || (p.name + ' Profile')
-                })),
-                mappings: state.mappings || {},
-                mouseLayout: {
-                    image: currentMouseImage,
-                    buttons: buttonsList,
-                    diagramPoints: JSON.parse(JSON.stringify(DIAGRAM_POINTS)),
-                    cardOffsets: JSON.parse(JSON.stringify(state.cardOffsets || {})),
-                    customButtonNames: JSON.parse(JSON.stringify(state.customButtonNames || {})),
-                    hardwareFKeys: JSON.parse(JSON.stringify(state.hardwareFKeys || {}))
-                },
-                customMousePresets: state.customMousePresets || [],
-                customActionPresets: state.customActionPresets || [],
-                textBlockPresets: state.textBlockPresets || [],
-                rawIni: state.rawIni || ''
+    // Custom File Browse -> Prompts to Save as Permanent Preset
+    if (btnBrowse && fileInput) {
+        btnBrowse.addEventListener('click', () => {
+            fileInput.value = '';
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+                openNewModal(cleanName, dataUrl);
             };
-        }
+            reader.readAsDataURL(file);
+        });
+    }
 
-        function downloadBackupFile(filename, content, mimeType = 'application/json') {
-            const blob = new Blob([content], { type: mimeType });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 200);
-        }
+    // Save Current Layout as New Preset
+    if (btnSaveCurrent) {
+        btnSaveCurrent.addEventListener('click', () => {
+            const mouseImg = document.getElementById('mouseImg');
+            const curSrc = (mouseImg && mouseImg.src) ? mouseImg.src : '../assets/g502x.png';
+            openNewModal('My Custom Setup', curSrc);
+        });
+    }
 
-        function openBackupModal(initialTab = 'export') {
-            const modal = document.getElementById('backupModal');
-            if (!modal) return;
-            modal.style.display = 'flex';
-            switchBackupTab(initialTab);
-        }
+    // Confirm Save in New Mouse Preset Modal
+    if (btnConfirmNewPreset) {
+        btnConfirmNewPreset.addEventListener('click', () => {
+            const name = (txtNewPresetName && txtNewPresetName.value.trim())
+                ? txtNewPresetName.value.trim()
+                : 'Custom Mouse';
+            const badge = (txtNewPresetBadge && txtNewPresetBadge.value.trim())
+                ? txtNewPresetBadge.value.trim()
+                : 'Custom';
 
-        function closeBackupModal() {
-            const modal = document.getElementById('backupModal');
-            if (!modal) return;
+            const pId = 'custom_' + Date.now();
+            const currentButtons = getCurrentButtonsConfigExport();
+
+            const newPreset = {
+                id: pId,
+                name: name,
+                desc: `Custom user mouse model (${name})`,
+                badge: badge,
+                image: pendingCustomImageData,
+                isCustom: true,
+                buttons: currentButtons
+            };
+
+            // Send to AHK backend for permanent storage in settings.ini & assets/
+            sendToAhk({
+                action: 'saveCustomMousePreset',
+                preset: newPreset
+            });
+
+            // Update local state immediately
+            state.customMousePresets = state.customMousePresets || [];
+            state.customMousePresets.push(newPreset);
+            selectedPreset = newPreset;
+
+            // Apply immediately to the live stage
+            const mouseImg = document.getElementById('mouseImg');
+            if (mouseImg) mouseImg.src = pendingCustomImageData;
+            if (previewImg) previewImg.src = pendingCustomImageData;
+
+            renderPresetCards();
+            updateSelectedPresetUI();
+            setTimeout(updateSvgLines, 100);
+
+            closeNewModal();
+            showToast('Mouse Option Saved', `Permanently added "${name}" to your mouse gallery!`);
+        });
+    }
+
+    // Reset to Default Mouse Layout
+    if (btnReset) {
+        btnReset.addEventListener('click', () => {
+            const defPath = '../assets/g502x.png';
+            if (previewImg) previewImg.src = defPath;
+            const mouseImg = document.getElementById('mouseImg');
+            if (mouseImg) mouseImg.src = defPath;
+
+            sendToAhk({ action: 'resetMouseImage' });
+            sendToAhk({ action: 'resetCustomButtons' });
+            sendToAhk({ action: 'resetDiagramPoints' });
+
+            state.cardOffsets = {};
+            applyButtonsConfig(DEFAULT_BUTTONS_CONFIG);
+
+            showToast('Mouse Layout Reset', 'Restored default mouse factory layout');
+            setTimeout(updateSvgLines, 100);
+            closeModal();
+        });
+    }
+}
+
+function initButtonConfigModal() {
+    const btnAdd = document.getElementById('btnAddCustomButton');
+    const modal = document.getElementById('buttonConfigModal');
+    const btnClose = document.getElementById('btnCloseButtonConfigModal');
+    const btnCancel = document.getElementById('btnCancelButtonConfig');
+    const btnSave = document.getElementById('btnSaveButtonConfig');
+
+    if (!modal) return;
+
+    if (btnAdd) {
+        btnAdd.addEventListener('click', () => {
+            openButtonConfigModal();
+        });
+    }
+
+    if (btnClose) {
+        btnClose.addEventListener('click', () => {
             modal.style.display = 'none';
-        }
+        });
+    }
 
-        function switchBackupTab(tab) {
-            const tabExport = document.getElementById('tabBackupExport');
-            const tabImport = document.getElementById('tabBackupImport');
-            const panelExport = document.getElementById('panelBackupExport');
-            const panelImport = document.getElementById('panelBackupImport');
+    if (btnCancel) {
+        btnCancel.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
 
-            if (tab === 'import') {
-                if (tabImport) {
-                    tabImport.classList.add('active');
-                    tabImport.style.color = '#fff';
-                    tabImport.style.borderBottomColor = 'var(--accent-cyan)';
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.style.display = 'none';
+    });
+
+    if (btnSave) {
+        btnSave.addEventListener('click', saveButtonConfigForm);
+    }
+
+    const btnFlashHw = document.getElementById('btnConfigFlashHardware');
+    const txtFlashHw = document.getElementById('txtConfigFlashBtn');
+    if (btnFlashHw) {
+        btnFlashHw.addEventListener('click', () => {
+            try {
+                btnFlashHw.disabled = true;
+                const origIdEl = document.getElementById('btnConfigOriginalId');
+                const keyEl = document.getElementById('btnConfigHardwareKey');
+                const bId = origIdEl ? origIdEl.value : '';
+                const targetVal = keyEl ? keyEl.value : '';
+
+                if (!bId || !targetVal) {
+                    btnFlashHw.disabled = false;
+                    showToast('Notice', 'Select a hardware key first', 'warning');
+                    return;
                 }
-                if (tabExport) {
-                    tabExport.classList.remove('active');
-                    tabExport.style.color = 'var(--text-muted)';
-                    tabExport.style.borderBottomColor = 'transparent';
+
+                const targetProf = state.selectedOnboardProfileId || 1;
+                sendToAhk({ action: 'flashLogitechButton', btnId: bId, target: targetVal, profileId: targetProf });
+                sendToAhk({ action: 'setHardwareFKey', btnId: bId, fkey: targetVal });
+
+                btnFlashHw.classList.add('flash-success');
+                if (txtFlashHw) txtFlashHw.textContent = '✅ Synced to Hardware!';
+                showToast('Hardware Updated', `${bId} flashed as ${targetVal} directly in mouse onboard memory!`, 'success');
+
+                setTimeout(() => {
+                    btnFlashHw.classList.remove('flash-success');
+                    if (txtFlashHw) txtFlashHw.textContent = '⚡ Write to Mouse Hardware';
+                    btnFlashHw.disabled = false;
+                }, 2000);
+
+            } catch (err) {
+                console.error('[ConfigFlash error]', err);
+                btnFlashHw.disabled = false;
+                showToast('Flash Failed', err.message || 'Unable to write to mouse hardware', 'error');
+            }
+        });
+    }
+}
+
+function openButtonConfigModal(btnId) {
+    const modal = document.getElementById('buttonConfigModal');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('btnConfigModalTitle');
+    const origIdEl = document.getElementById('btnConfigOriginalId');
+    const idEl = document.getElementById('btnConfigId');
+    const nameEl = document.getElementById('btnConfigName');
+    const tagEl = document.getElementById('btnConfigTag');
+    const sideEl = document.getElementById('btnConfigSide');
+    const keyEl = document.getElementById('btnConfigHardwareKey');
+
+    const curKey = (btnId && state.hardwareFKeys?.[btnId]) || '';
+
+    // Dynamically annotate hardware key options with availability and in-use status
+    if (keyEl) {
+        keyEl.innerHTML = '';
+
+        // 1. ORIGINAL / NATIVE MOUSE BUTTONS
+        const nativeGroup = document.createElement('optgroup');
+        nativeGroup.label = '── ORIGINAL / NATIVE BUTTONS (DIRECT INTERCEPT) ──';
+        nativeGroup.className = 'optgroup-native';
+
+        const nativeDefs = [
+            { val: 'LButton', name: 'Left Click (Mouse 1)', defaultFor: 'LeftClick' },
+            { val: 'RButton', name: 'Right Click (Mouse 2)', defaultFor: 'RightClick' },
+            { val: 'MButton', name: 'Middle Click (Mouse 3)', defaultFor: 'Middle' },
+            { val: 'XButton1', name: 'Back Button (Mouse 4)', defaultFor: 'Back' },
+            { val: 'XButton2', name: 'Forward Button (Mouse 5)', defaultFor: 'Forward' },
+            { val: 'WheelLeft', name: 'Wheel Tilt Left', defaultFor: 'TiltLeft' },
+            { val: 'WheelRight', name: 'Wheel Tilt Right', defaultFor: 'TiltRight' }
+        ];
+
+        nativeDefs.forEach(def => {
+            const el = document.createElement('option');
+            el.value = def.val;
+            let inUseBy = '';
+            if (state.hardwareFKeys) {
+                for (const b in state.hardwareFKeys) {
+                    if (state.hardwareFKeys[b] === def.val) {
+                        inUseBy = b;
+                        break;
+                    }
                 }
-                if (panelExport) panelExport.style.display = 'none';
-                if (panelImport) panelImport.style.display = 'block';
+            }
+            const isOrigForThis = (def.defaultFor === btnId);
+            const origTag = isOrigForThis ? ' [ORIGINAL]' : '';
+
+            if (inUseBy === btnId) {
+                el.textContent = `⚡ ${def.val} (${def.name})${origTag} — (Current Active)`;
+            } else if (inUseBy) {
+                const otherTagName = DIAGRAM_POINTS[inUseBy]?.tag || inUseBy;
+                el.textContent = `⚡ ${def.val} (${def.name})${origTag} — [In use: ${otherTagName}] (Will reassign)`;
             } else {
-                if (tabExport) {
-                    tabExport.classList.add('active');
-                    tabExport.style.color = '#fff';
-                    tabExport.style.borderBottomColor = 'var(--accent-cyan)';
+                el.textContent = `⚡ ${def.val} (${def.name})${origTag} — (Direct • No OMM)`;
+            }
+            nativeGroup.appendChild(el);
+        });
+        keyEl.appendChild(nativeGroup);
+
+        // 2. VIRTUAL F-KEYS (LOGITECH ONBOARD MEMORY)
+        const fkeyGroup = document.createElement('optgroup');
+        fkeyGroup.label = '── VIRTUAL F-KEYS (LOGITECH ONBOARD MEMORY) ──';
+
+        const fkeyDefs = [
+            { val: 'F13', label: 'F13 (Default: Mouse 3 / Middle)' },
+            { val: 'F14', label: 'F14 (Default: Back / Mouse 4)' },
+            { val: 'F15', label: 'F15 (Default: DPI Shift / Sniper)' },
+            { val: 'F16', label: 'F16 (Default: Forward / Mouse 5)' },
+            { val: 'F17', label: 'F17 (Default: Tilt Left)' },
+            { val: 'F18', label: 'F18 (Default: Tilt Right)' },
+            { val: 'F19', label: 'F19 (Default: Profile Cycle / G9)' },
+            { val: 'F20', label: 'F20 (Default: DPI Up / G8)' },
+            { val: 'F21', label: 'F21 (Default: DPI Down / G7)' },
+            { val: 'F22', label: 'F22 (Available Key)' },
+            { val: 'F23', label: 'F23 (Available Key)' },
+            { val: 'F24', label: 'F24 (Available Key)' }
+        ];
+
+        fkeyDefs.forEach(opt => {
+            const el = document.createElement('option');
+            el.value = opt.val;
+            let inUseBy = '';
+            if (state.hardwareFKeys) {
+                for (const b in state.hardwareFKeys) {
+                    if (state.hardwareFKeys[b] === opt.val) {
+                        inUseBy = b;
+                        break;
+                    }
                 }
-                if (tabImport) {
-                    tabImport.classList.remove('active');
-                    tabImport.style.color = 'var(--text-muted)';
-                    tabImport.style.borderBottomColor = 'transparent';
-                }
-                if (panelExport) panelExport.style.display = 'block';
-                if (panelImport) panelImport.style.display = 'none';
-                updateBackupStatsGrid();
+            }
+            if (inUseBy === btnId) {
+                el.textContent = `${opt.label} — (Current Active)`;
+            } else if (inUseBy) {
+                const otherTagName = DIAGRAM_POINTS[inUseBy]?.tag || inUseBy;
+                el.textContent = `${opt.label} — [In use: ${otherTagName}] (Will reassign)`;
+            } else {
+                el.textContent = `${opt.label} — (Available)`;
+            }
+            fkeyGroup.appendChild(el);
+        });
+        keyEl.appendChild(fkeyGroup);
+
+        // 3. NO HARDWARE TRIGGER
+        const virtualGroup = document.createElement('optgroup');
+        virtualGroup.label = '── NO HARDWARE TRIGGER ──';
+        const noneEl = document.createElement('option');
+        noneEl.value = '';
+        noneEl.textContent = 'None / Virtual Only (No Hardware Intercept)';
+        virtualGroup.appendChild(noneEl);
+        keyEl.appendChild(virtualGroup);
+
+        keyEl.value = curKey;
+    }
+
+    if (btnId && DIAGRAM_POINTS[btnId]) {
+        // Edit existing button
+        const pt = DIAGRAM_POINTS[btnId];
+        if (titleEl) titleEl.textContent = 'CONFIGURE BUTTON';
+        if (origIdEl) origIdEl.value = btnId;
+        if (idEl) {
+            idEl.value = btnId;
+            idEl.disabled = true;
+        }
+        if (nameEl) nameEl.value = pt.name || btnId;
+        if (tagEl) tagEl.value = pt.tag || btnId;
+        if (sideEl) sideEl.value = pt.side || 'left';
+    } else {
+        // Add new button
+        if (titleEl) titleEl.textContent = 'ADD MOUSE BUTTON';
+        if (origIdEl) origIdEl.value = '';
+        if (idEl) {
+            idEl.value = '';
+            idEl.disabled = false;
+        }
+        if (nameEl) nameEl.value = '';
+        if (tagEl) tagEl.value = '';
+        if (sideEl) sideEl.value = 'left';
+    }
+
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        if (idEl && !idEl.disabled) {
+            idEl.focus();
+        } else if (nameEl) {
+            nameEl.focus();
+        }
+    }, 50);
+}
+
+function saveButtonConfigForm() {
+    const modal = document.getElementById('buttonConfigModal');
+    const origId = document.getElementById('btnConfigOriginalId').value.trim();
+    let id = document.getElementById('btnConfigId').value.trim().replace(/[^a-zA-Z0-9_]/g, '');
+    const name = document.getElementById('btnConfigName').value.trim() || id;
+    const tag = document.getElementById('btnConfigTag').value.trim() || id.slice(0, 5);
+    const side = document.getElementById('btnConfigSide').value || 'left';
+    const fkey = document.getElementById('btnConfigHardwareKey').value || '';
+
+    if (!origId && !id) {
+        showToast('Validation Error', 'Please enter a valid Button ID');
+        return;
+    }
+
+    const targetId = origId || id;
+
+    if (!origId && DIAGRAM_POINTS[targetId]) {
+        showToast('Validation Error', `Button ID "${targetId}" already exists`);
+        return;
+    }
+
+    if (origId && DIAGRAM_POINTS[origId]) {
+        // Update existing button
+        const existing = DIAGRAM_POINTS[origId];
+        existing.name = name;
+        existing.tag = tag;
+        existing.side = side;
+    } else {
+        // Create new button
+        const btnCount = Object.keys(DIAGRAM_POINTS).length;
+        const defX = (side === 'right') ? 430 : 250;
+        const defY = 120 + ((btnCount * 28) % 260);
+        DIAGRAM_POINTS[targetId] = {
+            x: defX,
+            y: defY,
+            side: side,
+            name: name,
+            tag: tag
+        };
+    }
+
+    // Hardware key mapping - STRICT 1-TO-1 UNIQUENESS
+    if (fkey) {
+        // Enforce: do not allow more than one button with the same F button
+        for (const otherBtn in state.hardwareFKeys) {
+            if (otherBtn !== targetId && state.hardwareFKeys[otherBtn] === fkey) {
+                delete state.hardwareFKeys[otherBtn];
+                const otherName = DIAGRAM_POINTS[otherBtn]?.name || otherBtn;
+                showToast('F-Key Reassigned', `${fkey} transferred to ${name}. Cleared from ${otherName} (no duplicate F-keys).`);
             }
         }
+        state.hardwareFKeys[targetId] = fkey;
+    } else if (state.hardwareFKeys?.[targetId]) {
+        delete state.hardwareFKeys[targetId];
+    }
 
-        function updateBackupStatsGrid() {
-            const grid = document.getElementById('backupExportStatsGrid');
-            if (!grid) return;
+    if (modal) modal.style.display = 'none';
 
-            const profCount = (state.profiles && state.profiles.length > 0) ? state.profiles.length : 1;
-            const btnCount = Object.keys(DIAGRAM_POINTS).length;
-            const fkeyCount = Object.keys(state.hardwareFKeys || {}).length;
-            const presetCount = (state.customMousePresets ? state.customMousePresets.length : 0) + (typeof POPULAR_MOUSE_PRESETS !== 'undefined' ? POPULAR_MOUSE_PRESETS.length : 6);
+    renderAllCards();
+    if (typeof renderCalibPills === 'function') {
+        renderCalibPills();
+    }
+    selectButton(targetId);
+    sendButtonsToAhk();
+    showToast('Button Saved', `Configured button: ${name}`);
+}
 
-            let totalMappings = 0;
-            if (state.mappings) {
-                for (const p in state.mappings) {
-                    totalMappings += Object.keys(state.mappings[p] || {}).length;
-                }
-            }
+async function confirmDeleteButton(btnId) {
+    if (!DIAGRAM_POINTS[btnId]) return;
 
-            grid.innerHTML = `
+    if (btnId === 'LeftClick' || btnId === 'RightClick') {
+        showToast('Action Prohibited', 'Primary mouse click buttons (Left/Right Click) cannot be deleted.');
+        return;
+    }
+
+    const btnName = DIAGRAM_POINTS[btnId]?.name || btnId;
+    const ok = await showConfirmDialog({
+        title: 'Delete Mouse Button',
+        message: `Are you sure you want to delete "${btnName}"?`,
+        details: 'This will remove the button target and callout card from the interactive diagram.',
+        confirmText: 'Delete Button',
+        cancelText: 'Cancel',
+        type: 'danger',
+        icon: 'trash-2'
+    });
+    if (!ok) {
+        return;
+    }
+
+    delete DIAGRAM_POINTS[btnId];
+    if (state.hardwareFKeys?.[btnId]) {
+        delete state.hardwareFKeys[btnId];
+    }
+    if (state.cardOffsets?.[btnId]) {
+        delete state.cardOffsets[btnId];
+    }
+    if (state.customButtonNames?.[btnId]) {
+        delete state.customButtonNames[btnId];
+    }
+
+    if (state.selectedButton === btnId) {
+        const remaining = Object.keys(DIAGRAM_POINTS);
+        state.selectedButton = remaining[0] || 'G8';
+    }
+
+    renderAllCards();
+    if (typeof renderCalibPills === 'function') {
+        renderCalibPills();
+    }
+    selectButton(state.selectedButton);
+
+    sendToAhk({
+        action: 'deleteCustomButton',
+        btnId: btnId
+    });
+    sendButtonsToAhk();
+    showToast('Button Deleted', `Removed ${btnName}`);
+}
+
+// ============================================================================
+// COMPLETE STUDIO BACKUP & RESTORE (IMPORT & EXPORT EVERYTHING)
+// ============================================================================
+let pendingBackupData = null;
+
+function generateFullBackupPayload() {
+    // Gather all mouse buttons in current layout
+    const buttonsList = [];
+    for (const [btnId, pt] of Object.entries(DIAGRAM_POINTS)) {
+        buttonsList.push({
+            id: btnId,
+            name: pt.name || btnId,
+            tag: pt.tag || '',
+            side: pt.side || 'left',
+            x: Math.round(pt.x),
+            y: Math.round(pt.y),
+            hardwareKey: state.hardwareFKeys?.[btnId] || ''
+        });
+    }
+
+    const mouseImgEl = document.getElementById('mouseImg');
+    const currentMouseImage = mouseImgEl ? mouseImgEl.getAttribute('src') : '../assets/g502x.png';
+
+    return {
+        app: "My_Mouse_My_Choice",
+        version: "2.0.0",
+        timestamp: new Date().toISOString(),
+        general: {
+            defaultProfile: state.profiles?.find(p => p.isDefault)?.name || 'Desktop',
+            alwaysOnTop: !!state.isAlwaysOnTop,
+            autoSwitch: !!state.autoSwitch,
+            lockedProfile: state.lockedProfile || '',
+            rapidFire: !!state.isRapidFire,
+            showOSD: document.getElementById('chkShowOSD')?.checked ?? true,
+            muteWhenFocused: !!state.muteWhenFocused,
+            gameKeyDelay: Number(state.gameKeyDelay) || 20,
+            mouseImage: currentMouseImage
+        },
+        profiles: (state.profiles || []).map(p => ({
+            name: p.name,
+            targetExe: p.targetExe || '',
+            icon: p.icon || 'generic',
+            isDefault: !!p.isDefault,
+            switchOnHover: !!p.switchOnHover,
+            osdIconOnly: !!p.osdIconOnly,
+            desc: p.desc || (p.name + ' Profile')
+        })),
+        mappings: state.mappings || {},
+        mouseLayout: {
+            image: currentMouseImage,
+            buttons: buttonsList,
+            diagramPoints: JSON.parse(JSON.stringify(DIAGRAM_POINTS)),
+            cardOffsets: JSON.parse(JSON.stringify(state.cardOffsets || {})),
+            customButtonNames: JSON.parse(JSON.stringify(state.customButtonNames || {})),
+            hardwareFKeys: JSON.parse(JSON.stringify(state.hardwareFKeys || {}))
+        },
+        customMousePresets: state.customMousePresets || [],
+        customActionPresets: state.customActionPresets || [],
+        textBlockPresets: state.textBlockPresets || [],
+        rawIni: state.rawIni || ''
+    };
+}
+
+function downloadBackupFile(filename, content, mimeType = 'application/json') {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 200);
+}
+
+function openBackupModal(initialTab = 'export') {
+    const modal = document.getElementById('backupModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    switchBackupTab(initialTab);
+}
+
+function closeBackupModal() {
+    const modal = document.getElementById('backupModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+}
+
+function switchBackupTab(tab) {
+    const tabExport = document.getElementById('tabBackupExport');
+    const tabImport = document.getElementById('tabBackupImport');
+    const panelExport = document.getElementById('panelBackupExport');
+    const panelImport = document.getElementById('panelBackupImport');
+
+    if (tab === 'import') {
+        if (tabImport) {
+            tabImport.classList.add('active');
+            tabImport.style.color = '#fff';
+            tabImport.style.borderBottomColor = 'var(--accent-cyan)';
+        }
+        if (tabExport) {
+            tabExport.classList.remove('active');
+            tabExport.style.color = 'var(--text-muted)';
+            tabExport.style.borderBottomColor = 'transparent';
+        }
+        if (panelExport) panelExport.style.display = 'none';
+        if (panelImport) panelImport.style.display = 'block';
+    } else {
+        if (tabExport) {
+            tabExport.classList.add('active');
+            tabExport.style.color = '#fff';
+            tabExport.style.borderBottomColor = 'var(--accent-cyan)';
+        }
+        if (tabImport) {
+            tabImport.classList.remove('active');
+            tabImport.style.color = 'var(--text-muted)';
+            tabImport.style.borderBottomColor = 'transparent';
+        }
+        if (panelExport) panelExport.style.display = 'block';
+        if (panelImport) panelImport.style.display = 'none';
+        updateBackupStatsGrid();
+    }
+}
+
+function updateBackupStatsGrid() {
+    const grid = document.getElementById('backupExportStatsGrid');
+    if (!grid) return;
+
+    const profCount = (state.profiles && state.profiles.length > 0) ? state.profiles.length : 1;
+    const btnCount = Object.keys(DIAGRAM_POINTS).length;
+    const fkeyCount = Object.keys(state.hardwareFKeys || {}).length;
+    const presetCount = (state.customMousePresets ? state.customMousePresets.length : 0) + (typeof POPULAR_MOUSE_PRESETS !== 'undefined' ? POPULAR_MOUSE_PRESETS.length : 6);
+
+    let totalMappings = 0;
+    if (state.mappings) {
+        for (const p in state.mappings) {
+            totalMappings += Object.keys(state.mappings[p] || {}).length;
+        }
+    }
+
+    grid.innerHTML = `
         <div class="backup-stat-card">
             <span class="backup-stat-num">${profCount}</span>
             <span class="backup-stat-lbl">Profiles</span>
@@ -10213,61 +10253,61 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
             <span class="backup-stat-lbl">Auto-Switch</span>
         </div>
     `;
+}
+
+function handleLoadedBackupFile(fileName, content) {
+    if (!content || typeof content !== 'string') {
+        showToast('Invalid File', 'Backup file appears to be empty or corrupted.', 3500);
+        return;
+    }
+
+    const inspectCard = document.getElementById('backupInspectCard');
+    const inspectIcon = document.getElementById('backupInspectIcon');
+    const inspectFileName = document.getElementById('backupInspectFileName');
+    const inspectFileSize = document.getElementById('backupInspectFileSize');
+    const inspectBadge = document.getElementById('backupInspectBadge');
+    const inspectDetails = document.getElementById('backupInspectDetails');
+    const btnApply = document.getElementById('btnApplyBackupImport');
+
+    const sizeKb = (content.length / 1024).toFixed(1);
+    if (inspectFileName) inspectFileName.textContent = fileName;
+    if (inspectFileSize) inspectFileSize.textContent = `${sizeKb} KB`;
+
+    // Try parsing as JSON first
+    let isJson = false;
+    let parsedJson = null;
+    try {
+        parsedJson = JSON.parse(content);
+        if (parsedJson && (parsedJson.profiles || parsedJson.mappings || parsedJson.mouseLayout || parsedJson.rawIni)) {
+            isJson = true;
+        }
+    } catch (_) { }
+
+    if (isJson && parsedJson) {
+        pendingBackupData = {
+            type: 'json',
+            payload: parsedJson,
+            rawIni: parsedJson.rawIni || ''
+        };
+
+        if (inspectIcon) inspectIcon.innerHTML = getSvgIcon('archive');
+        if (inspectBadge) {
+            inspectBadge.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} Valid JSON Backup`;
+            inspectBadge.style.color = '#a6e3a1';
+            inspectBadge.style.background = 'rgba(166, 227, 161, 0.15)';
+            inspectBadge.style.borderColor = 'rgba(166, 227, 161, 0.3)';
         }
 
-        function handleLoadedBackupFile(fileName, content) {
-            if (!content || typeof content !== 'string') {
-                showToast('Invalid File', 'Backup file appears to be empty or corrupted.', 3500);
-                return;
-            }
+        const profCount = Array.isArray(parsedJson.profiles) ? parsedJson.profiles.length : Object.keys(parsedJson.mappings || {}).length;
+        const btnCount = parsedJson.mouseLayout?.buttons ? parsedJson.mouseLayout.buttons.length : (parsedJson.mouseLayout?.diagramPoints ? Object.keys(parsedJson.mouseLayout.diagramPoints).length : 'Auto');
+        const presetsCount = Array.isArray(parsedJson.customMousePresets) ? parsedJson.customMousePresets.length : 0;
+        const actionPresetsCount = Array.isArray(parsedJson.customActionPresets) ? parsedJson.customActionPresets.length : 0;
+        const textBlocksCount = Array.isArray(parsedJson.textBlockPresets) ? parsedJson.textBlockPresets.length : 0;
+        const hasHardwareFKeys = parsedJson.mouseLayout?.hardwareFKeys ? Object.keys(parsedJson.mouseLayout.hardwareFKeys).length : 0;
+        const backupTime = parsedJson.timestamp ? new Date(parsedJson.timestamp).toLocaleString() : 'Unknown';
 
-            const inspectCard = document.getElementById('backupInspectCard');
-            const inspectIcon = document.getElementById('backupInspectIcon');
-            const inspectFileName = document.getElementById('backupInspectFileName');
-            const inspectFileSize = document.getElementById('backupInspectFileSize');
-            const inspectBadge = document.getElementById('backupInspectBadge');
-            const inspectDetails = document.getElementById('backupInspectDetails');
-            const btnApply = document.getElementById('btnApplyBackupImport');
-
-            const sizeKb = (content.length / 1024).toFixed(1);
-            if (inspectFileName) inspectFileName.textContent = fileName;
-            if (inspectFileSize) inspectFileSize.textContent = `${sizeKb} KB`;
-
-            // Try parsing as JSON first
-            let isJson = false;
-            let parsedJson = null;
-            try {
-                parsedJson = JSON.parse(content);
-                if (parsedJson && (parsedJson.profiles || parsedJson.mappings || parsedJson.mouseLayout || parsedJson.rawIni)) {
-                    isJson = true;
-                }
-            } catch (_) { }
-
-            if (isJson && parsedJson) {
-                pendingBackupData = {
-                    type: 'json',
-                    payload: parsedJson,
-                    rawIni: parsedJson.rawIni || ''
-                };
-
-                if (inspectIcon) inspectIcon.innerHTML = getSvgIcon('archive');
-                if (inspectBadge) {
-                    inspectBadge.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} Valid JSON Backup`;
-                    inspectBadge.style.color = '#a6e3a1';
-                    inspectBadge.style.background = 'rgba(166, 227, 161, 0.15)';
-                    inspectBadge.style.borderColor = 'rgba(166, 227, 161, 0.3)';
-                }
-
-                const profCount = Array.isArray(parsedJson.profiles) ? parsedJson.profiles.length : Object.keys(parsedJson.mappings || {}).length;
-                const btnCount = parsedJson.mouseLayout?.buttons ? parsedJson.mouseLayout.buttons.length : (parsedJson.mouseLayout?.diagramPoints ? Object.keys(parsedJson.mouseLayout.diagramPoints).length : 'Auto');
-                const presetsCount = Array.isArray(parsedJson.customMousePresets) ? parsedJson.customMousePresets.length : 0;
-                const actionPresetsCount = Array.isArray(parsedJson.customActionPresets) ? parsedJson.customActionPresets.length : 0;
-                const textBlocksCount = Array.isArray(parsedJson.textBlockPresets) ? parsedJson.textBlockPresets.length : 0;
-                const hasHardwareFKeys = parsedJson.mouseLayout?.hardwareFKeys ? Object.keys(parsedJson.mouseLayout.hardwareFKeys).length : 0;
-                const backupTime = parsedJson.timestamp ? new Date(parsedJson.timestamp).toLocaleString() : 'Unknown';
-
-                if (inspectDetails) {
-                    inspectDetails.innerHTML = `
+        if (inspectDetails) {
+            inspectDetails.innerHTML = `
                 <div><strong>${getSvgIcon('folder', 'svg-icon-xs')} Profiles:</strong> ${profCount} app profile(s)</div>
                 <div><strong>${getSvgIcon('mouse', 'svg-icon-xs')} Buttons:</strong> ${btnCount} mouse controls</div>
                 <div><strong>${getSvgIcon('zap', 'svg-icon-xs')} Hardware Keys:</strong> ${hasHardwareFKeys} F-keys mapped</div>
@@ -10276,28 +10316,28 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
                     <strong>${getSvgIcon('clock', 'svg-icon-xs')} Created:</strong> ${backupTime} • <strong>App:</strong> ${parsedJson.app || 'OBM Studio'} v${parsedJson.version || '2.0'}
                 </div>
             `;
-                }
-            } else {
-                // Treat as settings.ini
-                const profMatches = (content.match(/\[Profile_[^\]]+\]/g) || []).length;
-                const hasDiagramPoints = content.includes('[DiagramPoints]');
-                const hasHardwareKeys = content.includes('[HardwareFKeys]');
+        }
+    } else {
+        // Treat as settings.ini
+        const profMatches = (content.match(/\[Profile_[^\]]+\]/g) || []).length;
+        const hasDiagramPoints = content.includes('[DiagramPoints]');
+        const hasHardwareKeys = content.includes('[HardwareFKeys]');
 
-                pendingBackupData = {
-                    type: 'ini',
-                    rawIni: content
-                };
+        pendingBackupData = {
+            type: 'ini',
+            rawIni: content
+        };
 
-                if (inspectIcon) inspectIcon.innerHTML = getSvgIcon('file-text');
-                if (inspectBadge) {
-                    inspectBadge.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} Valid settings.ini`;
-                    inspectBadge.style.color = '#38bdf8';
-                    inspectBadge.style.background = 'rgba(56, 189, 248, 0.15)';
-                    inspectBadge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
-                }
+        if (inspectIcon) inspectIcon.innerHTML = getSvgIcon('file-text');
+        if (inspectBadge) {
+            inspectBadge.innerHTML = `${getSvgIcon('check', 'svg-icon-xs')} Valid settings.ini`;
+            inspectBadge.style.color = '#38bdf8';
+            inspectBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+            inspectBadge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+        }
 
-                if (inspectDetails) {
-                    inspectDetails.innerHTML = `
+        if (inspectDetails) {
+            inspectDetails.innerHTML = `
                 <div><strong>${getSvgIcon('file-text', 'svg-icon-xs')} Format:</strong> Raw AutoHotkey settings.ini</div>
                 <div><strong>${getSvgIcon('folder', 'svg-icon-xs')} Profiles:</strong> ~${profMatches} profile section(s)</div>
                 <div><strong>${getSvgIcon('mouse', 'svg-icon-xs')} Layout:</strong> ${hasDiagramPoints ? 'Contains Diagram Coordinates' : 'Standard'}</div>
@@ -10306,1127 +10346,1127 @@ function populateFKeySubmenu(currentBtnId, currentFKey) {
                     Direct restoration will safely replace settings.ini (a .bak backup is created automatically).
                 </div>
             `;
-                }
-            }
-
-            if (inspectCard) inspectCard.style.display = 'block';
-            if (btnApply) {
-                btnApply.disabled = false;
-                btnApply.style.opacity = '1';
-                btnApply.style.cursor = 'pointer';
-                btnApply.innerHTML = `${getSvgIcon('download')} Apply & Restore Configuration`;
-            }
-
-            switchBackupTab('import');
-            showToast('File Ready', `Inspected ${fileName}. Choose restore mode and apply.`);
         }
+    }
 
-        function initBackupModal() {
-            const btnOpenHeader = document.getElementById('btnOpenBackupModal');
-            const btnOpenToolbar = document.getElementById('btnToolbarBackup');
-            const modal = document.getElementById('backupModal');
-            const btnClose = document.getElementById('btnCloseBackupModal');
-            const btnCancel = document.getElementById('btnCancelBackupModal');
-            const tabExport = document.getElementById('tabBackupExport');
-            const tabImport = document.getElementById('tabBackupImport');
+    if (inspectCard) inspectCard.style.display = 'block';
+    if (btnApply) {
+        btnApply.disabled = false;
+        btnApply.style.opacity = '1';
+        btnApply.style.cursor = 'pointer';
+        btnApply.innerHTML = `${getSvgIcon('download')} Apply & Restore Configuration`;
+    }
 
-            if (btnOpenHeader) btnOpenHeader.addEventListener('click', () => openBackupModal('export'));
-            if (btnOpenToolbar) btnOpenToolbar.addEventListener('click', () => openBackupModal('export'));
-            if (btnClose) btnClose.addEventListener('click', closeBackupModal);
-            if (btnCancel) btnCancel.addEventListener('click', closeBackupModal);
+    switchBackupTab('import');
+    showToast('File Ready', `Inspected ${fileName}. Choose restore mode and apply.`);
+}
 
-            if (modal) {
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) closeBackupModal();
-                });
-            }
+function initBackupModal() {
+    const btnOpenHeader = document.getElementById('btnOpenBackupModal');
+    const btnOpenToolbar = document.getElementById('btnToolbarBackup');
+    const modal = document.getElementById('backupModal');
+    const btnClose = document.getElementById('btnCloseBackupModal');
+    const btnCancel = document.getElementById('btnCancelBackupModal');
+    const tabExport = document.getElementById('tabBackupExport');
+    const tabImport = document.getElementById('tabBackupImport');
 
-            if (tabExport) tabExport.addEventListener('click', () => switchBackupTab('export'));
-            if (tabImport) tabImport.addEventListener('click', () => switchBackupTab('import'));
+    if (btnOpenHeader) btnOpenHeader.addEventListener('click', () => openBackupModal('export'));
+    if (btnOpenToolbar) btnOpenToolbar.addEventListener('click', () => openBackupModal('export'));
+    if (btnClose) btnClose.addEventListener('click', closeBackupModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeBackupModal);
 
-            // Download JSON
-            const btnDownloadJson = document.getElementById('btnDownloadJsonBackup');
-            if (btnDownloadJson) {
-                btnDownloadJson.addEventListener('click', () => {
-                    const payload = generateFullBackupPayload();
-                    const dateStr = new Date().toISOString().slice(0, 10);
-                    const fileName = `OBM_Studio_Backup_${dateStr}.json`;
-                    downloadBackupFile(fileName, JSON.stringify(payload, null, 2), 'application/json');
-                    showToast('Backup Exported', `Downloaded ${fileName}`);
-                });
-            }
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeBackupModal();
+        });
+    }
 
-            // Save JSON via Windows Dialog
-            const btnSaveJsonDialog = document.getElementById('btnSaveJsonViaDialog');
-            if (btnSaveJsonDialog) {
-                btnSaveJsonDialog.addEventListener('click', () => {
-                    const payload = generateFullBackupPayload();
-                    sendToAhk({
-                        action: 'exportBackupToFile',
-                        jsonContent: JSON.stringify(payload, null, 2)
-                    });
-                });
-            }
+    if (tabExport) tabExport.addEventListener('click', () => switchBackupTab('export'));
+    if (tabImport) tabImport.addEventListener('click', () => switchBackupTab('import'));
 
-            // Download Raw settings.ini
-            const btnDownloadIni = document.getElementById('btnDownloadIniBackup');
-            if (btnDownloadIni) {
-                btnDownloadIni.addEventListener('click', () => {
+    // Download JSON
+    const btnDownloadJson = document.getElementById('btnDownloadJsonBackup');
+    if (btnDownloadJson) {
+        btnDownloadJson.addEventListener('click', () => {
+            const payload = generateFullBackupPayload();
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const fileName = `OBM_Studio_Backup_${dateStr}.json`;
+            downloadBackupFile(fileName, JSON.stringify(payload, null, 2), 'application/json');
+            showToast('Backup Exported', `Downloaded ${fileName}`);
+        });
+    }
+
+    // Save JSON via Windows Dialog
+    const btnSaveJsonDialog = document.getElementById('btnSaveJsonViaDialog');
+    if (btnSaveJsonDialog) {
+        btnSaveJsonDialog.addEventListener('click', () => {
+            const payload = generateFullBackupPayload();
+            sendToAhk({
+                action: 'exportBackupToFile',
+                jsonContent: JSON.stringify(payload, null, 2)
+            });
+        });
+    }
+
+    // Download Raw settings.ini
+    const btnDownloadIni = document.getElementById('btnDownloadIniBackup');
+    if (btnDownloadIni) {
+        btnDownloadIni.addEventListener('click', () => {
+            if (state.rawIni) {
+                downloadBackupFile('settings.ini', state.rawIni, 'text/plain');
+                showToast('INI Exported', 'Downloaded settings.ini');
+            } else {
+                showToast('Fetching INI', 'Requesting latest settings.ini from backend...');
+                sendToAhk({ action: 'getInitialState' });
+                setTimeout(() => {
                     if (state.rawIni) {
                         downloadBackupFile('settings.ini', state.rawIni, 'text/plain');
                         showToast('INI Exported', 'Downloaded settings.ini');
-                    } else {
-                        showToast('Fetching INI', 'Requesting latest settings.ini from backend...');
-                        sendToAhk({ action: 'getInitialState' });
-                        setTimeout(() => {
-                            if (state.rawIni) {
-                                downloadBackupFile('settings.ini', state.rawIni, 'text/plain');
-                                showToast('INI Exported', 'Downloaded settings.ini');
-                            }
-                        }, 500);
                     }
-                });
+                }, 500);
+            }
+        });
+    }
+
+    // Drag and Drop & Web file browse
+    const dropZone = document.getElementById('backupDropZone');
+    const fileInput = document.getElementById('backupFileInput');
+    const btnBrowseWeb = document.getElementById('btnBrowseBackupWeb');
+    const btnBrowseAhk = document.getElementById('btnBrowseBackupAhk');
+
+    if (dropZone && fileInput) {
+        dropZone.addEventListener('click', (e) => {
+            if (e.target !== fileInput && !e.target.closest('button')) {
+                fileInput.click();
+            }
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    handleLoadedBackupFile(file.name, evt.target.result);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    handleLoadedBackupFile(file.name, evt.target.result);
+                };
+                reader.readAsText(file);
+            }
+            fileInput.value = '';
+        });
+    }
+
+    if (btnBrowseWeb && fileInput) {
+        btnBrowseWeb.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+    }
+
+    if (btnBrowseAhk) {
+        btnBrowseAhk.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sendToAhk({ action: 'browseBackupFile' });
+        });
+    }
+
+    // Apply Import & Restore
+    const btnApplyImport = document.getElementById('btnApplyBackupImport');
+    if (btnApplyImport) {
+        btnApplyImport.addEventListener('click', () => {
+            if (!pendingBackupData) {
+                showToast('No Backup Selected', 'Please drop or browse a backup file first.');
+                return;
             }
 
-            // Drag and Drop & Web file browse
-            const dropZone = document.getElementById('backupDropZone');
-            const fileInput = document.getElementById('backupFileInput');
-            const btnBrowseWeb = document.getElementById('btnBrowseBackupWeb');
-            const btnBrowseAhk = document.getElementById('btnBrowseBackupAhk');
-
-            if (dropZone && fileInput) {
-                dropZone.addEventListener('click', (e) => {
-                    if (e.target !== fileInput && !e.target.closest('button')) {
-                        fileInput.click();
-                    }
-                });
-
-                dropZone.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropZone.classList.add('dragover');
-                });
-
-                dropZone.addEventListener('dragleave', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropZone.classList.remove('dragover');
-                });
-
-                dropZone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropZone.classList.remove('dragover');
-                    const files = e.dataTransfer.files;
-                    if (files && files.length > 0) {
-                        const file = files[0];
-                        const reader = new FileReader();
-                        reader.onload = (evt) => {
-                            handleLoadedBackupFile(file.name, evt.target.result);
-                        };
-                        reader.readAsText(file);
-                    }
-                });
-
-                fileInput.addEventListener('change', (e) => {
-                    const files = e.target.files;
-                    if (files && files.length > 0) {
-                        const file = files[0];
-                        const reader = new FileReader();
-                        reader.onload = (evt) => {
-                            handleLoadedBackupFile(file.name, evt.target.result);
-                        };
-                        reader.readAsText(file);
-                    }
-                    fileInput.value = '';
-                });
-            }
-
-            if (btnBrowseWeb && fileInput) {
-                btnBrowseWeb.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    fileInput.click();
-                });
-            }
-
-            if (btnBrowseAhk) {
-                btnBrowseAhk.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    sendToAhk({ action: 'browseBackupFile' });
-                });
-            }
-
-            // Apply Import & Restore
-            const btnApplyImport = document.getElementById('btnApplyBackupImport');
-            if (btnApplyImport) {
-                btnApplyImport.addEventListener('click', () => {
-                    if (!pendingBackupData) {
-                        showToast('No Backup Selected', 'Please drop or browse a backup file first.');
-                        return;
-                    }
-
-                    const restoreModeRadios = document.querySelectorAll('input[name="restoreMode"]');
-                    let selectedMode = 'replace';
-                    restoreModeRadios.forEach(r => {
-                        if (r.checked) selectedMode = r.value;
-                    });
-
-                    btnApplyImport.disabled = true;
-                    btnApplyImport.style.opacity = '0.6';
-                    btnApplyImport.innerHTML = `${getSvgIcon('loader-2', 'spin')} Restoring Configuration...`;
-
-                    if (pendingBackupData.type === 'ini') {
-                        sendToAhk({
-                            action: 'importFullBackup',
-                            mode: 'raw_ini',
-                            rawIni: pendingBackupData.rawIni
-                        });
-                    } else {
-                        sendToAhk({
-                            action: 'importFullBackup',
-                            mode: selectedMode,
-                            backup: pendingBackupData.payload,
-                            rawIni: pendingBackupData.rawIni || ''
-                        });
-                    }
-                });
-            }
-        }
-
-        // ============================================================================
-        // STUDIO SETTINGS MODAL CONTROLLER
-        // ============================================================================
-        function updateSnapTapUi() {
-            const chk = document.getElementById('chkSettingsSnapTap');
-            const badge = document.getElementById('snapTapStatusBadge');
-            if (chk) chk.checked = !!state.snapTap;
-            if (badge) {
-                if (state.snapTap) {
-                    badge.textContent = 'ACTIVE';
-                    badge.style.background = 'rgba(0, 210, 255, 0.15)';
-                    badge.style.color = 'var(--accent-cyan, #00d2ff)';
-                    badge.style.border = '1px solid rgba(0, 210, 255, 0.3)';
-                } else {
-                    badge.textContent = 'DISABLED';
-                    badge.style.background = 'rgba(255, 255, 255, 0.06)';
-                    badge.style.color = 'var(--text-muted, #7a829e)';
-                    badge.style.border = '1px solid transparent';
-                }
-            }
-        }
-
-        function openStudioSettingsModal() {
-            const modal = document.getElementById('studioSettingsModal');
-            if (!modal) return;
-
-            // Sync settings checkboxes with current state
-            const chkMute = document.getElementById('chkSettingsMute');
-            if (chkMute) chkMute.checked = !!state.muteWhenFocused;
-            const chkOSD = document.getElementById('chkSettingsOSD');
-            if (chkOSD) chkOSD.checked = document.getElementById('chkShowOSD')?.checked ?? true;
-            const chkTop = document.getElementById('chkSettingsTop');
-            if (chkTop) chkTop.checked = !!state.isAlwaysOnTop;
-            const chkStartup = document.getElementById('chkSettingsStartup');
-            if (chkStartup) chkStartup.checked = !!state.runAtStartup;
-            const chkReact = document.getElementById('chkSettingsReactUnfocused');
-            if (chkReact) chkReact.checked = !!state.reactWhenUnfocused;
-
-            updateGameKeyDelayUI();
-            updateHoverFocusUI();
-            updateInterceptionDriverUI();
-
-            modal.style.display = 'flex';
-        }
-
-        function closeStudioSettingsModal() {
-            const modal = document.getElementById('studioSettingsModal');
-            if (modal) modal.style.display = 'none';
-        }
-
-        function initStudioSettingsModal() {
-            const btnOpenHeader = document.getElementById('btnHeaderSettings');
-            const modal = document.getElementById('studioSettingsModal');
-            const btnClose = document.getElementById('btnSettingsModalClose');
-            const btnDone = document.getElementById('btnSettingsCloseFooter');
-
-            if (btnOpenHeader) {
-                btnOpenHeader.addEventListener('click', () => openStudioSettingsModal());
-            }
-            if (btnClose) {
-                btnClose.addEventListener('click', () => closeStudioSettingsModal());
-            }
-            if (btnDone) {
-                btnDone.addEventListener('click', () => closeStudioSettingsModal());
-            }
-            if (modal) {
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) closeStudioSettingsModal();
-                });
-            }
-
-            // Auto-close settings modal when launching any of the individual tools from it
-            const subToolButtons = [
-                'btnChangeMouseImage',
-                'btnAddCustomButton',
-                'btnCalibratePointers',
-                'btnOpenOmmSetup',
-                'btnToolbarBackup'
-            ];
-            subToolButtons.forEach(id => {
-                const btn = document.getElementById(id);
-                if (btn) {
-                    btn.addEventListener('click', () => {
-                        closeStudioSettingsModal();
-                    });
-                }
+            const restoreModeRadios = document.querySelectorAll('input[name="restoreMode"]');
+            let selectedMode = 'replace';
+            restoreModeRadios.forEach(r => {
+                if (r.checked) selectedMode = r.value;
             });
 
-            // Make the entire card container clickable, not just the small button
-            const actionableCards = [
-                { cardId: 'cardSettingsMouseImg', btnId: 'btnChangeMouseImage' },
-                { cardId: 'cardSettingsAddBtn', btnId: 'btnAddCustomButton' },
-                { cardId: 'cardSettingsCalibrate', btnId: 'btnCalibratePointers' },
-                { cardId: 'cardSettingsOmm', btnId: 'btnOpenOmmSetup' },
-                { cardId: 'cardSettingsBackup', btnId: 'btnToolbarBackup' }
-            ];
-            actionableCards.forEach(item => {
-                const card = document.getElementById(item.cardId);
-                const btn = document.getElementById(item.btnId);
-                if (card && btn) {
-                    card.addEventListener('click', (e) => {
-                        if (!e.target.closest(`#${item.btnId}`)) {
-                            btn.click();
-                        }
-                    });
-                }
-            });
+            btnApplyImport.disabled = true;
+            btnApplyImport.style.opacity = '0.6';
+            btnApplyImport.innerHTML = `${getSvgIcon('loader-2', 'spin')} Restoring Configuration...`;
 
-            // Wire up quick toggles inside settings modal to mirror main checkboxes
-            const chkSettingsMute = document.getElementById('chkSettingsMute');
-            if (chkSettingsMute) {
-                chkSettingsMute.addEventListener('change', (e) => {
-                    state.muteWhenFocused = e.target.checked;
-                    const mainChk = document.getElementById('chkMuteWhenFocused');
-                    if (mainChk) mainChk.checked = state.muteWhenFocused;
-                    sendToAhk({ action: 'toggleMuteWhenFocused', enabled: state.muteWhenFocused });
-                    updateHeaderTogglesUI();
+            if (pendingBackupData.type === 'ini') {
+                sendToAhk({
+                    action: 'importFullBackup',
+                    mode: 'raw_ini',
+                    rawIni: pendingBackupData.rawIni
                 });
-            }
-
-            const chkSettingsOSD = document.getElementById('chkSettingsOSD');
-            if (chkSettingsOSD) {
-                chkSettingsOSD.addEventListener('change', (e) => {
-                    const mainChk = document.getElementById('chkShowOSD');
-                    if (mainChk) mainChk.checked = e.target.checked;
-                    sendToAhk({ action: 'toggleOSD', enabled: e.target.checked });
-                    updateHeaderTogglesUI();
-                });
-            }
-
-            const chkSettingsTop = document.getElementById('chkSettingsTop');
-            if (chkSettingsTop) {
-                chkSettingsTop.addEventListener('change', (e) => {
-                    state.isAlwaysOnTop = e.target.checked;
-                    const mainChk = document.getElementById('chkAlwaysOnTop');
-                    if (mainChk) mainChk.checked = state.isAlwaysOnTop;
-                    sendToAhk({ action: 'setAlwaysOnTop', enabled: state.isAlwaysOnTop });
-                    updateHeaderTogglesUI();
-                });
-            }
-
-            const chkSettingsStartup = document.getElementById('chkSettingsStartup');
-            if (chkSettingsStartup) {
-                chkSettingsStartup.addEventListener('change', (e) => {
-                    state.runAtStartup = e.target.checked;
-                    sendToAhk({ action: 'toggleRunAtStartup', enabled: state.runAtStartup });
-                });
-            }
-
-            const chkSettingsReactUnfocused = document.getElementById('chkSettingsReactUnfocused');
-            if (chkSettingsReactUnfocused) {
-                chkSettingsReactUnfocused.addEventListener('change', (e) => {
-                    state.reactWhenUnfocused = e.target.checked;
-                    sendToAhk({ action: 'toggleReactWhenUnfocused', enabled: state.reactWhenUnfocused });
-                });
-            }
-
-            const chkSettingsSnapTap = document.getElementById('chkSettingsSnapTap');
-            if (chkSettingsSnapTap) {
-                chkSettingsSnapTap.addEventListener('change', (e) => {
-                    state.snapTap = e.target.checked;
-                    updateSnapTapUi();
-                    sendToAhk({ action: 'toggleSnapTap', enabled: state.snapTap });
-                });
-            }
-
-            const chkSettingsInterceptionDriver = document.getElementById('chkSettingsInterceptionDriver');
-            if (chkSettingsInterceptionDriver) {
-                chkSettingsInterceptionDriver.addEventListener('change', async (e) => {
-                    const wantsEnabled = e.target.checked;
-                    if (wantsEnabled && !state.isAdmin) {
-                        e.target.checked = false;
-                        await promptAdminRestartForDriver();
-                        return;
-                    }
-                    state.useInterceptionDriver = wantsEnabled;
-                    sendToAhk({ action: 'toggleInterceptionDriver', enabled: state.useInterceptionDriver });
-                    updateInterceptionDriverUI();
-                });
-            }
-
-            const btnInstallDriver = document.getElementById('btnInstallInterceptionDriver');
-            if (btnInstallDriver) {
-                btnInstallDriver.addEventListener('click', () => {
-                    sendToAhk({ action: 'installInterceptionDriver' });
-                });
-            }
-
-            // Wire up Game Key Delay input and preset pills
-            const inputGameDelay = document.getElementById('inputGameKeyDelay');
-            if (inputGameDelay) {
-                inputGameDelay.addEventListener('change', (e) => {
-                    setGameKeyDelay(e.target.value);
-                });
-            }
-
-            const presetGroup = document.getElementById('gameDelayPresetPills');
-            if (presetGroup) {
-                presetGroup.querySelectorAll('.preset-pill').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const val = btn.getAttribute('data-delay');
-                        setGameKeyDelay(val);
-                    });
-                });
-            }
-
-            // Wire up Window Hover Focus mode pills
-            const hoverModePills = document.getElementById('hoverFocusModePills');
-            if (hoverModePills) {
-                hoverModePills.querySelectorAll('.preset-pill').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const mode = btn.getAttribute('data-mode');
-                        setFocusOnHoverMode(mode);
-                    });
-                });
-            }
-
-            // Wire up Window Hover Focus delay input and preset pills
-            const inputHoverDelay = document.getElementById('inputHoverFocusDelay');
-            if (inputHoverDelay) {
-                inputHoverDelay.addEventListener('change', (e) => {
-                    setFocusOnHoverDelay(e.target.value);
-                });
-            }
-
-            const hoverDelayPills = document.getElementById('hoverFocusDelayPresetPills');
-            if (hoverDelayPills) {
-                hoverDelayPills.querySelectorAll('.preset-pill').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const val = btn.getAttribute('data-delay');
-                        setFocusOnHoverDelay(val);
-                    });
-                });
-            }
-        }
-
-        function updateGameKeyDelayUI() {
-            const delay = state.gameKeyDelay !== undefined ? state.gameKeyDelay : 20;
-
-            const pill = document.getElementById('singleGameDelayPill');
-            if (pill) {
-                pill.textContent = `${delay} ms`;
-            }
-
-            const input = document.getElementById('inputGameKeyDelay');
-            if (input && document.activeElement !== input) {
-                input.value = delay;
-            }
-
-            const presetGroup = document.getElementById('gameDelayPresetPills');
-            if (presetGroup) {
-                presetGroup.querySelectorAll('.preset-pill').forEach(btn => {
-                    const val = Number(btn.getAttribute('data-delay'));
-                    btn.classList.toggle('active', val === delay);
-                });
-            }
-        }
-
-        function setGameKeyDelay(val) {
-            const num = Math.max(0, Math.min(500, parseInt(val, 10) || 0));
-            state.gameKeyDelay = num;
-            updateGameKeyDelayUI();
-            sendToAhk({ action: 'setGameKeyDelay', delay: num });
-            showToast('Game Key Delay', `Keystroke hold & pacing set to ${num} ms`);
-        }
-
-        function updateInterceptionDriverUI() {
-            const chk = document.getElementById('chkSettingsInterceptionDriver');
-            const badge = document.getElementById('badgeInterceptionDriver');
-            const note = document.getElementById('noteInterceptionDriver');
-            const btnInstall = document.getElementById('btnInstallInterceptionDriver');
-
-            if (chk) {
-                chk.checked = !!state.useInterceptionDriver;
-            }
-
-            if (badge) {
-                if (state.useInterceptionDriver && state.interceptionDriverAvailable) {
-                    badge.textContent = 'ACTIVE (KERNEL)';
-                    badge.className = 'driver-status-badge connected';
-                } else if (state.useInterceptionDriver && !state.interceptionDriverAvailable) {
-                    badge.textContent = 'NEEDS REBOOT';
-                    badge.className = 'driver-status-badge warning';
-                } else if (state.interceptionDriverInstalled) {
-                    badge.textContent = 'DRIVER READY';
-                    badge.className = 'driver-status-badge ready';
-                } else {
-                    badge.textContent = 'NOT INSTALLED';
-                    badge.className = 'driver-status-badge inactive';
-                }
-            }
-
-            if (btnInstall) {
-                if (state.interceptionDriverInstalled) {
-                    btnInstall.style.display = 'none';
-                } else {
-                    btnInstall.style.display = 'inline-flex';
-                }
-            }
-
-            if (note) {
-                if (state.interceptionDriverInstalled) {
-                    note.innerHTML = 'Kernel filter active (<code>mouclass.sys</code> & <code>kbdclass.sys</code>). Hardware-level injection active.';
-                } else {
-                    note.innerHTML = 'Driver not installed. Click <b>Install Driver</b> and reboot Windows once.';
-                }
-            }
-        }
-
-        async function promptAdminRestartForDriver() {
-            const chk = document.getElementById('chkSettingsInterceptionDriver');
-            if (chk) chk.checked = false;
-            const confirmed = await showConfirmDialog({
-                title: 'Administrator Privileges Required',
-                message: 'The Interception Kernel Driver requires Administrator privileges to communicate with the low-level keyboard and mouse filter drivers (kbdclass.sys & mouclass.sys).',
-                details: 'Would you like to restart My Mouse My Choice with Administrator privileges now? Windows will prompt you to confirm elevation (UAC).',
-                confirmText: 'Restart as Admin',
-                cancelText: 'Cancel',
-                type: 'warning',
-                icon: 'shield'
-            });
-            if (confirmed) {
-                sendToAhk({ action: 'restartAsAdmin', enableDriver: true });
-            }
-        }
-
-        function updateHoverFocusUI() {
-            const mode = state.focusOnHoverMode || 'profile';
-            const delay = state.focusOnHoverDelay !== undefined ? state.focusOnHoverDelay : 120;
-
-            const hoverModePills = document.getElementById('hoverFocusModePills');
-            if (hoverModePills) {
-                hoverModePills.querySelectorAll('.preset-pill').forEach(btn => {
-                    btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
-                });
-            }
-
-            const inputDelay = document.getElementById('inputHoverFocusDelay');
-            if (inputDelay && document.activeElement !== inputDelay) {
-                inputDelay.value = delay;
-            }
-
-            const hoverDelayPills = document.getElementById('hoverFocusDelayPresetPills');
-            if (hoverDelayPills) {
-                hoverDelayPills.querySelectorAll('.preset-pill').forEach(btn => {
-                    btn.classList.toggle('active', Number(btn.getAttribute('data-delay')) === delay);
-                });
-            }
-        }
-
-        function setFocusOnHoverMode(mode) {
-            if (mode !== 'off' && mode !== 'profile' && mode !== 'all') mode = 'profile';
-            state.focusOnHoverMode = mode;
-            updateHoverFocusUI();
-            sendToAhk({ action: 'setFocusOnHoverMode', mode: mode });
-            const labelMap = { off: 'Disabled', profile: 'Per Profile', all: 'Always Active (All)' };
-            showToast('Hover Focus', `Mode set to ${labelMap[mode] || mode}`);
-        }
-
-        function setFocusOnHoverDelay(val) {
-            const num = Math.max(0, Math.min(1000, parseInt(val, 10) || 0));
-            state.focusOnHoverDelay = num;
-            updateHoverFocusUI();
-            sendToAhk({ action: 'setFocusOnHoverDelay', delay: num });
-            showToast('Hover Focus Delay', `Activation dwell time set to ${num} ms`);
-        }
-        // ============================================================================
-        // LIVE BUTTON & MACRO ACTIVITY LOG + HARDWARE VISUALIZER
-        // ============================================================================
-        state.activityLogs = [];
-        state.visualizerPressedKeys = new Set();
-        state.visualizerDownKeys = new Set();
-        state.visualizerViewMode = 'split';
-
-        function initActivityLogModal() {
-            const btnOpen = document.getElementById('btnOpenActivityLog');
-            const modal = document.getElementById('activityLogModal');
-            const card = document.getElementById('activityLogCard');
-            const btnClose = document.getElementById('btnCloseActivityLog');
-            const btnHistory = document.getElementById('btnOpenAhkKeyHistory');
-            const btnUnstick = document.getElementById('btnEmergencyUnstick');
-            const btnCopy = document.getElementById('btnCopyActivityLog');
-            const btnClear = document.getElementById('btnClearActivityLog');
-            const btnClearVis = document.getElementById('btnClearVisualizerKeys');
-
-            if (btnOpen) btnOpen.addEventListener('click', openActivityLogModal);
-            if (btnClose) btnClose.addEventListener('click', closeActivityLogModal);
-            if (modal) {
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) closeActivityLogModal();
-                });
-            }
-
-            if (btnHistory) {
-                btnHistory.addEventListener('click', () => {
-                    sendToAhk({ action: 'showKeyHistory' });
-                    showToast('AHK KeyHistory', 'Opening native Windows KeyHistory window...');
-                });
-            }
-
-            if (btnUnstick) {
-                btnUnstick.addEventListener('click', () => {
-                    sendToAhk({ action: 'unstickAllKeys' });
-                    showToast('Emergency Unstick', 'Sent UP commands for Shift, Ctrl, Alt, and Mouse Buttons');
-                });
-            }
-
-            if (btnCopy) {
-                btnCopy.addEventListener('click', copyActivityLogs);
-            }
-
-            if (btnClear) {
-                btnClear.addEventListener('click', clearActivityLogs);
-            }
-
-            if (btnClearVis) {
-                btnClearVis.addEventListener('click', clearVisualizerBoard);
-            }
-
-            // View mode switcher: Split / Keyboard / Logs
-            const viewBtns = document.querySelectorAll('.log-view-btn');
-            viewBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const mode = btn.dataset.mode;
-                    setVisualizerViewMode(mode);
-                });
-            });
-
-            // Listen to physical keyboard & mouse events when modal is active
-            window.addEventListener('keydown', onVisualizerNativeKeyDown, true);
-            window.addEventListener('keyup', onVisualizerNativeKeyUp, true);
-            window.addEventListener('mousedown', onVisualizerNativeMouseDown, true);
-            window.addEventListener('mouseup', onVisualizerNativeMouseUp, true);
-            window.addEventListener('wheel', onVisualizerNativeWheel, { passive: true, capture: true });
-
-            // Auto-scroll checkbox toggle listener: instantly jump to bottom when re-checked
-            const chkAuto = document.getElementById('chkLogAutoScroll');
-            if (chkAuto) {
-                chkAuto.addEventListener('change', () => {
-                    if (chkAuto.checked) {
-                        const stream = document.getElementById('activityLogStream');
-                        if (stream) stream.scrollTop = stream.scrollHeight;
-                    }
-                });
-            }
-
-            // Enable horizontal mouse wheel scrolling over ribbon bar
-            const ribbon = document.getElementById('visualizerRibbonStream');
-            if (ribbon) {
-                ribbon.addEventListener('wheel', (e) => {
-                    if (e.deltaY !== 0) {
-                        e.preventDefault();
-                        ribbon.scrollLeft += e.deltaY;
-                    }
-                }, { passive: false });
-            }
-        }
-
-        function setVisualizerViewMode(mode) {
-            const card = document.getElementById('activityLogCard');
-            if (!card) return;
-            state.visualizerViewMode = mode;
-
-            card.classList.remove('mode-split', 'mode-visualizer', 'mode-table');
-            card.classList.add(`mode-${mode}`);
-
-            document.querySelectorAll('.log-view-btn').forEach(b => {
-                b.classList.toggle('active', b.dataset.mode === mode);
-            });
-        }
-
-        function openActivityLogModal() {
-            const modal = document.getElementById('activityLogModal');
-            if (!modal) return;
-            renderActivityLogs();
-            modal.style.display = 'flex';
-        }
-
-        function closeActivityLogModal() {
-            const modal = document.getElementById('activityLogModal');
-            if (modal) modal.style.display = 'none';
-        }
-
-        function clearVisualizerBoard() {
-            state.visualizerPressedKeys.clear();
-            state.visualizerDownKeys.clear();
-
-            document.querySelectorAll('.vkey').forEach(el => {
-                el.classList.remove('was-pressed', 'is-down');
-                const st = el.querySelector('.vkey-status');
-                if (st) st.textContent = '';
-            });
-
-            const stream = document.getElementById('visualizerRibbonStream');
-            if (stream) stream.innerHTML = '';
-            showToast('Visualizer Reset', 'Cleared highlighted keys and recent event history');
-        }
-
-        /**
-         * Updates a key on the visual keyboard / mouse pads
-         * @param {string} vkeyId - The data-vkey identifier
-         * @param {boolean} isDown - Whether key is down or up
-         * @param {string} displayName - Human-friendly label (e.g. "Left Click", "S", "Alt")
-         */
-        function updateVisualizerKey(vkeyId, isDown, displayName) {
-            if (!vkeyId) return;
-
-            // Deduplicate state transitions: ignore duplicate Down if already down, and duplicate Up if already up
-            const isCurrentlyDown = state.visualizerDownKeys.has(vkeyId);
-            if (isDown && isCurrentlyDown) return;
-            if (!isDown && !isCurrentlyDown) return;
-
-            if (isDown) {
-                state.visualizerDownKeys.add(vkeyId);
-                state.visualizerPressedKeys.add(vkeyId);
             } else {
-                state.visualizerDownKeys.delete(vkeyId);
+                sendToAhk({
+                    action: 'importFullBackup',
+                    mode: selectedMode,
+                    backup: pendingBackupData.payload,
+                    rawIni: pendingBackupData.rawIni || ''
+                });
             }
+        });
+    }
+}
 
-            // Resolve element by exact data-vkey or case-insensitive fallback
-            let el = document.querySelector(`.vkey[data-vkey="${vkeyId}"]`);
-            if (!el) {
-                // Try common variations
-                const allKeys = document.querySelectorAll('.vkey[data-vkey]');
-                for (const k of allKeys) {
-                    if (k.dataset.vkey.toLowerCase() === vkeyId.toLowerCase()) {
-                        el = k;
-                        break;
-                    }
+// ============================================================================
+// STUDIO SETTINGS MODAL CONTROLLER
+// ============================================================================
+function updateSnapTapUi() {
+    const chk = document.getElementById('chkSettingsSnapTap');
+    const badge = document.getElementById('snapTapStatusBadge');
+    if (chk) chk.checked = !!state.snapTap;
+    if (badge) {
+        if (state.snapTap) {
+            badge.textContent = 'ACTIVE';
+            badge.style.background = 'rgba(0, 210, 255, 0.15)';
+            badge.style.color = 'var(--accent-cyan, #00d2ff)';
+            badge.style.border = '1px solid rgba(0, 210, 255, 0.3)';
+        } else {
+            badge.textContent = 'DISABLED';
+            badge.style.background = 'rgba(255, 255, 255, 0.06)';
+            badge.style.color = 'var(--text-muted, #7a829e)';
+            badge.style.border = '1px solid transparent';
+        }
+    }
+}
+
+function openStudioSettingsModal() {
+    const modal = document.getElementById('studioSettingsModal');
+    if (!modal) return;
+
+    // Sync settings checkboxes with current state
+    const chkMute = document.getElementById('chkSettingsMute');
+    if (chkMute) chkMute.checked = !!state.muteWhenFocused;
+    const chkOSD = document.getElementById('chkSettingsOSD');
+    if (chkOSD) chkOSD.checked = document.getElementById('chkShowOSD')?.checked ?? true;
+    const chkTop = document.getElementById('chkSettingsTop');
+    if (chkTop) chkTop.checked = !!state.isAlwaysOnTop;
+    const chkStartup = document.getElementById('chkSettingsStartup');
+    if (chkStartup) chkStartup.checked = !!state.runAtStartup;
+    const chkReact = document.getElementById('chkSettingsReactUnfocused');
+    if (chkReact) chkReact.checked = !!state.reactWhenUnfocused;
+
+    updateGameKeyDelayUI();
+    updateHoverFocusUI();
+    updateInterceptionDriverUI();
+
+    modal.style.display = 'flex';
+}
+
+function closeStudioSettingsModal() {
+    const modal = document.getElementById('studioSettingsModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function initStudioSettingsModal() {
+    const btnOpenHeader = document.getElementById('btnHeaderSettings');
+    const modal = document.getElementById('studioSettingsModal');
+    const btnClose = document.getElementById('btnSettingsModalClose');
+    const btnDone = document.getElementById('btnSettingsCloseFooter');
+
+    if (btnOpenHeader) {
+        btnOpenHeader.addEventListener('click', () => openStudioSettingsModal());
+    }
+    if (btnClose) {
+        btnClose.addEventListener('click', () => closeStudioSettingsModal());
+    }
+    if (btnDone) {
+        btnDone.addEventListener('click', () => closeStudioSettingsModal());
+    }
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeStudioSettingsModal();
+        });
+    }
+
+    // Auto-close settings modal when launching any of the individual tools from it
+    const subToolButtons = [
+        'btnChangeMouseImage',
+        'btnAddCustomButton',
+        'btnCalibratePointers',
+        'btnOpenOmmSetup',
+        'btnToolbarBackup'
+    ];
+    subToolButtons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.addEventListener('click', () => {
+                closeStudioSettingsModal();
+            });
+        }
+    });
+
+    // Make the entire card container clickable, not just the small button
+    const actionableCards = [
+        { cardId: 'cardSettingsMouseImg', btnId: 'btnChangeMouseImage' },
+        { cardId: 'cardSettingsAddBtn', btnId: 'btnAddCustomButton' },
+        { cardId: 'cardSettingsCalibrate', btnId: 'btnCalibratePointers' },
+        { cardId: 'cardSettingsOmm', btnId: 'btnOpenOmmSetup' },
+        { cardId: 'cardSettingsBackup', btnId: 'btnToolbarBackup' }
+    ];
+    actionableCards.forEach(item => {
+        const card = document.getElementById(item.cardId);
+        const btn = document.getElementById(item.btnId);
+        if (card && btn) {
+            card.addEventListener('click', (e) => {
+                if (!e.target.closest(`#${item.btnId}`)) {
+                    btn.click();
                 }
-            }
-
-            const name = displayName || (el ? el.dataset.vkey : vkeyId);
-
-            if (el) {
-                const statusEl = el.querySelector('.vkey-status');
-                if (isDown) {
-                    el.classList.add('was-pressed');
-                    el.classList.add('is-down');
-                    if (statusEl) statusEl.textContent = '↓';
-                } else {
-                    el.classList.add('was-pressed'); // Retains the different pressed color from the screenshot!
-                    el.classList.remove('is-down');
-                    if (statusEl) statusEl.textContent = '↑';
-                }
-            }
-
-            // Append event capsule to top ribbon bar
-            addVisualizerRibbonChip(name, isDown);
+            });
         }
+    });
 
-        function isScrollbarClick(e) {
-            if (!e || !(e.target instanceof HTMLElement)) return false;
-            const el = e.target;
-            const rect = el.getBoundingClientRect();
-            // Vertical scrollbar: click is on the right edge inside the element's client area
-            const isVerticalScrollbar = (el.scrollHeight > el.clientHeight) &&
-                (e.clientX >= rect.left + el.clientWidth);
-            // Horizontal scrollbar: click is on the bottom edge inside the element's client area
-            const isHorizontalScrollbar = (el.scrollWidth > el.clientWidth) &&
-                (e.clientY >= rect.top + el.clientHeight);
-            return isVerticalScrollbar || isHorizontalScrollbar;
-        }
+    // Wire up quick toggles inside settings modal to mirror main checkboxes
+    const chkSettingsMute = document.getElementById('chkSettingsMute');
+    if (chkSettingsMute) {
+        chkSettingsMute.addEventListener('change', (e) => {
+            state.muteWhenFocused = e.target.checked;
+            const mainChk = document.getElementById('chkMuteWhenFocused');
+            if (mainChk) mainChk.checked = state.muteWhenFocused;
+            sendToAhk({ action: 'toggleMuteWhenFocused', enabled: state.muteWhenFocused });
+            updateHeaderTogglesUI();
+        });
+    }
 
-        function isEventOnScrollbarOrUI(e) {
-            if (!e || !e.target) return false;
-            if (isScrollbarClick(e)) return true;
-            if (e.target.closest && e.target.closest(
-                '#activityLogColTable, .visualizer-ribbon-bar, .activity-log-header, .activity-log-footer, button, input, select, label, a, .custom-dialog-close-btn, .log-action-btn, .log-view-btn'
-            )) {
-                return true;
+    const chkSettingsOSD = document.getElementById('chkSettingsOSD');
+    if (chkSettingsOSD) {
+        chkSettingsOSD.addEventListener('change', (e) => {
+            const mainChk = document.getElementById('chkShowOSD');
+            if (mainChk) mainChk.checked = e.target.checked;
+            sendToAhk({ action: 'toggleOSD', enabled: e.target.checked });
+            updateHeaderTogglesUI();
+        });
+    }
+
+    const chkSettingsTop = document.getElementById('chkSettingsTop');
+    if (chkSettingsTop) {
+        chkSettingsTop.addEventListener('change', (e) => {
+            state.isAlwaysOnTop = e.target.checked;
+            const mainChk = document.getElementById('chkAlwaysOnTop');
+            if (mainChk) mainChk.checked = state.isAlwaysOnTop;
+            sendToAhk({ action: 'setAlwaysOnTop', enabled: state.isAlwaysOnTop });
+            updateHeaderTogglesUI();
+        });
+    }
+
+    const chkSettingsStartup = document.getElementById('chkSettingsStartup');
+    if (chkSettingsStartup) {
+        chkSettingsStartup.addEventListener('change', (e) => {
+            state.runAtStartup = e.target.checked;
+            sendToAhk({ action: 'toggleRunAtStartup', enabled: state.runAtStartup });
+        });
+    }
+
+    const chkSettingsReactUnfocused = document.getElementById('chkSettingsReactUnfocused');
+    if (chkSettingsReactUnfocused) {
+        chkSettingsReactUnfocused.addEventListener('change', (e) => {
+            state.reactWhenUnfocused = e.target.checked;
+            sendToAhk({ action: 'toggleReactWhenUnfocused', enabled: state.reactWhenUnfocused });
+        });
+    }
+
+    const chkSettingsSnapTap = document.getElementById('chkSettingsSnapTap');
+    if (chkSettingsSnapTap) {
+        chkSettingsSnapTap.addEventListener('change', (e) => {
+            state.snapTap = e.target.checked;
+            updateSnapTapUi();
+            sendToAhk({ action: 'toggleSnapTap', enabled: state.snapTap });
+        });
+    }
+
+    const chkSettingsInterceptionDriver = document.getElementById('chkSettingsInterceptionDriver');
+    if (chkSettingsInterceptionDriver) {
+        chkSettingsInterceptionDriver.addEventListener('change', async (e) => {
+            const wantsEnabled = e.target.checked;
+            if (wantsEnabled && !state.isAdmin) {
+                e.target.checked = false;
+                await promptAdminRestartForDriver();
+                return;
             }
-            return false;
+            state.useInterceptionDriver = wantsEnabled;
+            sendToAhk({ action: 'toggleInterceptionDriver', enabled: state.useInterceptionDriver });
+            updateInterceptionDriverUI();
+        });
+    }
+
+    const btnInstallDriver = document.getElementById('btnInstallInterceptionDriver');
+    if (btnInstallDriver) {
+        btnInstallDriver.addEventListener('click', () => {
+            sendToAhk({ action: 'installInterceptionDriver' });
+        });
+    }
+
+    // Wire up Game Key Delay input and preset pills
+    const inputGameDelay = document.getElementById('inputGameKeyDelay');
+    if (inputGameDelay) {
+        inputGameDelay.addEventListener('change', (e) => {
+            setGameKeyDelay(e.target.value);
+        });
+    }
+
+    const presetGroup = document.getElementById('gameDelayPresetPills');
+    if (presetGroup) {
+        presetGroup.querySelectorAll('.preset-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.getAttribute('data-delay');
+                setGameKeyDelay(val);
+            });
+        });
+    }
+
+    // Wire up Window Hover Focus mode pills
+    const hoverModePills = document.getElementById('hoverFocusModePills');
+    if (hoverModePills) {
+        hoverModePills.querySelectorAll('.preset-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.getAttribute('data-mode');
+                setFocusOnHoverMode(mode);
+            });
+        });
+    }
+
+    // Wire up Window Hover Focus delay input and preset pills
+    const inputHoverDelay = document.getElementById('inputHoverFocusDelay');
+    if (inputHoverDelay) {
+        inputHoverDelay.addEventListener('change', (e) => {
+            setFocusOnHoverDelay(e.target.value);
+        });
+    }
+
+    const hoverDelayPills = document.getElementById('hoverFocusDelayPresetPills');
+    if (hoverDelayPills) {
+        hoverDelayPills.querySelectorAll('.preset-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const val = btn.getAttribute('data-delay');
+                setFocusOnHoverDelay(val);
+            });
+        });
+    }
+}
+
+function updateGameKeyDelayUI() {
+    const delay = state.gameKeyDelay !== undefined ? state.gameKeyDelay : 20;
+
+    const pill = document.getElementById('singleGameDelayPill');
+    if (pill) {
+        pill.textContent = `${delay} ms`;
+    }
+
+    const input = document.getElementById('inputGameKeyDelay');
+    if (input && document.activeElement !== input) {
+        input.value = delay;
+    }
+
+    const presetGroup = document.getElementById('gameDelayPresetPills');
+    if (presetGroup) {
+        presetGroup.querySelectorAll('.preset-pill').forEach(btn => {
+            const val = Number(btn.getAttribute('data-delay'));
+            btn.classList.toggle('active', val === delay);
+        });
+    }
+}
+
+function setGameKeyDelay(val) {
+    const num = Math.max(0, Math.min(500, parseInt(val, 10) || 0));
+    state.gameKeyDelay = num;
+    updateGameKeyDelayUI();
+    sendToAhk({ action: 'setGameKeyDelay', delay: num });
+    showToast('Game Key Delay', `Keystroke hold & pacing set to ${num} ms`);
+}
+
+function updateInterceptionDriverUI() {
+    const chk = document.getElementById('chkSettingsInterceptionDriver');
+    const badge = document.getElementById('badgeInterceptionDriver');
+    const note = document.getElementById('noteInterceptionDriver');
+    const btnInstall = document.getElementById('btnInstallInterceptionDriver');
+
+    if (chk) {
+        chk.checked = !!state.useInterceptionDriver;
+    }
+
+    if (badge) {
+        if (state.useInterceptionDriver && state.interceptionDriverAvailable) {
+            badge.textContent = 'ACTIVE (KERNEL)';
+            badge.className = 'driver-status-badge connected';
+        } else if (state.useInterceptionDriver && !state.interceptionDriverAvailable) {
+            badge.textContent = 'NEEDS REBOOT';
+            badge.className = 'driver-status-badge warning';
+        } else if (state.interceptionDriverInstalled) {
+            badge.textContent = 'DRIVER READY';
+            badge.className = 'driver-status-badge ready';
+        } else {
+            badge.textContent = 'NOT INSTALLED';
+            badge.className = 'driver-status-badge inactive';
         }
+    }
 
-        function addVisualizerRibbonChip(name, isDown) {
-            const ribbon = document.getElementById('visualizerRibbonStream');
-            if (!ribbon) return;
+    if (btnInstall) {
+        if (state.interceptionDriverInstalled) {
+            btnInstall.style.display = 'none';
+        } else {
+            btnInstall.style.display = 'inline-flex';
+        }
+    }
 
-            // Smart auto-scroll: check if user is at (or very near) the newest end before adding
-            const isAtEnd = (ribbon.scrollWidth - ribbon.scrollLeft - ribbon.clientWidth) <= 35;
+    if (note) {
+        if (state.interceptionDriverInstalled) {
+            note.innerHTML = 'Kernel filter active (<code>mouclass.sys</code> & <code>kbdclass.sys</code>). Hardware-level injection active.';
+        } else {
+            note.innerHTML = 'Driver not installed. Click <b>Install Driver</b> and reboot Windows once.';
+        }
+    }
+}
 
-            const chip = document.createElement('span');
-            chip.className = `vribbon-chip ${isDown ? '' : 'chip-up'}`;
-            chip.innerHTML = `
+async function promptAdminRestartForDriver() {
+    const chk = document.getElementById('chkSettingsInterceptionDriver');
+    if (chk) chk.checked = false;
+    const confirmed = await showConfirmDialog({
+        title: 'Administrator Privileges Required',
+        message: 'The Interception Kernel Driver requires Administrator privileges to communicate with the low-level keyboard and mouse filter drivers (kbdclass.sys & mouclass.sys).',
+        details: 'Would you like to restart My Mouse My Choice with Administrator privileges now? Windows will prompt you to confirm elevation (UAC).',
+        confirmText: 'Restart as Admin',
+        cancelText: 'Cancel',
+        type: 'warning',
+        icon: 'shield'
+    });
+    if (confirmed) {
+        sendToAhk({ action: 'restartAsAdmin', enableDriver: true });
+    }
+}
+
+function updateHoverFocusUI() {
+    const mode = state.focusOnHoverMode || 'profile';
+    const delay = state.focusOnHoverDelay !== undefined ? state.focusOnHoverDelay : 120;
+
+    const hoverModePills = document.getElementById('hoverFocusModePills');
+    if (hoverModePills) {
+        hoverModePills.querySelectorAll('.preset-pill').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
+        });
+    }
+
+    const inputDelay = document.getElementById('inputHoverFocusDelay');
+    if (inputDelay && document.activeElement !== inputDelay) {
+        inputDelay.value = delay;
+    }
+
+    const hoverDelayPills = document.getElementById('hoverFocusDelayPresetPills');
+    if (hoverDelayPills) {
+        hoverDelayPills.querySelectorAll('.preset-pill').forEach(btn => {
+            btn.classList.toggle('active', Number(btn.getAttribute('data-delay')) === delay);
+        });
+    }
+}
+
+function setFocusOnHoverMode(mode) {
+    if (mode !== 'off' && mode !== 'profile' && mode !== 'all') mode = 'profile';
+    state.focusOnHoverMode = mode;
+    updateHoverFocusUI();
+    sendToAhk({ action: 'setFocusOnHoverMode', mode: mode });
+    const labelMap = { off: 'Disabled', profile: 'Per Profile', all: 'Always Active (All)' };
+    showToast('Hover Focus', `Mode set to ${labelMap[mode] || mode}`);
+}
+
+function setFocusOnHoverDelay(val) {
+    const num = Math.max(0, Math.min(1000, parseInt(val, 10) || 0));
+    state.focusOnHoverDelay = num;
+    updateHoverFocusUI();
+    sendToAhk({ action: 'setFocusOnHoverDelay', delay: num });
+    showToast('Hover Focus Delay', `Activation dwell time set to ${num} ms`);
+}
+// ============================================================================
+// LIVE BUTTON & MACRO ACTIVITY LOG + HARDWARE VISUALIZER
+// ============================================================================
+state.activityLogs = [];
+state.visualizerPressedKeys = new Set();
+state.visualizerDownKeys = new Set();
+state.visualizerViewMode = 'split';
+
+function initActivityLogModal() {
+    const btnOpen = document.getElementById('btnOpenActivityLog');
+    const modal = document.getElementById('activityLogModal');
+    const card = document.getElementById('activityLogCard');
+    const btnClose = document.getElementById('btnCloseActivityLog');
+    const btnHistory = document.getElementById('btnOpenAhkKeyHistory');
+    const btnUnstick = document.getElementById('btnEmergencyUnstick');
+    const btnCopy = document.getElementById('btnCopyActivityLog');
+    const btnClear = document.getElementById('btnClearActivityLog');
+    const btnClearVis = document.getElementById('btnClearVisualizerKeys');
+
+    if (btnOpen) btnOpen.addEventListener('click', openActivityLogModal);
+    if (btnClose) btnClose.addEventListener('click', closeActivityLogModal);
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeActivityLogModal();
+        });
+    }
+
+    if (btnHistory) {
+        btnHistory.addEventListener('click', () => {
+            sendToAhk({ action: 'showKeyHistory' });
+            showToast('AHK KeyHistory', 'Opening native Windows KeyHistory window...');
+        });
+    }
+
+    if (btnUnstick) {
+        btnUnstick.addEventListener('click', () => {
+            sendToAhk({ action: 'unstickAllKeys' });
+            showToast('Emergency Unstick', 'Sent UP commands for Shift, Ctrl, Alt, and Mouse Buttons');
+        });
+    }
+
+    if (btnCopy) {
+        btnCopy.addEventListener('click', copyActivityLogs);
+    }
+
+    if (btnClear) {
+        btnClear.addEventListener('click', clearActivityLogs);
+    }
+
+    if (btnClearVis) {
+        btnClearVis.addEventListener('click', clearVisualizerBoard);
+    }
+
+    // View mode switcher: Split / Keyboard / Logs
+    const viewBtns = document.querySelectorAll('.log-view-btn');
+    viewBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.dataset.mode;
+            setVisualizerViewMode(mode);
+        });
+    });
+
+    // Listen to physical keyboard & mouse events when modal is active
+    window.addEventListener('keydown', onVisualizerNativeKeyDown, true);
+    window.addEventListener('keyup', onVisualizerNativeKeyUp, true);
+    window.addEventListener('mousedown', onVisualizerNativeMouseDown, true);
+    window.addEventListener('mouseup', onVisualizerNativeMouseUp, true);
+    window.addEventListener('wheel', onVisualizerNativeWheel, { passive: true, capture: true });
+
+    // Auto-scroll checkbox toggle listener: instantly jump to bottom when re-checked
+    const chkAuto = document.getElementById('chkLogAutoScroll');
+    if (chkAuto) {
+        chkAuto.addEventListener('change', () => {
+            if (chkAuto.checked) {
+                const stream = document.getElementById('activityLogStream');
+                if (stream) stream.scrollTop = stream.scrollHeight;
+            }
+        });
+    }
+
+    // Enable horizontal mouse wheel scrolling over ribbon bar
+    const ribbon = document.getElementById('visualizerRibbonStream');
+    if (ribbon) {
+        ribbon.addEventListener('wheel', (e) => {
+            if (e.deltaY !== 0) {
+                e.preventDefault();
+                ribbon.scrollLeft += e.deltaY;
+            }
+        }, { passive: false });
+    }
+}
+
+function setVisualizerViewMode(mode) {
+    const card = document.getElementById('activityLogCard');
+    if (!card) return;
+    state.visualizerViewMode = mode;
+
+    card.classList.remove('mode-split', 'mode-visualizer', 'mode-table');
+    card.classList.add(`mode-${mode}`);
+
+    document.querySelectorAll('.log-view-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+    });
+}
+
+function openActivityLogModal() {
+    const modal = document.getElementById('activityLogModal');
+    if (!modal) return;
+    renderActivityLogs();
+    modal.style.display = 'flex';
+}
+
+function closeActivityLogModal() {
+    const modal = document.getElementById('activityLogModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function clearVisualizerBoard() {
+    state.visualizerPressedKeys.clear();
+    state.visualizerDownKeys.clear();
+
+    document.querySelectorAll('.vkey').forEach(el => {
+        el.classList.remove('was-pressed', 'is-down');
+        const st = el.querySelector('.vkey-status');
+        if (st) st.textContent = '';
+    });
+
+    const stream = document.getElementById('visualizerRibbonStream');
+    if (stream) stream.innerHTML = '';
+    showToast('Visualizer Reset', 'Cleared highlighted keys and recent event history');
+}
+
+/**
+ * Updates a key on the visual keyboard / mouse pads
+ * @param {string} vkeyId - The data-vkey identifier
+ * @param {boolean} isDown - Whether key is down or up
+ * @param {string} displayName - Human-friendly label (e.g. "Left Click", "S", "Alt")
+ */
+function updateVisualizerKey(vkeyId, isDown, displayName) {
+    if (!vkeyId) return;
+
+    // Deduplicate state transitions: ignore duplicate Down if already down, and duplicate Up if already up
+    const isCurrentlyDown = state.visualizerDownKeys.has(vkeyId);
+    if (isDown && isCurrentlyDown) return;
+    if (!isDown && !isCurrentlyDown) return;
+
+    if (isDown) {
+        state.visualizerDownKeys.add(vkeyId);
+        state.visualizerPressedKeys.add(vkeyId);
+    } else {
+        state.visualizerDownKeys.delete(vkeyId);
+    }
+
+    // Resolve element by exact data-vkey or case-insensitive fallback
+    let el = document.querySelector(`.vkey[data-vkey="${vkeyId}"]`);
+    if (!el) {
+        // Try common variations
+        const allKeys = document.querySelectorAll('.vkey[data-vkey]');
+        for (const k of allKeys) {
+            if (k.dataset.vkey.toLowerCase() === vkeyId.toLowerCase()) {
+                el = k;
+                break;
+            }
+        }
+    }
+
+    const name = displayName || (el ? el.dataset.vkey : vkeyId);
+
+    if (el) {
+        const statusEl = el.querySelector('.vkey-status');
+        if (isDown) {
+            el.classList.add('was-pressed');
+            el.classList.add('is-down');
+            if (statusEl) statusEl.textContent = '↓';
+        } else {
+            el.classList.add('was-pressed'); // Retains the different pressed color from the screenshot!
+            el.classList.remove('is-down');
+            if (statusEl) statusEl.textContent = '↑';
+        }
+    }
+
+    // Append event capsule to top ribbon bar
+    addVisualizerRibbonChip(name, isDown);
+}
+
+function isScrollbarClick(e) {
+    if (!e || !(e.target instanceof HTMLElement)) return false;
+    const el = e.target;
+    const rect = el.getBoundingClientRect();
+    // Vertical scrollbar: click is on the right edge inside the element's client area
+    const isVerticalScrollbar = (el.scrollHeight > el.clientHeight) &&
+        (e.clientX >= rect.left + el.clientWidth);
+    // Horizontal scrollbar: click is on the bottom edge inside the element's client area
+    const isHorizontalScrollbar = (el.scrollWidth > el.clientWidth) &&
+        (e.clientY >= rect.top + el.clientHeight);
+    return isVerticalScrollbar || isHorizontalScrollbar;
+}
+
+function isEventOnScrollbarOrUI(e) {
+    if (!e || !e.target) return false;
+    if (isScrollbarClick(e)) return true;
+    if (e.target.closest && e.target.closest(
+        '#activityLogColTable, .visualizer-ribbon-bar, .activity-log-header, .activity-log-footer, button, input, select, label, a, .custom-dialog-close-btn, .log-action-btn, .log-view-btn'
+    )) {
+        return true;
+    }
+    return false;
+}
+
+function addVisualizerRibbonChip(name, isDown) {
+    const ribbon = document.getElementById('visualizerRibbonStream');
+    if (!ribbon) return;
+
+    // Smart auto-scroll: check if user is at (or very near) the newest end before adding
+    const isAtEnd = (ribbon.scrollWidth - ribbon.scrollLeft - ribbon.clientWidth) <= 35;
+
+    const chip = document.createElement('span');
+    chip.className = `vribbon-chip ${isDown ? '' : 'chip-up'}`;
+    chip.innerHTML = `
         <span class="chip-name">${escapeHtml(name)}</span>
         <span class="vchip-arrow">${isDown ? '↓' : '↑'}</span>
     `;
 
-            ribbon.appendChild(chip);
+    ribbon.appendChild(chip);
 
-            // Keep at most 40 recent event chips
-            while (ribbon.children.length > 40) {
-                const first = ribbon.firstChild;
-                const firstWidth = first ? (first.offsetWidth || 0) : 0;
-                ribbon.removeChild(first);
-                // If user scrolled back to read older history, preserve their view position
-                if (!isAtEnd && firstWidth > 0) {
-                    ribbon.scrollLeft = Math.max(0, ribbon.scrollLeft - firstWidth);
-                }
-            }
-
-            // Only auto-scroll to the end if the user was already at the end
-            if (isAtEnd) {
-                ribbon.scrollLeft = ribbon.scrollWidth;
-            }
+    // Keep at most 40 recent event chips
+    while (ribbon.children.length > 40) {
+        const first = ribbon.firstChild;
+        const firstWidth = first ? (first.offsetWidth || 0) : 0;
+        ribbon.removeChild(first);
+        // If user scrolled back to read older history, preserve their view position
+        if (!isAtEnd && firstWidth > 0) {
+            ribbon.scrollLeft = Math.max(0, ribbon.scrollLeft - firstWidth);
         }
+    }
 
-        function isActivityLogModalVisible() {
-            const modal = document.getElementById('activityLogModal');
-            return modal && modal.style.display === 'flex';
+    // Only auto-scroll to the end if the user was already at the end
+    if (isAtEnd) {
+        ribbon.scrollLeft = ribbon.scrollWidth;
+    }
+}
+
+function isActivityLogModalVisible() {
+    const modal = document.getElementById('activityLogModal');
+    return modal && modal.style.display === 'flex';
+}
+
+function logVisualizerEvent(category, text, details = '') {
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}.${String(now.getMilliseconds()).padStart(3, '0')}`;
+    addActivityLog({
+        time: timeStr,
+        category: category,
+        text: text,
+        details: details
+    }, true);
+}
+
+function onVisualizerNativeKeyDown(e) {
+    if (!isActivityLogModalVisible() || e.repeat) return;
+    const vkey = mapDomCodeToVKey(e.code);
+    const name = getReadableDomKeyName(e);
+    updateVisualizerKey(vkey, true, name);
+    logVisualizerEvent('KEY', `Press (Down) ▾ ${name}`, `Key: ${e.code || vkey} | Focused`);
+}
+
+function onVisualizerNativeKeyUp(e) {
+    if (!isActivityLogModalVisible()) return;
+    const vkey = mapDomCodeToVKey(e.code);
+    const name = getReadableDomKeyName(e);
+    updateVisualizerKey(vkey, false, name);
+    logVisualizerEvent('KEY', `Release (Up) ▴ ${name}`, `Key: ${e.code || vkey} | Focused`);
+}
+
+const activeVisualizerMouseButtons = new Set();
+
+function onVisualizerNativeMouseDown(e) {
+    if (!isActivityLogModalVisible()) return;
+    // Disregard clicks on scrollbars, log tables, headers, and UI controls so dragging scrollbars never triggers button clicks
+    if (isEventOnScrollbarOrUI(e)) return;
+
+    const mapping = {
+        0: { vkey: 'MouseLeft', name: 'Left Click' },
+        1: { vkey: 'MouseMiddle', name: 'Middle Click' },
+        2: { vkey: 'MouseRight', name: 'Right Click' },
+        3: { vkey: 'MouseBack', name: 'Back' },
+        4: { vkey: 'MouseForward', name: 'Forward' }
+    };
+    const btn = mapping[e.button];
+    if (btn) {
+        activeVisualizerMouseButtons.add(e.button);
+        updateVisualizerKey(btn.vkey, true, btn.name);
+        logVisualizerEvent('BUTTON', `Press (Down) ▾ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
+    }
+}
+
+function onVisualizerNativeMouseUp(e) {
+    if (!isActivityLogModalVisible()) return;
+    // Only dispatch key-up if this button was actually pressed inside the test canvas
+    if (!activeVisualizerMouseButtons.has(e.button)) return;
+
+    activeVisualizerMouseButtons.delete(e.button);
+    const mapping = {
+        0: { vkey: 'MouseLeft', name: 'Left Click' },
+        1: { vkey: 'MouseMiddle', name: 'Middle Click' },
+        2: { vkey: 'MouseRight', name: 'Right Click' },
+        3: { vkey: 'MouseBack', name: 'Back' },
+        4: { vkey: 'MouseForward', name: 'Forward' }
+    };
+    const btn = mapping[e.button];
+    if (btn) {
+        updateVisualizerKey(btn.vkey, false, btn.name);
+        logVisualizerEvent('BUTTON', `Release (Up) ▴ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
+    }
+}
+
+function onVisualizerNativeWheel(e) {
+    if (!isActivityLogModalVisible()) return;
+    // Ignore wheel over scrollable table or ribbon so users can scroll logs without firing fake wheel test events
+    if (isEventOnScrollbarOrUI(e)) return;
+
+    const isUp = e.deltaY < 0;
+    const vkey = isUp ? 'MouseWheelUp' : 'MouseWheelDown';
+    const name = isUp ? 'Scroll Up' : 'Scroll Down';
+
+    updateVisualizerKey(vkey, true, name);
+    logVisualizerEvent('WHEEL', name, `Mouse Hardware | Delta: ${e.deltaY}`);
+    setTimeout(() => {
+        updateVisualizerKey(vkey, false, name);
+    }, 140);
+}
+
+function mapDomCodeToVKey(code) {
+    if (!code) return '';
+    return code;
+}
+
+function getReadableDomKeyName(e) {
+    if (!e || !e.code) return '';
+    const code = e.code;
+    if (code.startsWith('Key')) return code.substring(3);
+    if (code.startsWith('Digit')) return code.substring(5);
+    if (code.startsWith('Numpad') && code.length === 7) return 'Num ' + code.substring(6);
+    if (code === 'ControlLeft' || code === 'ControlRight') return 'Ctrl';
+    if (code === 'ShiftLeft' || code === 'ShiftRight') return 'Shift';
+    if (code === 'AltLeft' || code === 'AltRight') return 'Alt';
+    if (code === 'MetaLeft' || code === 'MetaRight') return 'Win';
+    if (code === 'Space') return 'Space';
+    if (code === 'Escape') return 'Esc';
+    if (code === 'ArrowUp') return 'Up';
+    if (code === 'ArrowDown') return 'Down';
+    if (code === 'ArrowLeft') return 'Left';
+    if (code === 'ArrowRight') return 'Right';
+    return e.key || code;
+}
+
+function parseAndDispatchAhkToVisualizer(entry) {
+    if (!entry || !isActivityLogModalVisible()) return;
+    const cat = (entry.category || '').toUpperCase();
+    const txt = entry.text || '';
+
+    // 1. Hardware mouse button clicks & native clicks
+    if (cat === 'BUTTON') {
+        const isDown = txt.includes('Down') || txt.includes('Press');
+        let btnId = '';
+        const match = txt.match(/▾\s*([a-zA-Z0-9_]+)|▴\s*([a-zA-Z0-9_]+)/);
+        if (match) {
+            btnId = match[1] || match[2] || '';
         }
+        btnId = btnId.replace(/\s*\(Native\)/i, '').trim();
 
-        function logVisualizerEvent(category, text, details = '') {
-            const now = new Date();
-            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}.${String(now.getMilliseconds()).padStart(3, '0')}`;
-            addActivityLog({
-                time: timeStr,
-                category: category,
-                text: text,
-                details: details
-            }, true);
-        }
-
-        function onVisualizerNativeKeyDown(e) {
-            if (!isActivityLogModalVisible() || e.repeat) return;
-            const vkey = mapDomCodeToVKey(e.code);
-            const name = getReadableDomKeyName(e);
-            updateVisualizerKey(vkey, true, name);
-            logVisualizerEvent('KEY', `Press (Down) ▾ ${name}`, `Key: ${e.code || vkey} | Focused`);
-        }
-
-        function onVisualizerNativeKeyUp(e) {
-            if (!isActivityLogModalVisible()) return;
-            const vkey = mapDomCodeToVKey(e.code);
-            const name = getReadableDomKeyName(e);
-            updateVisualizerKey(vkey, false, name);
-            logVisualizerEvent('KEY', `Release (Up) ▴ ${name}`, `Key: ${e.code || vkey} | Focused`);
-        }
-
-        const activeVisualizerMouseButtons = new Set();
-
-        function onVisualizerNativeMouseDown(e) {
-            if (!isActivityLogModalVisible()) return;
-            // Disregard clicks on scrollbars, log tables, headers, and UI controls so dragging scrollbars never triggers button clicks
-            if (isEventOnScrollbarOrUI(e)) return;
-
-            const mapping = {
-                0: { vkey: 'MouseLeft', name: 'Left Click' },
-                1: { vkey: 'MouseMiddle', name: 'Middle Click' },
-                2: { vkey: 'MouseRight', name: 'Right Click' },
-                3: { vkey: 'MouseBack', name: 'Back' },
-                4: { vkey: 'MouseForward', name: 'Forward' }
-            };
-            const btn = mapping[e.button];
-            if (btn) {
-                activeVisualizerMouseButtons.add(e.button);
-                updateVisualizerKey(btn.vkey, true, btn.name);
-                logVisualizerEvent('BUTTON', `Press (Down) ▾ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
-            }
-        }
-
-        function onVisualizerNativeMouseUp(e) {
-            if (!isActivityLogModalVisible()) return;
-            // Only dispatch key-up if this button was actually pressed inside the test canvas
-            if (!activeVisualizerMouseButtons.has(e.button)) return;
-
-            activeVisualizerMouseButtons.delete(e.button);
-            const mapping = {
-                0: { vkey: 'MouseLeft', name: 'Left Click' },
-                1: { vkey: 'MouseMiddle', name: 'Middle Click' },
-                2: { vkey: 'MouseRight', name: 'Right Click' },
-                3: { vkey: 'MouseBack', name: 'Back' },
-                4: { vkey: 'MouseForward', name: 'Forward' }
-            };
-            const btn = mapping[e.button];
-            if (btn) {
-                updateVisualizerKey(btn.vkey, false, btn.name);
-                logVisualizerEvent('BUTTON', `Release (Up) ▴ ${btn.name}`, `Mouse Hardware | Button: ${btn.vkey}`);
-            }
-        }
-
-        function onVisualizerNativeWheel(e) {
-            if (!isActivityLogModalVisible()) return;
-            // Ignore wheel over scrollable table or ribbon so users can scroll logs without firing fake wheel test events
-            if (isEventOnScrollbarOrUI(e)) return;
-
-            const isUp = e.deltaY < 0;
-            const vkey = isUp ? 'MouseWheelUp' : 'MouseWheelDown';
-            const name = isUp ? 'Scroll Up' : 'Scroll Down';
-
-            updateVisualizerKey(vkey, true, name);
-            logVisualizerEvent('WHEEL', name, `Mouse Hardware | Delta: ${e.deltaY}`);
-            setTimeout(() => {
-                updateVisualizerKey(vkey, false, name);
-            }, 140);
-        }
-
-        function mapDomCodeToVKey(code) {
-            if (!code) return '';
-            return code;
-        }
-
-        function getReadableDomKeyName(e) {
-            if (!e || !e.code) return '';
-            const code = e.code;
-            if (code.startsWith('Key')) return code.substring(3);
-            if (code.startsWith('Digit')) return code.substring(5);
-            if (code.startsWith('Numpad') && code.length === 7) return 'Num ' + code.substring(6);
-            if (code === 'ControlLeft' || code === 'ControlRight') return 'Ctrl';
-            if (code === 'ShiftLeft' || code === 'ShiftRight') return 'Shift';
-            if (code === 'AltLeft' || code === 'AltRight') return 'Alt';
-            if (code === 'MetaLeft' || code === 'MetaRight') return 'Win';
-            if (code === 'Space') return 'Space';
-            if (code === 'Escape') return 'Esc';
-            if (code === 'ArrowUp') return 'Up';
-            if (code === 'ArrowDown') return 'Down';
-            if (code === 'ArrowLeft') return 'Left';
-            if (code === 'ArrowRight') return 'Right';
-            return e.key || code;
-        }
-
-        function parseAndDispatchAhkToVisualizer(entry) {
-            if (!entry || !isActivityLogModalVisible()) return;
-            const cat = (entry.category || '').toUpperCase();
-            const txt = entry.text || '';
-
-            // 1. Hardware mouse button clicks & native clicks
-            if (cat === 'BUTTON') {
-                const isDown = txt.includes('Down') || txt.includes('Press');
-                let btnId = '';
-                const match = txt.match(/▾\s*([a-zA-Z0-9_]+)|▴\s*([a-zA-Z0-9_]+)/);
-                if (match) {
-                    btnId = match[1] || match[2] || '';
-                }
-                btnId = btnId.replace(/\s*\(Native\)/i, '').trim();
-
-                const mouseMap = {
-                    'leftclick': { vkey: 'MouseLeft', name: 'Left Click' },
-                    'rightclick': { vkey: 'MouseRight', name: 'Right Click' },
-                    'middle': { vkey: 'MouseMiddle', name: 'Middle Click' },
-                    'back': { vkey: 'MouseBack', name: 'Back' },
-                    'forward': { vkey: 'MouseForward', name: 'Forward' },
-                    'wheelup': { vkey: 'MouseWheelUp', name: 'Scroll Up' },
-                    'wheeldown': { vkey: 'MouseWheelDown', name: 'Scroll Down' },
-                    'tiltleft': { vkey: 'MouseMiddle', name: 'Tilt Left' },
-                    'tiltright': { vkey: 'MouseMiddle', name: 'Tilt Right' }
-                };
-                const mapped = mouseMap[btnId.toLowerCase()];
-                if (mapped) {
-                    updateVisualizerKey(mapped.vkey, isDown, mapped.name);
-                    if ((btnId.toLowerCase() === 'wheelup' || btnId.toLowerCase() === 'wheeldown') && isDown) {
-                        setTimeout(() => updateVisualizerKey(mapped.vkey, false, mapped.name), 140);
-                    }
-                }
-                return;
-            }
-
-            // 2. Macro execution steps: {Key down} or {Key up}
-            if (cat === 'STEP') {
-                const match = txt.match(/\{([a-zA-Z0-9_]+)\s+(down|up)\}/i);
-                if (match) {
-                    const rawKey = match[1];
-                    const isDown = match[2].toLowerCase() === 'down';
-                    const mapped = mapAhkKeyNameToVisualizer(rawKey);
-                    if (mapped) {
-                        updateVisualizerKey(mapped.vkey, isDown, mapped.name);
-                    }
-                }
-                return;
-            }
-
-            // 3. Shift layer hold / release
-            if (cat === 'SHIFT') {
-                const isDown = txt.includes('Hold') || txt.includes('▾');
-                updateVisualizerKey('MouseBack', isDown, 'B-Shift');
+        const mouseMap = {
+            'leftclick': { vkey: 'MouseLeft', name: 'Left Click' },
+            'rightclick': { vkey: 'MouseRight', name: 'Right Click' },
+            'middle': { vkey: 'MouseMiddle', name: 'Middle Click' },
+            'back': { vkey: 'MouseBack', name: 'Back' },
+            'forward': { vkey: 'MouseForward', name: 'Forward' },
+            'wheelup': { vkey: 'MouseWheelUp', name: 'Scroll Up' },
+            'wheeldown': { vkey: 'MouseWheelDown', name: 'Scroll Down' },
+            'tiltleft': { vkey: 'MouseMiddle', name: 'Tilt Left' },
+            'tiltright': { vkey: 'MouseMiddle', name: 'Tilt Right' }
+        };
+        const mapped = mouseMap[btnId.toLowerCase()];
+        if (mapped) {
+            updateVisualizerKey(mapped.vkey, isDown, mapped.name);
+            if ((btnId.toLowerCase() === 'wheelup' || btnId.toLowerCase() === 'wheeldown') && isDown) {
+                setTimeout(() => updateVisualizerKey(mapped.vkey, false, mapped.name), 140);
             }
         }
+        return;
+    }
 
-        function mapAhkKeyNameToVisualizer(key) {
-            if (!key) return null;
-            const k = key.toLowerCase();
-
-            // Mouse buttons inside macros
-            if (k === 'lbutton') return { vkey: 'MouseLeft', name: 'Left Click' };
-            if (k === 'rbutton') return { vkey: 'MouseRight', name: 'Right Click' };
-            if (k === 'mbutton') return { vkey: 'MouseMiddle', name: 'Middle Click' };
-            if (k === 'xbutton1') return { vkey: 'MouseBack', name: 'Back' };
-            if (k === 'xbutton2') return { vkey: 'MouseForward', name: 'Forward' };
-
-            // Modifiers
-            if (k === 'alt' || k === 'lalt') return { vkey: 'AltLeft', name: 'Alt' };
-            if (k === 'ralt') return { vkey: 'AltRight', name: 'Alt' };
-            if (k === 'ctrl' || k === 'lctrl' || k === 'control') return { vkey: 'ControlLeft', name: 'Ctrl' };
-            if (k === 'rctrl') return { vkey: 'ControlRight', name: 'Ctrl' };
-            if (k === 'shift' || k === 'lshift') return { vkey: 'ShiftLeft', name: 'Shift' };
-            if (k === 'rshift') return { vkey: 'ShiftRight', name: 'Shift' };
-            if (k === 'lwin' || k === 'win') return { vkey: 'MetaLeft', name: 'Win' };
-            if (k === 'rwin') return { vkey: 'MetaRight', name: 'Win' };
-
-            // Common keys
-            if (k === 'space') return { vkey: 'Space', name: 'Space' };
-            if (k === 'tab') return { vkey: 'Tab', name: 'Tab' };
-            if (k === 'enter') return { vkey: 'Enter', name: 'Enter' };
-            if (k === 'escape' || k === 'esc') return { vkey: 'Escape', name: 'Esc' };
-            if (k === 'backspace') return { vkey: 'Backspace', name: 'Backspace' };
-            if (k === 'capslock') return { vkey: 'CapsLock', name: 'Caps' };
-            if (k === 'delete' || k === 'del') return { vkey: 'Delete', name: 'Del' };
-            if (k === 'insert' || k === 'ins') return { vkey: 'Insert', name: 'Ins' };
-            if (k === 'home') return { vkey: 'Home', name: 'Home' };
-            if (k === 'end') return { vkey: 'End', name: 'End' };
-            if (k === 'pageup' || k === 'pgup') return { vkey: 'PageUp', name: 'PgUp' };
-            if (k === 'pagedown' || k === 'pgdn') return { vkey: 'PageDown', name: 'PgDn' };
-
-            // Letters
-            if (key.length === 1 && /[a-zA-Z]/.test(key)) {
-                const u = key.toUpperCase();
-                return { vkey: 'Key' + u, name: u };
-            }
-
-            // Digits
-            if (key.length === 1 && /[0-9]/.test(key)) {
-                return { vkey: 'Digit' + key, name: key };
-            }
-
-            // F-Keys
-            if (/^f([1-9]|1[0-2])$/i.test(key)) {
-                const f = key.toUpperCase();
-                return { vkey: f, name: f };
-            }
-
-            return { vkey: key, name: key };
-        }
-
-        function addActivityLog(entry, skipVisualizer = false) {
-            if (!entry) return;
-            if (document.hidden && !state.reactWhenUnfocused) return;
-            state.activityLogs.push(entry);
-            if (state.activityLogs.length > 150) {
-                state.activityLogs.shift();
-            }
-
-            const modal = document.getElementById('activityLogModal');
-            const isModalOpen = modal && modal.style.display === 'flex';
-
-            if (!skipVisualizer && isModalOpen) {
-                parseAndDispatchAhkToVisualizer(entry);
-            }
-
-            const badge = document.getElementById('logCountBadge');
-            if (badge) badge.textContent = `${state.activityLogs.length} events`;
-
-            const stream = document.getElementById('activityLogStream');
-            if (isModalOpen && stream) {
-                const emptyState = document.getElementById('logEmptyState');
-                if (emptyState) emptyState.remove();
-
-                const chkAuto = document.getElementById('chkLogAutoScroll');
-                const isNearBottom = (stream.scrollHeight - stream.scrollTop - stream.clientHeight) <= 50;
-
-                const row = createActivityLogRow(entry);
-                stream.appendChild(row);
-
-                while (stream.children.length > 150) {
-                    stream.removeChild(stream.firstElementChild);
-                }
-
-                if ((!chkAuto || chkAuto.checked) && isNearBottom) {
-                    stream.scrollTop = stream.scrollHeight;
-                }
+    // 2. Macro execution steps: {Key down} or {Key up}
+    if (cat === 'STEP') {
+        const match = txt.match(/\{([a-zA-Z0-9_]+)\s+(down|up)\}/i);
+        if (match) {
+            const rawKey = match[1];
+            const isDown = match[2].toLowerCase() === 'down';
+            const mapped = mapAhkKeyNameToVisualizer(rawKey);
+            if (mapped) {
+                updateVisualizerKey(mapped.vkey, isDown, mapped.name);
             }
         }
+        return;
+    }
 
-        function createActivityLogRow(entry) {
-            const row = document.createElement('div');
-            row.className = 'activity-log-row';
+    // 3. Shift layer hold / release
+    if (cat === 'SHIFT') {
+        const isDown = txt.includes('Hold') || txt.includes('▾');
+        updateVisualizerKey('MouseBack', isDown, 'B-Shift');
+    }
+}
 
-            const catClass = (entry.category || 'system').toLowerCase();
-            row.innerHTML = `
+function mapAhkKeyNameToVisualizer(key) {
+    if (!key) return null;
+    const k = key.toLowerCase();
+
+    // Mouse buttons inside macros
+    if (k === 'lbutton') return { vkey: 'MouseLeft', name: 'Left Click' };
+    if (k === 'rbutton') return { vkey: 'MouseRight', name: 'Right Click' };
+    if (k === 'mbutton') return { vkey: 'MouseMiddle', name: 'Middle Click' };
+    if (k === 'xbutton1') return { vkey: 'MouseBack', name: 'Back' };
+    if (k === 'xbutton2') return { vkey: 'MouseForward', name: 'Forward' };
+
+    // Modifiers
+    if (k === 'alt' || k === 'lalt') return { vkey: 'AltLeft', name: 'Alt' };
+    if (k === 'ralt') return { vkey: 'AltRight', name: 'Alt' };
+    if (k === 'ctrl' || k === 'lctrl' || k === 'control') return { vkey: 'ControlLeft', name: 'Ctrl' };
+    if (k === 'rctrl') return { vkey: 'ControlRight', name: 'Ctrl' };
+    if (k === 'shift' || k === 'lshift') return { vkey: 'ShiftLeft', name: 'Shift' };
+    if (k === 'rshift') return { vkey: 'ShiftRight', name: 'Shift' };
+    if (k === 'lwin' || k === 'win') return { vkey: 'MetaLeft', name: 'Win' };
+    if (k === 'rwin') return { vkey: 'MetaRight', name: 'Win' };
+
+    // Common keys
+    if (k === 'space') return { vkey: 'Space', name: 'Space' };
+    if (k === 'tab') return { vkey: 'Tab', name: 'Tab' };
+    if (k === 'enter') return { vkey: 'Enter', name: 'Enter' };
+    if (k === 'escape' || k === 'esc') return { vkey: 'Escape', name: 'Esc' };
+    if (k === 'backspace') return { vkey: 'Backspace', name: 'Backspace' };
+    if (k === 'capslock') return { vkey: 'CapsLock', name: 'Caps' };
+    if (k === 'delete' || k === 'del') return { vkey: 'Delete', name: 'Del' };
+    if (k === 'insert' || k === 'ins') return { vkey: 'Insert', name: 'Ins' };
+    if (k === 'home') return { vkey: 'Home', name: 'Home' };
+    if (k === 'end') return { vkey: 'End', name: 'End' };
+    if (k === 'pageup' || k === 'pgup') return { vkey: 'PageUp', name: 'PgUp' };
+    if (k === 'pagedown' || k === 'pgdn') return { vkey: 'PageDown', name: 'PgDn' };
+
+    // Letters
+    if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+        const u = key.toUpperCase();
+        return { vkey: 'Key' + u, name: u };
+    }
+
+    // Digits
+    if (key.length === 1 && /[0-9]/.test(key)) {
+        return { vkey: 'Digit' + key, name: key };
+    }
+
+    // F-Keys
+    if (/^f([1-9]|1[0-2])$/i.test(key)) {
+        const f = key.toUpperCase();
+        return { vkey: f, name: f };
+    }
+
+    return { vkey: key, name: key };
+}
+
+function addActivityLog(entry, skipVisualizer = false) {
+    if (!entry) return;
+    if (document.hidden && !state.reactWhenUnfocused) return;
+    state.activityLogs.push(entry);
+    if (state.activityLogs.length > 150) {
+        state.activityLogs.shift();
+    }
+
+    const modal = document.getElementById('activityLogModal');
+    const isModalOpen = modal && modal.style.display === 'flex';
+
+    if (!skipVisualizer && isModalOpen) {
+        parseAndDispatchAhkToVisualizer(entry);
+    }
+
+    const badge = document.getElementById('logCountBadge');
+    if (badge) badge.textContent = `${state.activityLogs.length} events`;
+
+    const stream = document.getElementById('activityLogStream');
+    if (isModalOpen && stream) {
+        const emptyState = document.getElementById('logEmptyState');
+        if (emptyState) emptyState.remove();
+
+        const chkAuto = document.getElementById('chkLogAutoScroll');
+        const isNearBottom = (stream.scrollHeight - stream.scrollTop - stream.clientHeight) <= 50;
+
+        const row = createActivityLogRow(entry);
+        stream.appendChild(row);
+
+        while (stream.children.length > 150) {
+            stream.removeChild(stream.firstElementChild);
+        }
+
+        if ((!chkAuto || chkAuto.checked) && isNearBottom) {
+            stream.scrollTop = stream.scrollHeight;
+        }
+    }
+}
+
+function createActivityLogRow(entry) {
+    const row = document.createElement('div');
+    row.className = 'activity-log-row';
+
+    const catClass = (entry.category || 'system').toLowerCase();
+    row.innerHTML = `
         <span class="col-time">${escapeHtml(entry.time || '')}</span>
         <span class="col-cat"><span class="log-pill cat-${catClass}">${escapeHtml(entry.category || 'EVENT')}</span></span>
         <span class="col-event" title="${escapeHtml(entry.text || '')}">${escapeHtml(entry.text || '')}</span>
         <span class="col-details" title="${escapeHtml(entry.details || '')}">${escapeHtml(entry.details || '')}</span>
     `;
-            return row;
-        }
+    return row;
+}
 
-        function renderActivityLogs() {
-            const stream = document.getElementById('activityLogStream');
-            if (!stream) return;
+function renderActivityLogs() {
+    const stream = document.getElementById('activityLogStream');
+    if (!stream) return;
 
-            stream.innerHTML = '';
-            if (state.activityLogs.length === 0) {
-                stream.innerHTML = `
+    stream.innerHTML = '';
+    if (state.activityLogs.length === 0) {
+        stream.innerHTML = `
             <div class="log-empty-state" id="logEmptyState">
                 <svg class="svg-icon log-empty-icon"><use href="#icon-terminal"></use></svg>
                 <div class="log-empty-title">Waiting for button activity...</div>
                 <div class="log-empty-sub">Click any mouse button, press keys, or execute macros to see the real-time execution stream.</div>
             </div>
         `;
-                return;
-            }
+        return;
+    }
 
-            state.activityLogs.forEach(entry => {
-                stream.appendChild(createActivityLogRow(entry));
-            });
+    state.activityLogs.forEach(entry => {
+        stream.appendChild(createActivityLogRow(entry));
+    });
 
-            const badge = document.getElementById('logCountBadge');
-            if (badge) badge.textContent = `${state.activityLogs.length} events`;
+    const badge = document.getElementById('logCountBadge');
+    if (badge) badge.textContent = `${state.activityLogs.length} events`;
 
-            const chkAuto = document.getElementById('chkLogAutoScroll');
-            if (!chkAuto || chkAuto.checked) {
-                stream.scrollTop = stream.scrollHeight;
-            }
-        }
+    const chkAuto = document.getElementById('chkLogAutoScroll');
+    if (!chkAuto || chkAuto.checked) {
+        stream.scrollTop = stream.scrollHeight;
+    }
+}
 
-        function clearActivityLogs() {
-            state.activityLogs = [];
-            renderActivityLogs();
-            showToast('Activity Log', 'Cleared all logged events');
-        }
+function clearActivityLogs() {
+    state.activityLogs = [];
+    renderActivityLogs();
+    showToast('Activity Log', 'Cleared all logged events');
+}
 
-        function copyActivityLogs() {
-            if (state.activityLogs.length === 0) {
-                showToast('Activity Log', 'No events to copy');
-                return;
-            }
-            const text = state.activityLogs.map(e => `[${e.time}] [${e.category}] ${e.text} | ${e.details}`).join('\n');
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('Copied', `Copied ${state.activityLogs.length} log events to clipboard`);
-            }).catch(() => {
-                showToast('Clipboard Error', 'Failed to copy to clipboard');
-            });
-        }
+function copyActivityLogs() {
+    if (state.activityLogs.length === 0) {
+        showToast('Activity Log', 'No events to copy');
+        return;
+    }
+    const text = state.activityLogs.map(e => `[${e.time}] [${e.category}] ${e.text} | ${e.details}`).join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied', `Copied ${state.activityLogs.length} log events to clipboard`);
+    }).catch(() => {
+        showToast('Clipboard Error', 'Failed to copy to clipboard');
+    });
+}
 
 
 
