@@ -18,6 +18,11 @@
     <!-- Global SVG Icon Sprite (High-Quality Lucide Vectors) -->
     <svg style="display:none;" id="svgSpriteDefs" xmlns="http://www.w3.org/2000/svg">
         <defs>
+            <symbol id="icon-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+            </symbol>
             <symbol id="icon-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="4 17 10 11 4 5" />
@@ -392,8 +397,14 @@
                 stroke-linecap="round" stroke-linejoin="round">
                 <rect width="16" height="16" x="4" y="4" rx="2" />
                 <rect width="6" height="6" x="9" y="9" rx="1" />
-                <path d="M15 2v2" /><path d="M15 20v2" /><path d="M2 15h2" /><path d="M2 9h2" />
-                <path d="M20 15h2" /><path d="M20 9h2" /><path d="M9 2v2" /><path d="M9 20v2" />
+                <path d="M15 2v2" />
+                <path d="M15 20v2" />
+                <path d="M2 15h2" />
+                <path d="M2 9h2" />
+                <path d="M20 15h2" />
+                <path d="M20 9h2" />
+                <path d="M9 2v2" />
+                <path d="M9 20v2" />
             </symbol>
             <symbol id="icon-battery" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -518,11 +529,14 @@
             </div>
         </div>
     </header>
- 
+
     <!-- Master Suspended Alert Banner -->
     <div id="masterSuspendedBanner" class="master-suspended-banner" style="display: none;">
-        <svg class="svg-icon"><use href="#icon-alert-triangle"></use></svg>
-        <span>APP FUNCTIONS STOPPED — All mouse intercepts and macros are paused. Press <strong>Ctrl + Shift + F4</strong> or click the toggle to resume.</span>
+        <svg class="svg-icon">
+            <use href="#icon-alert-triangle"></use>
+        </svg>
+        <span>APP FUNCTIONS STOPPED — All mouse intercepts and macros are paused. Press <strong>Ctrl + Shift +
+                F4</strong> or click the toggle to resume.</span>
     </div>
 
     <!-- Application Profiles Ribbon -->
@@ -865,6 +879,18 @@
                                         <use href="#icon-zap"></use>
                                     </svg> Assign B-Shift
                                 </button>
+                                <button type="button" class="action-pill" id="btnPresetWinAltPrtScn" tabindex="-1"
+                                    title="Preset: Screenshot Active Window (Win + Alt + PrtScn)">
+                                    <svg class="svg-icon">
+                                        <use href="#icon-camera"></use>
+                                    </svg> 📸 Window (Win+Alt+PrtScn)
+                                </button>
+                                <button type="button" class="action-pill" id="btnPresetWinPrtScn" tabindex="-1"
+                                    title="Preset: Full Screenshot Auto-Saved to Pictures\Screenshots (Win + PrtScn)">
+                                    <svg class="svg-icon">
+                                        <use href="#icon-camera"></use>
+                                    </svg> 📷 Full Screen (Win+PrtScn)
+                                </button>
                             </div>
 
                             <div class="preview-hint">
@@ -990,6 +1016,46 @@
                                                 stroke-linecap="round" stroke-linejoin="round" />
                                         </svg>
                                         <span>Scroll Down</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Extended / Navigation Keys Deck (Home, End, Ins, PrtScn, ScrollLock, PgUp, PgDn) -->
+                            <div class="ext-keys-section">
+                                <div class="injection-header">
+                                    <span class="injection-title">EXTENDED & NAVIGATION KEYS (COMPACT KEYBOARD COMPANION)</span>
+                                    <span class="injection-sub">Click to assign missing laptop/60% keys (or hold Ctrl/Alt/Shift/Win to combine)</span>
+                                </div>
+                                <div class="ext-keys-deck">
+                                    <button type="button" class="ext-key-chip" data-key="{Home}" data-label="Home" title="Home: Move cursor to beginning of line or document">
+                                        <span class="key-name">Home</span>
+                                    </button>
+                                    <button type="button" class="ext-key-chip" data-key="{End}" data-label="End" title="End: Move cursor to end of line or document">
+                                        <span class="key-name">End</span>
+                                    </button>
+                                    <button type="button" class="ext-key-chip" data-key="{Insert}" data-label="Insert" title="Insert: Toggle overwrite mode">
+                                        <span class="key-name">Insert</span>
+                                    </button>
+                                    <button type="button" class="ext-key-chip" data-key="{Delete}" data-label="Delete" title="Delete: Forward delete">
+                                        <span class="key-name">Delete</span>
+                                    </button>
+                                    <button type="button" class="ext-key-chip" data-key="{PgUp}" data-label="Page Up" title="Page Up: Scroll up one full screen">
+                                        <span class="key-name">Page Up</span>
+                                    </button>
+                                    <button type="button" class="ext-key-chip" data-key="{PgDn}" data-label="Page Down" title="Page Down: Scroll down one full screen">
+                                        <span class="key-name">Page Down</span>
+                                    </button>
+                                    <button type="button" class="ext-key-chip" data-key="{PrintScreen}" data-label="Print Screen" title="Print Screen: Capture screen">
+                                        <span class="key-name">PrtScn</span>
+                                    </button>
+                                    <button type="button" class="ext-key-chip" data-key="{ScrollLock}" data-label="Scroll Lock" title="Scroll Lock: Toggle scroll lock">
+                                        <span class="key-name">Scroll Lock</span>
+                                    </button>
+                                    <button type="button" class="ext-key-chip" data-key="{Pause}" data-label="Pause" title="Pause / Break">
+                                        <span class="key-name">Pause</span>
+                                    </button>
+                                    <button type="button" class="ext-key-chip" data-key="{NumLock}" data-label="Num Lock" title="Num Lock: Toggle numeric keypad">
+                                        <span class="key-name">Num Lock</span>
                                     </button>
                                 </div>
                             </div>
@@ -1632,7 +1698,8 @@
                             </span>
                             <div class="switch-meta">
                                 <span class="switch-title">Focus Window on Hover</span>
-                                <span class="switch-desc" id="profFocusOnHoverDesc">Automatically bring windows into focus when cursor hovers over them while this profile is active</span>
+                                <span class="switch-desc" id="profFocusOnHoverDesc">Automatically bring windows into
+                                    focus when cursor hovers over them while this profile is active</span>
                             </div>
                         </label>
                     </div>
@@ -1718,7 +1785,8 @@
                             </svg> Real-Time Auto-Switch & Hover</div>
                         <div class="tip-body">Profiles switch automatically when bound apps receive focus. Enable
                             <strong>Switch on Mouse Hover</strong> to activate this profile the moment your cursor
-                            enters its window without clicking!</div>
+                            enters its window without clicking!
+                        </div>
                     </div>
                 </div>
 
@@ -1771,7 +1839,8 @@
             <!-- Full-Page Header -->
             <div class="modal-header omm-fullpage-header">
                 <div class="omm-header-left">
-                    <button type="button" class="studio-nav-back-btn" id="btnCloseOmmModal" title="Return to Studio (Esc)">
+                    <button type="button" class="studio-nav-back-btn" id="btnCloseOmmModal"
+                        title="Return to Studio (Esc)">
                         <svg class="svg-icon">
                             <use href="#icon-arrow-left"></use>
                         </svg>
@@ -1789,20 +1858,32 @@
 
                 <!-- Header Actions -->
                 <div class="omm-header-right">
-                    <button type="button" class="native-tool-btn" id="btnReloadHardwareMemory" title="Read current hardware profiles directly from mouse memory">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-refresh-cw"></use></svg>
+                    <button type="button" class="native-tool-btn" id="btnReloadHardwareMemory"
+                        title="Read current hardware profiles directly from mouse memory">
+                        <svg class="svg-icon svg-icon-xs">
+                            <use href="#icon-refresh-cw"></use>
+                        </svg>
                         <span>↻ Read from Mouse</span>
                     </button>
-                    <button type="button" class="native-tool-btn" id="btnResetToDefaults" title="Reset bindings in app to clean factory defaults">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-refresh-cw"></use></svg>
+                    <button type="button" class="native-tool-btn" id="btnResetToDefaults"
+                        title="Reset bindings in app to clean factory defaults">
+                        <svg class="svg-icon svg-icon-xs">
+                            <use href="#icon-refresh-cw"></use>
+                        </svg>
                         <span>↺ Factory Defaults</span>
                     </button>
-                    <button type="button" class="native-flash-hero-btn" id="btnAutoFlashLogitech" title="Preset virtual keys F13–F21">
-                        <svg class="svg-icon"><use href="#icon-zap"></use></svg>
+                    <button type="button" class="native-flash-hero-btn" id="btnAutoFlashLogitech"
+                        title="Preset virtual keys F13–F21">
+                        <svg class="svg-icon">
+                            <use href="#icon-zap"></use>
+                        </svg>
                         <span id="txtAutoFlashBtn">⚡ Preset F13–F21</span>
                     </button>
-                    <button type="button" class="native-tool-btn primary" id="btnApplyAllOnboard" title="Save and apply all button mappings to Studio">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-check"></use></svg>
+                    <button type="button" class="native-tool-btn primary" id="btnApplyAllOnboard"
+                        title="Save and apply all button mappings to Studio">
+                        <svg class="svg-icon svg-icon-xs">
+                            <use href="#icon-check"></use>
+                        </svg>
                         <span>⚡ Apply All</span>
                     </button>
                     <button type="button" class="studio-header-btn secondary" id="btnDoneOmmModal">Done</button>
@@ -1813,7 +1894,9 @@
             <div class="omm-profiles-ribbon">
                 <div class="omm-profiles-tabs-wrapper">
                     <span class="omm-profiles-title">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-layers"></use></svg>
+                        <svg class="svg-icon svg-icon-xs">
+                            <use href="#icon-layers"></use>
+                        </svg>
                         <span>HARDWARE PROFILES:</span>
                     </span>
                     <div class="omm-profiles-tabs" id="ommProfilesTabs">
@@ -1821,8 +1904,11 @@
                     </div>
                 </div>
                 <div class="omm-profile-quick-actions">
-                    <button type="button" class="omm-make-active-btn" id="btnMakeProfileActive" title="Set this profile as the active profile running on your mouse">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-zap"></use></svg>
+                    <button type="button" class="omm-make-active-btn" id="btnMakeProfileActive"
+                        title="Set this profile as the active profile running on your mouse">
+                        <svg class="svg-icon svg-icon-xs">
+                            <use href="#icon-zap"></use>
+                        </svg>
                         <span id="txtMakeProfileActive">⚡ Set Active on Mouse</span>
                     </button>
                 </div>
@@ -1838,7 +1924,8 @@
                 </div>
                 <div class="omm-dpi-info-right">
                     <div class="omm-polling-pill">Report Rate: <strong id="ommReportRate">1000 Hz</strong></div>
-                    <div class="omm-sector-pill">EEPROM Target: <strong id="ommSectorIndex">Sector 2 (Profile 1)</strong></div>
+                    <div class="omm-sector-pill">EEPROM Target: <strong id="ommSectorIndex">Sector 2 (Profile
+                            1)</strong></div>
                 </div>
             </div>
 
@@ -1846,12 +1933,18 @@
             <div class="omm-action-bar">
                 <div class="omm-status-box" id="ommStatusBox">
                     <span class="omm-status-icon" id="ommStatusIcon">
-                        <svg class="svg-icon"><use href="#icon-zap"></use></svg>
+                        <svg class="svg-icon">
+                            <use href="#icon-zap"></use>
+                        </svg>
                     </span>
-                    <span class="omm-status-text" id="ommStatusText">Direct USB HID++ Active • 1-Click writes directly to mouse memory (No external software required)</span>
+                    <span class="omm-status-text" id="ommStatusText">Direct USB HID++ Active • 1-Click writes directly
+                        to mouse memory (No external software required)</span>
                 </div>
-                <button type="button" class="omm-guide-toggle-btn" id="btnToggleOmmGuide" title="Toggle hardware sync info">
-                    <svg class="svg-icon svg-icon-xs"><use href="#icon-clipboard-list"></use></svg>
+                <button type="button" class="omm-guide-toggle-btn" id="btnToggleOmmGuide"
+                    title="Toggle hardware sync info">
+                    <svg class="svg-icon svg-icon-xs">
+                        <use href="#icon-clipboard-list"></use>
+                    </svg>
                     <span>Direct Sync Info</span>
                 </button>
             </div>
@@ -1859,10 +1952,16 @@
             <!-- Collapsible Guide Drawer (Direct Hardware Info) -->
             <div class="omm-guide-drawer" id="ommGuideDrawer" style="display: none;">
                 <div class="omm-guide-drawer-inner">
-                    <div class="omm-guide-step"><span class="step-num">1</span> <span><strong>Direct USB Flashing:</strong> Clicking "Flash to Mouse" burns keys directly into your mouse chip over USB HID++.</span></div>
-                    <div class="omm-guide-step"><span class="step-num">2</span> <span><strong>No Third-Party Apps:</strong> You do NOT need OMM.exe, G HUB, or any keystroke recorders.</span></div>
-                    <div class="omm-guide-step"><span class="step-num">3</span> <span><strong>Instant 1-Click Setup:</strong> Click "Preset F13–F21" above to write all buttons in 250ms!</span></div>
-                    <div class="omm-guide-step"><span class="step-num">4</span> <span><strong>Safe &amp; Reversible:</strong> Click "Factory Defaults" anytime to revert your mouse hardware back to factory state.</span></div>
+                    <div class="omm-guide-step"><span class="step-num">1</span> <span><strong>Direct USB
+                                Flashing:</strong> Clicking "Flash to Mouse" burns keys directly into your mouse chip
+                            over USB HID++.</span></div>
+                    <div class="omm-guide-step"><span class="step-num">2</span> <span><strong>No Third-Party
+                                Apps:</strong> You do NOT need OMM.exe, G HUB, or any keystroke recorders.</span></div>
+                    <div class="omm-guide-step"><span class="step-num">3</span> <span><strong>Instant 1-Click
+                                Setup:</strong> Click "Preset F13–F21" above to write all buttons in 250ms!</span></div>
+                    <div class="omm-guide-step"><span class="step-num">4</span> <span><strong>Safe &amp;
+                                Reversible:</strong> Click "Factory Defaults" anytime to revert your mouse hardware back
+                            to factory state.</span></div>
                 </div>
             </div>
 
@@ -2142,12 +2241,14 @@
                         </label>
                         <select id="btnConfigHardwareKey"
                             style="width:100%; box-sizing:border-box; padding:10px 14px; background:rgba(16,18,28,0.8); border:1px solid var(--border-subtle); border-radius:8px; color:#fff; font-size:14px; font-weight:600; cursor:pointer;">
-                            <optgroup label="── ORIGINAL / NATIVE BUTTONS (DIRECT INTERCEPT) ──" class="optgroup-native">
+                            <optgroup label="── ORIGINAL / NATIVE BUTTONS (DIRECT INTERCEPT) ──"
+                                class="optgroup-native">
                                 <option value="LButton">⚡ LButton (Left Click / Mouse 1) — Direct • No OMM</option>
                                 <option value="RButton">⚡ RButton (Right Click / Mouse 2) — Direct • No OMM</option>
                                 <option value="MButton">⚡ MButton (Middle Click / Mouse 3) — Direct • No OMM</option>
                                 <option value="XButton1">⚡ XButton1 (Back Button / Mouse 4) — Direct • No OMM</option>
-                                <option value="XButton2">⚡ XButton2 (Forward Button / Mouse 5) — Direct • No OMM</option>
+                                <option value="XButton2">⚡ XButton2 (Forward Button / Mouse 5) — Direct • No OMM
+                                </option>
                                 <option value="WheelLeft">⚡ WheelLeft (Wheel Tilt Left) — Direct • No OMM</option>
                                 <option value="WheelRight">⚡ WheelRight (Wheel Tilt Right) — Direct • No OMM</option>
                             </optgroup>
@@ -2351,14 +2452,16 @@
                                         <use href="#icon-pin"></use>
                                     </svg> Always On Top</span>
                             </label>
-                            <label class="settings-pill-toggle" title="Automatically start My Mouse My Choice when Windows logs in">
+                            <label class="settings-pill-toggle"
+                                title="Automatically start My Mouse My Choice when Windows logs in">
                                 <input type="checkbox" id="chkSettingsStartup">
                                 <span class="pill-dot"></span>
                                 <span><svg class="svg-icon svg-icon-xs">
                                         <use href="#icon-zap"></use>
                                     </svg> Run at Startup</span>
                             </label>
-                            <label class="settings-pill-toggle" title="Force the mouse diagram and UI to visually react to clicks when Studio is open in the background (off by default to maximize gaming FPS; never reacts when minimized to the clock tray)">
+                            <label class="settings-pill-toggle"
+                                title="Force the mouse diagram and UI to visually react to clicks when Studio is open in the background (off by default to maximize gaming FPS; never reacts when minimized to the clock tray)">
                                 <input type="checkbox" id="chkSettingsReactUnfocused">
                                 <span class="pill-dot"></span>
                                 <span><svg class="svg-icon svg-icon-xs">
@@ -2406,7 +2509,8 @@
                                 </svg></div>
                             <div class="settings-card-content">
                                 <div class="settings-card-title">Window Hover Focus (Focus Follows Mouse)</div>
-                                <div class="settings-card-desc">Automatically bring windows to the foreground when hovering over them. Can be set globally or activated per profile.
+                                <div class="settings-card-desc">Automatically bring windows to the foreground when
+                                    hovering over them. Can be set globally or activated per profile.
                                 </div>
                             </div>
                         </div>
@@ -2415,8 +2519,10 @@
                                 <span class="hover-focus-label">ACTIVATION MODE:</span>
                                 <div class="hover-focus-pills" id="hoverFocusModePills">
                                     <button type="button" class="preset-pill" data-mode="off">Disabled</button>
-                                    <button type="button" class="preset-pill active" data-mode="profile">Per Profile (Recommended)</button>
-                                    <button type="button" class="preset-pill" data-mode="all">Always Active (All)</button>
+                                    <button type="button" class="preset-pill active" data-mode="profile">Per Profile
+                                        (Recommended)</button>
+                                    <button type="button" class="preset-pill" data-mode="all">Always Active
+                                        (All)</button>
                                 </div>
                             </div>
                             <div class="hover-focus-delay-group">
@@ -2426,14 +2532,16 @@
                                 </div>
                                 <div class="settings-delay-controls" style="margin-top: 6px;">
                                     <div class="delay-input-group">
-                                        <input type="number" id="inputHoverFocusDelay" class="settings-delay-num" min="0" max="1000"
-                                            step="10" value="120">
+                                        <input type="number" id="inputHoverFocusDelay" class="settings-delay-num"
+                                            min="0" max="1000" step="10" value="120">
                                         <span class="delay-unit">ms</span>
                                     </div>
                                     <div class="delay-preset-pills" id="hoverFocusDelayPresetPills">
                                         <button type="button" class="preset-pill" data-delay="50">50 ms (Fast)</button>
-                                        <button type="button" class="preset-pill active" data-delay="120">120 ms (Default)</button>
-                                        <button type="button" class="preset-pill" data-delay="250">250 ms (Safe)</button>
+                                        <button type="button" class="preset-pill active" data-delay="120">120 ms
+                                            (Default)</button>
+                                        <button type="button" class="preset-pill" data-delay="250">250 ms
+                                            (Safe)</button>
                                     </div>
                                 </div>
                             </div>
@@ -2447,25 +2555,39 @@
                                     <use href="#icon-zap"></use>
                                 </svg></div>
                             <div class="settings-card-content" style="flex: 1;">
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <div
+                                    style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                                     <div class="settings-card-title">Interception Kernel Driver Mode</div>
-                                    <span class="driver-status-badge inactive" id="badgeInterceptionDriver">Checking...</span>
+                                    <span class="driver-status-badge inactive"
+                                        id="badgeInterceptionDriver">Checking...</span>
                                 </div>
-                                <div class="settings-card-desc">Routes simulated mouse clicks and keyboard keystrokes directly through low-level Windows kernel filter drivers (<code>mouclass.sys</code> & <code>kbdclass.sys</code>). Injects true hardware-level input with zero synthetic flags (<code>flags = 0</code>), ensuring seamless compatibility with elevated windows, protected applications, anti-cheat systems, and games using raw input.
+                                <div class="settings-card-desc">Routes simulated mouse clicks and keyboard keystrokes
+                                    directly through low-level Windows kernel filter drivers (<code>mouclass.sys</code>
+                                    & <code>kbdclass.sys</code>). Injects true hardware-level input with zero synthetic
+                                    flags (<code>flags = 0</code>), ensuring seamless compatibility with elevated
+                                    windows, protected applications, anti-cheat systems, and games using raw input.
                                 </div>
                             </div>
                         </div>
                         <div class="settings-driver-row">
-                            <label class="settings-pill-toggle" title="Enable hardware-level input injection via Interception kernel driver">
+                            <label class="settings-pill-toggle"
+                                title="Enable hardware-level input injection via Interception kernel driver">
                                 <input type="checkbox" id="chkSettingsInterceptionDriver">
                                 <span class="pill-dot"></span>
-                                <span><svg class="svg-icon svg-icon-xs"><use href="#icon-zap"></use></svg> Enable Kernel Mode</span>
+                                <span><svg class="svg-icon svg-icon-xs">
+                                        <use href="#icon-zap"></use>
+                                    </svg> Enable Kernel Mode</span>
                             </label>
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <button type="button" class="preset-pill driver-install-btn" id="btnInstallInterceptionDriver" title="Install the signed Interception kernel filter driver (requires 1-time reboot)">
-                                    <svg class="svg-icon svg-icon-xs"><use href="#icon-download"></use></svg> Install Driver
+                                <button type="button" class="preset-pill driver-install-btn"
+                                    id="btnInstallInterceptionDriver"
+                                    title="Install the signed Interception kernel filter driver (requires 1-time reboot)">
+                                    <svg class="svg-icon svg-icon-xs">
+                                        <use href="#icon-download"></use>
+                                    </svg> Install Driver
                                 </button>
-                                <span class="settings-driver-note" id="noteInterceptionDriver">Requires 1-time driver installation & reboot.</span>
+                                <span class="settings-driver-note" id="noteInterceptionDriver">Requires 1-time driver
+                                    installation & reboot.</span>
                             </div>
                         </div>
                     </div>
@@ -2477,7 +2599,8 @@
                                     <use href="#icon-crosshair"></use>
                                 </svg></div>
                             <div class="settings-card-content" style="flex: 1;">
-                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <div
+                                    style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                                     <div class="settings-card-title">Snap Tap (A / D SOCD Cleaner)</div>
                                     <label class="switch-toggle" title="Toggle Snap Tap SOCD Counter-Strafing">
                                         <input type="checkbox" id="chkSettingsSnapTap">
@@ -2485,13 +2608,21 @@
                                     </label>
                                 </div>
                                 <div class="settings-card-desc">
-                                    Prioritizes the last pressed directional key between <strong>A</strong> and <strong>D</strong> when both are held simultaneously (emulating Razer Snap Tap &amp; Wooting SOCD). Releasing one key instantly resumes the other without stopping, giving you instantaneous counter-strafing in FPS games.
+                                    Prioritizes the last pressed directional key between <strong>A</strong> and
+                                    <strong>D</strong> when both are held simultaneously (emulating Razer Snap Tap &amp;
+                                    Wooting SOCD). Releasing one key instantly resumes the other without stopping,
+                                    giving you instantaneous counter-strafing in FPS games.
                                 </div>
                             </div>
                         </div>
-                        <div class="settings-card-footer" style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: var(--text-muted);">
-                            <span><svg class="svg-icon svg-icon-xs" style="vertical-align: middle; margin-right: 4px;"><use href="#icon-alert-triangle"></use></svg> Note: Check game / league rules (e.g., CS2) before enabling in competitive matchmaking.</span>
-                            <span class="badge" id="snapTapStatusBadge" style="background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 4px; font-weight: 600; letter-spacing: 0.5px;">DISABLED</span>
+                        <div class="settings-card-footer"
+                            style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: var(--text-muted);">
+                            <span><svg class="svg-icon svg-icon-xs" style="vertical-align: middle; margin-right: 4px;">
+                                    <use href="#icon-alert-triangle"></use>
+                                </svg> Note: Check game / league rules (e.g., CS2) before enabling in competitive
+                                matchmaking.</span>
+                            <span class="badge" id="snapTapStatusBadge"
+                                style="background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 4px; font-weight: 600; letter-spacing: 0.5px;">DISABLED</span>
                         </div>
                     </div>
                 </div>
@@ -2849,7 +2980,8 @@
 
     <!-- Macro Update Choice Modal -->
     <div class="modal-backdrop custom-dialog-backdrop" id="macroUpdateChoiceModal" style="display: none;">
-        <div class="custom-dialog-card dialog-info" id="macroUpdateChoiceCard" role="dialog" aria-modal="true" aria-labelledby="macroUpdateChoiceTitle">
+        <div class="custom-dialog-card dialog-info" id="macroUpdateChoiceCard" role="dialog" aria-modal="true"
+            aria-labelledby="macroUpdateChoiceTitle">
             <div class="custom-dialog-header">
                 <div class="custom-dialog-icon-wrap icon-info" id="macroUpdateChoiceIconWrap">
                     <svg class="svg-icon">
@@ -2860,14 +2992,16 @@
                     <h3 class="custom-dialog-title" id="macroUpdateChoiceTitle">Save Macro Changes</h3>
                     <span class="custom-dialog-badge badge-info">MACRO STUDIO</span>
                 </div>
-                <button type="button" class="custom-dialog-close-btn" id="btnMacroChoiceClose" aria-label="Close dialog">
+                <button type="button" class="custom-dialog-close-btn" id="btnMacroChoiceClose"
+                    aria-label="Close dialog">
                     <svg class="svg-icon">
                         <use href="#icon-x"></use>
                     </svg>
                 </button>
             </div>
             <div class="custom-dialog-body">
-                <p class="custom-dialog-message" id="macroChoiceMsg">You modified an existing macro. How would you like to save your changes?</p>
+                <p class="custom-dialog-message" id="macroChoiceMsg">You modified an existing macro. How would you like
+                    to save your changes?</p>
                 <div class="macro-choice-meta-box" id="macroChoiceMetaBox">
                     <div class="meta-row">
                         <span class="meta-lbl">Original Macro:</span>
@@ -2887,7 +3021,8 @@
                         </div>
                         <div class="option-content">
                             <div class="option-title">Update Original Macro (All Profiles)</div>
-                            <div class="option-desc">Updates the original macro everywhere. All buttons and profiles currently using this macro will automatically update to the new version.</div>
+                            <div class="option-desc">Updates the original macro everywhere. All buttons and profiles
+                                currently using this macro will automatically update to the new version.</div>
                         </div>
                     </div>
 
@@ -2898,10 +3033,12 @@
                         </div>
                         <div class="option-content">
                             <div class="option-title">Save as New Macro</div>
-                            <div class="option-desc">Leaves the original macro untouched for all other profiles, and saves your changes as an independent new macro.</div>
+                            <div class="option-desc">Leaves the original macro untouched for all other profiles, and
+                                saves your changes as an independent new macro.</div>
                             <div class="new-macro-name-wrap" id="newMacroNameWrap" style="display: none;">
                                 <label for="txtNewMacroChoiceName">New Macro Name:</label>
-                                <input type="text" id="txtNewMacroChoiceName" class="studio-input" placeholder="e.g. My Macro (Copy)">
+                                <input type="text" id="txtNewMacroChoiceName" class="studio-input"
+                                    placeholder="e.g. My Macro (Copy)">
                             </div>
                         </div>
                     </div>
@@ -2909,7 +3046,8 @@
             </div>
             <div class="custom-dialog-footer">
                 <button type="button" class="custom-dialog-btn secondary" id="btnMacroChoiceCancel">Cancel</button>
-                <button type="button" class="custom-dialog-btn primary btn-cyan" id="btnMacroChoiceConfirm">Apply Changes</button>
+                <button type="button" class="custom-dialog-btn primary btn-cyan" id="btnMacroChoiceConfirm">Apply
+                    Changes</button>
             </div>
         </div>
     </div>
@@ -2951,7 +3089,8 @@
 
     <!-- Live Button & Macro Activity Log Full-Page Modal -->
     <div class="modal-backdrop activity-log-backdrop" id="activityLogModal" style="display: none;">
-        <div class="activity-log-card mode-split" id="activityLogCard" role="dialog" aria-modal="true" aria-labelledby="activityLogTitle">
+        <div class="activity-log-card mode-split" id="activityLogCard" role="dialog" aria-modal="true"
+            aria-labelledby="activityLogTitle">
             <div class="activity-log-header">
                 <div class="activity-log-header-left">
                     <div class="activity-log-icon-wrap">
@@ -2961,63 +3100,94 @@
                     </div>
                     <div>
                         <h3 class="activity-log-title" id="activityLogTitle">Live Activity & Hardware Monitor</h3>
-                        <div class="activity-log-sub">Real-time tracker for clicks, macros, key directions (↓ / ↑), and keystroke history</div>
+                        <div class="activity-log-sub">Real-time tracker for clicks, macros, key directions (↓ / ↑), and
+                            keystroke history</div>
                     </div>
                 </div>
 
                 <!-- View Layout Switcher: Split / Keyboard Only / Logs Only -->
                 <div class="log-view-selector" id="logViewSelector">
-                    <button type="button" class="log-view-btn active" id="btnModeSplit" data-mode="split" title="Split Screen: Logs + Visualizer">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-columns"></use></svg>
+                    <button type="button" class="log-view-btn active" id="btnModeSplit" data-mode="split"
+                        title="Split Screen: Logs + Visualizer">
+                        <svg class="svg-icon svg-icon-xs">
+                            <use href="#icon-columns"></use>
+                        </svg>
                         <span>Split</span>
                     </button>
-                    <button type="button" class="log-view-btn" id="btnModeVisualizer" data-mode="visualizer" title="Full Keyboard & Mouse Visualizer">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-grid"></use></svg>
+                    <button type="button" class="log-view-btn" id="btnModeVisualizer" data-mode="visualizer"
+                        title="Full Keyboard & Mouse Visualizer">
+                        <svg class="svg-icon svg-icon-xs">
+                            <use href="#icon-grid"></use>
+                        </svg>
                         <span>Keyboard</span>
                     </button>
-                    <button type="button" class="log-view-btn" id="btnModeTable" data-mode="table" title="Full Logs Stream Only">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-terminal"></use></svg>
+                    <button type="button" class="log-view-btn" id="btnModeTable" data-mode="table"
+                        title="Full Logs Stream Only">
+                        <svg class="svg-icon svg-icon-xs">
+                            <use href="#icon-terminal"></use>
+                        </svg>
                         <span>Logs</span>
                     </button>
                 </div>
 
                 <div class="activity-log-header-right">
                     <div class="activity-log-header-actions">
-                    <button type="button" class="log-action-btn log-test-mode-toggle active" id="btnLogToggleTestMode" title="Focus Test Mode: Active (Clicks highlight diagram without executing macros)">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-shield"></use></svg>
-                        <span id="logTestModeStatusText">Test Mode: ON</span>
-                    </button>
-                    <button type="button" class="log-action-btn" id="btnClearVisualizerKeys" title="Reset highlighted pressed keys on keyboard">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-refresh-cw"></use></svg>
-                        <span>Reset Keys</span>
-                    </button>
-                    <button type="button" class="log-action-btn" id="btnOpenAhkKeyHistory" title="Open native Windows AutoHotkey KeyHistory window">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-external-link"></use></svg>
-                        <span>AHK History</span>
-                    </button>
-                    <button type="button" class="log-action-btn emergency" id="btnEmergencyUnstick" title="Emergency Unstick: Releases all held keys and mouse buttons">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-alert-triangle"></use></svg>
-                        <span>Unstick Keys</span>
-                    </button>
-                    <button type="button" class="log-action-btn" id="btnCopyActivityLog" title="Copy activity logs to clipboard">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-copy"></use></svg>
-                        <span>Copy</span>
-                    </button>
-                    <button type="button" class="log-action-btn" id="btnClearActivityLog" title="Clear log entries">
-                        <svg class="svg-icon svg-icon-xs"><use href="#icon-trash-2"></use></svg>
-                        <span>Clear Log</span>
-                    </button>
+                        <button type="button" class="log-action-btn log-test-mode-toggle active"
+                            id="btnLogToggleTestMode"
+                            title="Focus Test Mode: Active (Clicks highlight diagram without executing macros)">
+                            <svg class="svg-icon svg-icon-xs">
+                                <use href="#icon-shield"></use>
+                            </svg>
+                            <span id="logTestModeStatusText">Test Mode: ON</span>
+                        </button>
+                        <button type="button" class="log-action-btn" id="btnClearVisualizerKeys"
+                            title="Reset highlighted pressed keys on keyboard">
+                            <svg class="svg-icon svg-icon-xs">
+                                <use href="#icon-refresh-cw"></use>
+                            </svg>
+                            <span>Reset Keys</span>
+                        </button>
+                        <button type="button" class="log-action-btn" id="btnOpenAhkKeyHistory"
+                            title="Open native Windows AutoHotkey KeyHistory window">
+                            <svg class="svg-icon svg-icon-xs">
+                                <use href="#icon-external-link"></use>
+                            </svg>
+                            <span>AHK History</span>
+                        </button>
+                        <button type="button" class="log-action-btn emergency" id="btnEmergencyUnstick"
+                            title="Emergency Unstick: Releases all held keys and mouse buttons">
+                            <svg class="svg-icon svg-icon-xs">
+                                <use href="#icon-alert-triangle"></use>
+                            </svg>
+                            <span>Unstick Keys</span>
+                        </button>
+                        <button type="button" class="log-action-btn" id="btnCopyActivityLog"
+                            title="Copy activity logs to clipboard">
+                            <svg class="svg-icon svg-icon-xs">
+                                <use href="#icon-copy"></use>
+                            </svg>
+                            <span>Copy</span>
+                        </button>
+                        <button type="button" class="log-action-btn" id="btnClearActivityLog" title="Clear log entries">
+                            <svg class="svg-icon svg-icon-xs">
+                                <use href="#icon-trash-2"></use>
+                            </svg>
+                            <span>Clear Log</span>
+                        </button>
                     </div>
                     <div class="activity-header-sep"></div>
-                    <button type="button" class="modal-close-btn activity-log-close-btn" id="btnCloseActivityLog" title="Close Monitor (Esc)" aria-label="Close activity log">
-                        <svg class="svg-icon"><use href="#icon-x"></use></svg>
+                    <button type="button" class="modal-close-btn activity-log-close-btn" id="btnCloseActivityLog"
+                        title="Close Monitor (Esc)" aria-label="Close activity log">
+                        <svg class="svg-icon">
+                            <use href="#icon-x"></use>
+                        </svg>
                     </button>
                 </div>
             </div>
 
             <!-- Main Content Area: Split View Container -->
             <div class="activity-log-split-container" id="activityLogSplitContainer">
-                
+
                 <!-- Left Pane: Live Logs Stream -->
                 <div class="activity-log-col-table" id="activityLogColTable">
                     <div class="activity-log-table-header">
@@ -3028,9 +3198,12 @@
                     </div>
                     <div class="activity-log-stream" id="activityLogStream">
                         <div class="log-empty-state" id="logEmptyState">
-                            <svg class="svg-icon log-empty-icon"><use href="#icon-terminal"></use></svg>
+                            <svg class="svg-icon log-empty-icon">
+                                <use href="#icon-terminal"></use>
+                            </svg>
                             <div class="log-empty-title">Waiting for button activity...</div>
-                            <div class="log-empty-sub">Click any mouse button, press keys, or execute macros to see the real-time execution stream.</div>
+                            <div class="log-empty-sub">Click any mouse button, press keys, or execute macros to see the
+                                real-time execution stream.</div>
                         </div>
                     </div>
                     <div class="activity-log-footer">
@@ -3050,7 +3223,7 @@
 
                 <!-- Right Pane: Keyboard & Mouse Visualizer -->
                 <div class="activity-log-col-visualizer" id="activityLogColVisualizer">
-                    
+
                     <!-- Top Ribbon: Horizontal Stream of Recent Events (matching user image) -->
                     <div class="visualizer-ribbon-bar">
                         <div class="visualizer-ribbon-label">
@@ -3064,110 +3237,183 @@
 
                     <!-- Visualizer Body: Full Keyboard + Mouse Clusters -->
                     <div class="visualizer-board-container" id="visualizerBoardContainer">
-                        
+
                         <!-- 3-Cluster Authentic Keyboard Layout -->
                         <div class="vis-keyboard-stage">
-                            
+
                             <!-- Block 1: Main 60% Alphanumeric Block -->
                             <div class="vis-block-main">
                                 <!-- Row 1: Esc, F1-F12 -->
                                 <div class="vis-row">
-                                    <div class="vkey vkey-esc" data-vkey="Escape"><span class="vkey-status"></span><span class="vkey-legend">Esc</span></div>
+                                    <div class="vkey vkey-esc" data-vkey="Escape"><span class="vkey-status"></span><span
+                                            class="vkey-legend">Esc</span></div>
                                     <div class="vis-gap-f"></div>
-                                    <div class="vkey" data-vkey="F1"><span class="vkey-status"></span><span class="vkey-legend">F1</span></div>
-                                    <div class="vkey" data-vkey="F2"><span class="vkey-status"></span><span class="vkey-legend">F2</span></div>
-                                    <div class="vkey" data-vkey="F3"><span class="vkey-status"></span><span class="vkey-legend">F3</span></div>
-                                    <div class="vkey" data-vkey="F4"><span class="vkey-status"></span><span class="vkey-legend">F4</span></div>
+                                    <div class="vkey" data-vkey="F1"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F1</span></div>
+                                    <div class="vkey" data-vkey="F2"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F2</span></div>
+                                    <div class="vkey" data-vkey="F3"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F3</span></div>
+                                    <div class="vkey" data-vkey="F4"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F4</span></div>
                                     <div class="vis-gap-f"></div>
-                                    <div class="vkey" data-vkey="F5"><span class="vkey-status"></span><span class="vkey-legend">F5</span></div>
-                                    <div class="vkey" data-vkey="F6"><span class="vkey-status"></span><span class="vkey-legend">F6</span></div>
-                                    <div class="vkey" data-vkey="F7"><span class="vkey-status"></span><span class="vkey-legend">F7</span></div>
-                                    <div class="vkey" data-vkey="F8"><span class="vkey-status"></span><span class="vkey-legend">F8</span></div>
+                                    <div class="vkey" data-vkey="F5"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F5</span></div>
+                                    <div class="vkey" data-vkey="F6"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F6</span></div>
+                                    <div class="vkey" data-vkey="F7"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F7</span></div>
+                                    <div class="vkey" data-vkey="F8"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F8</span></div>
                                     <div class="vis-gap-f"></div>
-                                    <div class="vkey" data-vkey="F9"><span class="vkey-status"></span><span class="vkey-legend">F9</span></div>
-                                    <div class="vkey" data-vkey="F10"><span class="vkey-status"></span><span class="vkey-legend">F10</span></div>
-                                    <div class="vkey" data-vkey="F11"><span class="vkey-status"></span><span class="vkey-legend">F11</span></div>
-                                    <div class="vkey" data-vkey="F12"><span class="vkey-status"></span><span class="vkey-legend">F12</span></div>
+                                    <div class="vkey" data-vkey="F9"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F9</span></div>
+                                    <div class="vkey" data-vkey="F10"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F10</span></div>
+                                    <div class="vkey" data-vkey="F11"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F11</span></div>
+                                    <div class="vkey" data-vkey="F12"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F12</span></div>
                                 </div>
 
                                 <!-- Row 2: ~ 1 2 ... 0 - = Backspace -->
                                 <div class="vis-row">
-                                    <div class="vkey" data-vkey="Backquote"><span class="vkey-status"></span><span class="vkey-legend">~<br>`</span></div>
-                                    <div class="vkey" data-vkey="Digit1"><span class="vkey-status"></span><span class="vkey-legend">1</span></div>
-                                    <div class="vkey" data-vkey="Digit2"><span class="vkey-status"></span><span class="vkey-legend">2</span></div>
-                                    <div class="vkey" data-vkey="Digit3"><span class="vkey-status"></span><span class="vkey-legend">3</span></div>
-                                    <div class="vkey" data-vkey="Digit4"><span class="vkey-status"></span><span class="vkey-legend">4</span></div>
-                                    <div class="vkey" data-vkey="Digit5"><span class="vkey-status"></span><span class="vkey-legend">5</span></div>
-                                    <div class="vkey" data-vkey="Digit6"><span class="vkey-status"></span><span class="vkey-legend">6</span></div>
-                                    <div class="vkey" data-vkey="Digit7"><span class="vkey-status"></span><span class="vkey-legend">7</span></div>
-                                    <div class="vkey" data-vkey="Digit8"><span class="vkey-status"></span><span class="vkey-legend">8</span></div>
-                                    <div class="vkey" data-vkey="Digit9"><span class="vkey-status"></span><span class="vkey-legend">9</span></div>
-                                    <div class="vkey" data-vkey="Digit0"><span class="vkey-status"></span><span class="vkey-legend">0</span></div>
-                                    <div class="vkey" data-vkey="Minus"><span class="vkey-status"></span><span class="vkey-legend">-<br>_</span></div>
-                                    <div class="vkey" data-vkey="Equal"><span class="vkey-status"></span><span class="vkey-legend">+<br>=</span></div>
-                                    <div class="vkey vkey-backspace" data-vkey="Backspace"><span class="vkey-status"></span><span class="vkey-legend">Backspace</span></div>
+                                    <div class="vkey" data-vkey="Backquote"><span class="vkey-status"></span><span
+                                            class="vkey-legend">~<br>`</span></div>
+                                    <div class="vkey" data-vkey="Digit1"><span class="vkey-status"></span><span
+                                            class="vkey-legend">1</span></div>
+                                    <div class="vkey" data-vkey="Digit2"><span class="vkey-status"></span><span
+                                            class="vkey-legend">2</span></div>
+                                    <div class="vkey" data-vkey="Digit3"><span class="vkey-status"></span><span
+                                            class="vkey-legend">3</span></div>
+                                    <div class="vkey" data-vkey="Digit4"><span class="vkey-status"></span><span
+                                            class="vkey-legend">4</span></div>
+                                    <div class="vkey" data-vkey="Digit5"><span class="vkey-status"></span><span
+                                            class="vkey-legend">5</span></div>
+                                    <div class="vkey" data-vkey="Digit6"><span class="vkey-status"></span><span
+                                            class="vkey-legend">6</span></div>
+                                    <div class="vkey" data-vkey="Digit7"><span class="vkey-status"></span><span
+                                            class="vkey-legend">7</span></div>
+                                    <div class="vkey" data-vkey="Digit8"><span class="vkey-status"></span><span
+                                            class="vkey-legend">8</span></div>
+                                    <div class="vkey" data-vkey="Digit9"><span class="vkey-status"></span><span
+                                            class="vkey-legend">9</span></div>
+                                    <div class="vkey" data-vkey="Digit0"><span class="vkey-status"></span><span
+                                            class="vkey-legend">0</span></div>
+                                    <div class="vkey" data-vkey="Minus"><span class="vkey-status"></span><span
+                                            class="vkey-legend">-<br>_</span></div>
+                                    <div class="vkey" data-vkey="Equal"><span class="vkey-status"></span><span
+                                            class="vkey-legend">+<br>=</span></div>
+                                    <div class="vkey vkey-backspace" data-vkey="Backspace"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Backspace</span></div>
                                 </div>
 
                                 <!-- Row 3: Tab Q W E R T Y U I O P [ ] \ -->
                                 <div class="vis-row">
-                                    <div class="vkey vkey-tab" data-vkey="Tab"><span class="vkey-status"></span><span class="vkey-legend">Tab</span></div>
-                                    <div class="vkey" data-vkey="KeyQ"><span class="vkey-status"></span><span class="vkey-legend">Q</span></div>
-                                    <div class="vkey" data-vkey="KeyW"><span class="vkey-status"></span><span class="vkey-legend">W</span></div>
-                                    <div class="vkey" data-vkey="KeyE"><span class="vkey-status"></span><span class="vkey-legend">E</span></div>
-                                    <div class="vkey" data-vkey="KeyR"><span class="vkey-status"></span><span class="vkey-legend">R</span></div>
-                                    <div class="vkey" data-vkey="KeyT"><span class="vkey-status"></span><span class="vkey-legend">T</span></div>
-                                    <div class="vkey" data-vkey="KeyY"><span class="vkey-status"></span><span class="vkey-legend">Y</span></div>
-                                    <div class="vkey" data-vkey="KeyU"><span class="vkey-status"></span><span class="vkey-legend">U</span></div>
-                                    <div class="vkey" data-vkey="KeyI"><span class="vkey-status"></span><span class="vkey-legend">I</span></div>
-                                    <div class="vkey" data-vkey="KeyO"><span class="vkey-status"></span><span class="vkey-legend">O</span></div>
-                                    <div class="vkey" data-vkey="KeyP"><span class="vkey-status"></span><span class="vkey-legend">P</span></div>
-                                    <div class="vkey" data-vkey="BracketLeft"><span class="vkey-status"></span><span class="vkey-legend">{<br>[</span></div>
-                                    <div class="vkey" data-vkey="BracketRight"><span class="vkey-status"></span><span class="vkey-legend">}<br>]</span></div>
-                                    <div class="vkey vkey-backslash" data-vkey="Backslash"><span class="vkey-status"></span><span class="vkey-legend">|<br>\</span></div>
+                                    <div class="vkey vkey-tab" data-vkey="Tab"><span class="vkey-status"></span><span
+                                            class="vkey-legend">Tab</span></div>
+                                    <div class="vkey" data-vkey="KeyQ"><span class="vkey-status"></span><span
+                                            class="vkey-legend">Q</span></div>
+                                    <div class="vkey" data-vkey="KeyW"><span class="vkey-status"></span><span
+                                            class="vkey-legend">W</span></div>
+                                    <div class="vkey" data-vkey="KeyE"><span class="vkey-status"></span><span
+                                            class="vkey-legend">E</span></div>
+                                    <div class="vkey" data-vkey="KeyR"><span class="vkey-status"></span><span
+                                            class="vkey-legend">R</span></div>
+                                    <div class="vkey" data-vkey="KeyT"><span class="vkey-status"></span><span
+                                            class="vkey-legend">T</span></div>
+                                    <div class="vkey" data-vkey="KeyY"><span class="vkey-status"></span><span
+                                            class="vkey-legend">Y</span></div>
+                                    <div class="vkey" data-vkey="KeyU"><span class="vkey-status"></span><span
+                                            class="vkey-legend">U</span></div>
+                                    <div class="vkey" data-vkey="KeyI"><span class="vkey-status"></span><span
+                                            class="vkey-legend">I</span></div>
+                                    <div class="vkey" data-vkey="KeyO"><span class="vkey-status"></span><span
+                                            class="vkey-legend">O</span></div>
+                                    <div class="vkey" data-vkey="KeyP"><span class="vkey-status"></span><span
+                                            class="vkey-legend">P</span></div>
+                                    <div class="vkey" data-vkey="BracketLeft"><span class="vkey-status"></span><span
+                                            class="vkey-legend">{<br>[</span></div>
+                                    <div class="vkey" data-vkey="BracketRight"><span class="vkey-status"></span><span
+                                            class="vkey-legend">}<br>]</span></div>
+                                    <div class="vkey vkey-backslash" data-vkey="Backslash"><span
+                                            class="vkey-status"></span><span class="vkey-legend">|<br>\</span></div>
                                 </div>
 
                                 <!-- Row 4: Caps A S D F G H J K L : ' Enter -->
                                 <div class="vis-row">
-                                    <div class="vkey vkey-caps" data-vkey="CapsLock"><span class="vkey-status"></span><span class="vkey-legend">Caps</span></div>
-                                    <div class="vkey" data-vkey="KeyA"><span class="vkey-status"></span><span class="vkey-legend">A</span></div>
-                                    <div class="vkey" data-vkey="KeyS"><span class="vkey-status"></span><span class="vkey-legend">S</span></div>
-                                    <div class="vkey" data-vkey="KeyD"><span class="vkey-status"></span><span class="vkey-legend">D</span></div>
-                                    <div class="vkey" data-vkey="KeyF"><span class="vkey-status"></span><span class="vkey-legend">F</span></div>
-                                    <div class="vkey" data-vkey="KeyG"><span class="vkey-status"></span><span class="vkey-legend">G</span></div>
-                                    <div class="vkey" data-vkey="KeyH"><span class="vkey-status"></span><span class="vkey-legend">H</span></div>
-                                    <div class="vkey" data-vkey="KeyJ"><span class="vkey-status"></span><span class="vkey-legend">J</span></div>
-                                    <div class="vkey" data-vkey="KeyK"><span class="vkey-status"></span><span class="vkey-legend">K</span></div>
-                                    <div class="vkey" data-vkey="KeyL"><span class="vkey-status"></span><span class="vkey-legend">L</span></div>
-                                    <div class="vkey" data-vkey="Semicolon"><span class="vkey-status"></span><span class="vkey-legend">:<br>;</span></div>
-                                    <div class="vkey" data-vkey="Quote"><span class="vkey-status"></span><span class="vkey-legend">"<br>'</span></div>
-                                    <div class="vkey vkey-enter" data-vkey="Enter"><span class="vkey-status"></span><span class="vkey-legend">Enter</span></div>
+                                    <div class="vkey vkey-caps" data-vkey="CapsLock"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Caps</span></div>
+                                    <div class="vkey" data-vkey="KeyA"><span class="vkey-status"></span><span
+                                            class="vkey-legend">A</span></div>
+                                    <div class="vkey" data-vkey="KeyS"><span class="vkey-status"></span><span
+                                            class="vkey-legend">S</span></div>
+                                    <div class="vkey" data-vkey="KeyD"><span class="vkey-status"></span><span
+                                            class="vkey-legend">D</span></div>
+                                    <div class="vkey" data-vkey="KeyF"><span class="vkey-status"></span><span
+                                            class="vkey-legend">F</span></div>
+                                    <div class="vkey" data-vkey="KeyG"><span class="vkey-status"></span><span
+                                            class="vkey-legend">G</span></div>
+                                    <div class="vkey" data-vkey="KeyH"><span class="vkey-status"></span><span
+                                            class="vkey-legend">H</span></div>
+                                    <div class="vkey" data-vkey="KeyJ"><span class="vkey-status"></span><span
+                                            class="vkey-legend">J</span></div>
+                                    <div class="vkey" data-vkey="KeyK"><span class="vkey-status"></span><span
+                                            class="vkey-legend">K</span></div>
+                                    <div class="vkey" data-vkey="KeyL"><span class="vkey-status"></span><span
+                                            class="vkey-legend">L</span></div>
+                                    <div class="vkey" data-vkey="Semicolon"><span class="vkey-status"></span><span
+                                            class="vkey-legend">:<br>;</span></div>
+                                    <div class="vkey" data-vkey="Quote"><span class="vkey-status"></span><span
+                                            class="vkey-legend">"<br>'</span></div>
+                                    <div class="vkey vkey-enter" data-vkey="Enter"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Enter</span></div>
                                 </div>
 
                                 <!-- Row 5: Shift Z X C V B N M < > ? Shift -->
                                 <div class="vis-row">
-                                    <div class="vkey vkey-shift-l" data-vkey="ShiftLeft"><span class="vkey-status"></span><span class="vkey-legend">Shift</span></div>
-                                    <div class="vkey" data-vkey="KeyZ"><span class="vkey-status"></span><span class="vkey-legend">Z</span></div>
-                                    <div class="vkey" data-vkey="KeyX"><span class="vkey-status"></span><span class="vkey-legend">X</span></div>
-                                    <div class="vkey" data-vkey="KeyC"><span class="vkey-status"></span><span class="vkey-legend">C</span></div>
-                                    <div class="vkey" data-vkey="KeyV"><span class="vkey-status"></span><span class="vkey-legend">V</span></div>
-                                    <div class="vkey" data-vkey="KeyB"><span class="vkey-status"></span><span class="vkey-legend">B</span></div>
-                                    <div class="vkey" data-vkey="KeyN"><span class="vkey-status"></span><span class="vkey-legend">N</span></div>
-                                    <div class="vkey" data-vkey="KeyM"><span class="vkey-status"></span><span class="vkey-legend">M</span></div>
-                                    <div class="vkey" data-vkey="Comma"><span class="vkey-status"></span><span class="vkey-legend">&lt;<br>,</span></div>
-                                    <div class="vkey" data-vkey="Period"><span class="vkey-status"></span><span class="vkey-legend">&gt;<br>.</span></div>
-                                    <div class="vkey" data-vkey="Slash"><span class="vkey-status"></span><span class="vkey-legend">?<br>/</span></div>
-                                    <div class="vkey vkey-shift-r" data-vkey="ShiftRight"><span class="vkey-status"></span><span class="vkey-legend">Shift</span></div>
+                                    <div class="vkey vkey-shift-l" data-vkey="ShiftLeft"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Shift</span></div>
+                                    <div class="vkey" data-vkey="KeyZ"><span class="vkey-status"></span><span
+                                            class="vkey-legend">Z</span></div>
+                                    <div class="vkey" data-vkey="KeyX"><span class="vkey-status"></span><span
+                                            class="vkey-legend">X</span></div>
+                                    <div class="vkey" data-vkey="KeyC"><span class="vkey-status"></span><span
+                                            class="vkey-legend">C</span></div>
+                                    <div class="vkey" data-vkey="KeyV"><span class="vkey-status"></span><span
+                                            class="vkey-legend">V</span></div>
+                                    <div class="vkey" data-vkey="KeyB"><span class="vkey-status"></span><span
+                                            class="vkey-legend">B</span></div>
+                                    <div class="vkey" data-vkey="KeyN"><span class="vkey-status"></span><span
+                                            class="vkey-legend">N</span></div>
+                                    <div class="vkey" data-vkey="KeyM"><span class="vkey-status"></span><span
+                                            class="vkey-legend">M</span></div>
+                                    <div class="vkey" data-vkey="Comma"><span class="vkey-status"></span><span
+                                            class="vkey-legend">&lt;<br>,</span></div>
+                                    <div class="vkey" data-vkey="Period"><span class="vkey-status"></span><span
+                                            class="vkey-legend">&gt;<br>.</span></div>
+                                    <div class="vkey" data-vkey="Slash"><span class="vkey-status"></span><span
+                                            class="vkey-legend">?<br>/</span></div>
+                                    <div class="vkey vkey-shift-r" data-vkey="ShiftRight"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Shift</span></div>
                                 </div>
 
                                 <!-- Row 6: Ctrl Win Alt Space Alt Menu Ctrl -->
                                 <div class="vis-row">
-                                    <div class="vkey vkey-ctrl" data-vkey="ControlLeft"><span class="vkey-status"></span><span class="vkey-legend">Ctrl</span></div>
-                                    <div class="vkey vkey-mod" data-vkey="MetaLeft"><span class="vkey-status"></span><span class="vkey-legend">⊞ Win</span></div>
-                                    <div class="vkey vkey-mod" data-vkey="AltLeft"><span class="vkey-status"></span><span class="vkey-legend">Alt</span></div>
-                                    <div class="vkey vkey-space" data-vkey="Space"><span class="vkey-status"></span><span class="vkey-legend">Space</span></div>
-                                    <div class="vkey vkey-mod" data-vkey="AltRight"><span class="vkey-status"></span><span class="vkey-legend">Alt</span></div>
-                                    <div class="vkey vkey-mod" data-vkey="ContextMenu"><span class="vkey-status"></span><span class="vkey-legend">☰</span></div>
-                                    <div class="vkey vkey-ctrl" data-vkey="ControlRight"><span class="vkey-status"></span><span class="vkey-legend">Ctrl</span></div>
+                                    <div class="vkey vkey-ctrl" data-vkey="ControlLeft"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Ctrl</span></div>
+                                    <div class="vkey vkey-mod" data-vkey="MetaLeft"><span
+                                            class="vkey-status"></span><span class="vkey-legend">⊞ Win</span></div>
+                                    <div class="vkey vkey-mod" data-vkey="AltLeft"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Alt</span></div>
+                                    <div class="vkey vkey-space" data-vkey="Space"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Space</span></div>
+                                    <div class="vkey vkey-mod" data-vkey="AltRight"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Alt</span></div>
+                                    <div class="vkey vkey-mod" data-vkey="ContextMenu"><span
+                                            class="vkey-status"></span><span class="vkey-legend">☰</span></div>
+                                    <div class="vkey vkey-ctrl" data-vkey="ControlRight"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Ctrl</span></div>
                                 </div>
                             </div>
 
@@ -3175,35 +3421,48 @@
                             <div class="vis-block-nav">
                                 <!-- Row 1: PrtSc, ScrLk, Pause (aligned with F1-F12) -->
                                 <div class="vis-row">
-                                    <div class="vkey vkey-nav" data-vkey="PrintScreen"><span class="vkey-status"></span><span class="vkey-legend">Prt<br>Sc</span></div>
-                                    <div class="vkey vkey-nav" data-vkey="ScrollLock"><span class="vkey-status"></span><span class="vkey-legend">Scr<br>Lk</span></div>
-                                    <div class="vkey vkey-nav" data-vkey="Pause"><span class="vkey-status"></span><span class="vkey-legend">Pause</span></div>
+                                    <div class="vkey vkey-nav" data-vkey="PrintScreen"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Prt<br>Sc</span></div>
+                                    <div class="vkey vkey-nav" data-vkey="ScrollLock"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Scr<br>Lk</span></div>
+                                    <div class="vkey vkey-nav" data-vkey="Pause"><span class="vkey-status"></span><span
+                                            class="vkey-legend">Pause</span></div>
                                 </div>
                                 <!-- Row 2: Insert, Home, PgUp (aligned with 1..Backspace) -->
                                 <div class="vis-row">
-                                    <div class="vkey vkey-nav" data-vkey="Insert"><span class="vkey-status"></span><span class="vkey-legend">Ins</span></div>
-                                    <div class="vkey vkey-nav" data-vkey="Home"><span class="vkey-status"></span><span class="vkey-legend">Home</span></div>
-                                    <div class="vkey vkey-nav" data-vkey="PageUp"><span class="vkey-status"></span><span class="vkey-legend">Pg<br>Up</span></div>
+                                    <div class="vkey vkey-nav" data-vkey="Insert"><span class="vkey-status"></span><span
+                                            class="vkey-legend">Ins</span></div>
+                                    <div class="vkey vkey-nav" data-vkey="Home"><span class="vkey-status"></span><span
+                                            class="vkey-legend">Home</span></div>
+                                    <div class="vkey vkey-nav" data-vkey="PageUp"><span class="vkey-status"></span><span
+                                            class="vkey-legend">Pg<br>Up</span></div>
                                 </div>
                                 <!-- Row 3: Delete, End, PgDn (aligned with Tab..Backslash) -->
                                 <div class="vis-row">
-                                    <div class="vkey vkey-nav" data-vkey="Delete"><span class="vkey-status"></span><span class="vkey-legend">Del</span></div>
-                                    <div class="vkey vkey-nav" data-vkey="End"><span class="vkey-status"></span><span class="vkey-legend">End</span></div>
-                                    <div class="vkey vkey-nav" data-vkey="PageDown"><span class="vkey-status"></span><span class="vkey-legend">Pg<br>Dn</span></div>
+                                    <div class="vkey vkey-nav" data-vkey="Delete"><span class="vkey-status"></span><span
+                                            class="vkey-legend">Del</span></div>
+                                    <div class="vkey vkey-nav" data-vkey="End"><span class="vkey-status"></span><span
+                                            class="vkey-legend">End</span></div>
+                                    <div class="vkey vkey-nav" data-vkey="PageDown"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Pg<br>Dn</span></div>
                                 </div>
                                 <!-- Row 4: Spacer matching Home row -->
                                 <div class="vis-nav-row-spacer"></div>
                                 <!-- Row 5: Inverted-T Up Arrow (aligned with Shift row) -->
                                 <div class="vis-row vis-arrow-row-up">
                                     <div class="vis-key-placeholder"></div>
-                                    <div class="vkey vkey-arrow" data-vkey="ArrowUp"><span class="vkey-status"></span><span class="vkey-legend">▲</span></div>
+                                    <div class="vkey vkey-arrow" data-vkey="ArrowUp"><span
+                                            class="vkey-status"></span><span class="vkey-legend">▲</span></div>
                                     <div class="vis-key-placeholder"></div>
                                 </div>
                                 <!-- Row 6: Left, Down, Right Arrows (aligned with Bottom row) -->
                                 <div class="vis-row vis-arrow-row-down">
-                                    <div class="vkey vkey-arrow" data-vkey="ArrowLeft"><span class="vkey-status"></span><span class="vkey-legend">◀</span></div>
-                                    <div class="vkey vkey-arrow" data-vkey="ArrowDown"><span class="vkey-status"></span><span class="vkey-legend">▼</span></div>
-                                    <div class="vkey vkey-arrow" data-vkey="ArrowRight"><span class="vkey-status"></span><span class="vkey-legend">▶</span></div>
+                                    <div class="vkey vkey-arrow" data-vkey="ArrowLeft"><span
+                                            class="vkey-status"></span><span class="vkey-legend">◀</span></div>
+                                    <div class="vkey vkey-arrow" data-vkey="ArrowDown"><span
+                                            class="vkey-status"></span><span class="vkey-legend">▼</span></div>
+                                    <div class="vkey vkey-arrow" data-vkey="ArrowRight"><span
+                                            class="vkey-status"></span><span class="vkey-legend">▶</span></div>
                                 </div>
                             </div>
 
@@ -3214,27 +3473,44 @@
                                 <!-- 4x5 CSS Grid -->
                                 <div class="vis-numpad-grid">
                                     <!-- Row 1: NumLock, /, *, - -->
-                                    <div class="vkey" data-vkey="NumLock"><span class="vkey-status"></span><span class="vkey-legend">Num<br>Lock</span></div>
-                                    <div class="vkey" data-vkey="NumpadDivide"><span class="vkey-status"></span><span class="vkey-legend">/</span></div>
-                                    <div class="vkey" data-vkey="NumpadMultiply"><span class="vkey-status"></span><span class="vkey-legend">*</span></div>
-                                    <div class="vkey" data-vkey="NumpadSubtract"><span class="vkey-status"></span><span class="vkey-legend">-</span></div>
+                                    <div class="vkey" data-vkey="NumLock"><span class="vkey-status"></span><span
+                                            class="vkey-legend">Num<br>Lock</span></div>
+                                    <div class="vkey" data-vkey="NumpadDivide"><span class="vkey-status"></span><span
+                                            class="vkey-legend">/</span></div>
+                                    <div class="vkey" data-vkey="NumpadMultiply"><span class="vkey-status"></span><span
+                                            class="vkey-legend">*</span></div>
+                                    <div class="vkey" data-vkey="NumpadSubtract"><span class="vkey-status"></span><span
+                                            class="vkey-legend">-</span></div>
                                     <!-- Row 2: 7, 8, 9, + (tall 2-row) -->
-                                    <div class="vkey" data-vkey="Numpad7"><span class="vkey-status"></span><span class="vkey-legend">7</span></div>
-                                    <div class="vkey" data-vkey="Numpad8"><span class="vkey-status"></span><span class="vkey-legend">8</span></div>
-                                    <div class="vkey" data-vkey="Numpad9"><span class="vkey-status"></span><span class="vkey-legend">9</span></div>
-                                    <div class="vkey vkey-numpad-plus" data-vkey="NumpadAdd"><span class="vkey-status"></span><span class="vkey-legend">+</span></div>
+                                    <div class="vkey" data-vkey="Numpad7"><span class="vkey-status"></span><span
+                                            class="vkey-legend">7</span></div>
+                                    <div class="vkey" data-vkey="Numpad8"><span class="vkey-status"></span><span
+                                            class="vkey-legend">8</span></div>
+                                    <div class="vkey" data-vkey="Numpad9"><span class="vkey-status"></span><span
+                                            class="vkey-legend">9</span></div>
+                                    <div class="vkey vkey-numpad-plus" data-vkey="NumpadAdd"><span
+                                            class="vkey-status"></span><span class="vkey-legend">+</span></div>
                                     <!-- Row 3: 4, 5, 6 -->
-                                    <div class="vkey" data-vkey="Numpad4"><span class="vkey-status"></span><span class="vkey-legend">4</span></div>
-                                    <div class="vkey" data-vkey="Numpad5"><span class="vkey-status"></span><span class="vkey-legend">5</span></div>
-                                    <div class="vkey" data-vkey="Numpad6"><span class="vkey-status"></span><span class="vkey-legend">6</span></div>
+                                    <div class="vkey" data-vkey="Numpad4"><span class="vkey-status"></span><span
+                                            class="vkey-legend">4</span></div>
+                                    <div class="vkey" data-vkey="Numpad5"><span class="vkey-status"></span><span
+                                            class="vkey-legend">5</span></div>
+                                    <div class="vkey" data-vkey="Numpad6"><span class="vkey-status"></span><span
+                                            class="vkey-legend">6</span></div>
                                     <!-- Row 4: 1, 2, 3, Enter (tall 2-row) -->
-                                    <div class="vkey" data-vkey="Numpad1"><span class="vkey-status"></span><span class="vkey-legend">1</span></div>
-                                    <div class="vkey" data-vkey="Numpad2"><span class="vkey-status"></span><span class="vkey-legend">2</span></div>
-                                    <div class="vkey" data-vkey="Numpad3"><span class="vkey-status"></span><span class="vkey-legend">3</span></div>
-                                    <div class="vkey vkey-numpad-enter" data-vkey="NumpadEnter"><span class="vkey-status"></span><span class="vkey-legend">Enter</span></div>
+                                    <div class="vkey" data-vkey="Numpad1"><span class="vkey-status"></span><span
+                                            class="vkey-legend">1</span></div>
+                                    <div class="vkey" data-vkey="Numpad2"><span class="vkey-status"></span><span
+                                            class="vkey-legend">2</span></div>
+                                    <div class="vkey" data-vkey="Numpad3"><span class="vkey-status"></span><span
+                                            class="vkey-legend">3</span></div>
+                                    <div class="vkey vkey-numpad-enter" data-vkey="NumpadEnter"><span
+                                            class="vkey-status"></span><span class="vkey-legend">Enter</span></div>
                                     <!-- Row 5: 0 (wide 2-col), . -->
-                                    <div class="vkey vkey-numpad-0" data-vkey="Numpad0"><span class="vkey-status"></span><span class="vkey-legend">0</span></div>
-                                    <div class="vkey" data-vkey="NumpadDecimal"><span class="vkey-status"></span><span class="vkey-legend">.</span></div>
+                                    <div class="vkey vkey-numpad-0" data-vkey="Numpad0"><span
+                                            class="vkey-status"></span><span class="vkey-legend">0</span></div>
+                                    <div class="vkey" data-vkey="NumpadDecimal"><span class="vkey-status"></span><span
+                                            class="vkey-legend">.</span></div>
                                 </div>
                             </div>
 
@@ -3243,31 +3519,38 @@
                         <!-- Mouse Cluster: Left Click, Wheel Up, Middle, Wheel Down, Right Click, Back, Forward -->
                         <div class="vis-mouse-row">
                             <div class="vis-mouse-cluster">
-                                <div class="vkey vkey-mouse-btn vkey-mouse-left" data-vkey="MouseLeft" title="Left Click (M1)">
+                                <div class="vkey vkey-mouse-btn vkey-mouse-left" data-vkey="MouseLeft"
+                                    title="Left Click (M1)">
                                     <span class="vkey-status"></span>
                                     <span class="vkey-legend">Left Click</span>
                                 </div>
-                                <div class="vkey vkey-mouse-btn vkey-mouse-wheel" data-vkey="MouseWheelUp" title="Mouse Scroll Up">
+                                <div class="vkey vkey-mouse-btn vkey-mouse-wheel" data-vkey="MouseWheelUp"
+                                    title="Mouse Scroll Up">
                                     <span class="vkey-status"></span>
                                     <span class="vkey-legend">Wheel ▲</span>
                                 </div>
-                                <div class="vkey vkey-mouse-btn vkey-mouse-mid" data-vkey="MouseMiddle" title="Middle Click (M3)">
+                                <div class="vkey vkey-mouse-btn vkey-mouse-mid" data-vkey="MouseMiddle"
+                                    title="Middle Click (M3)">
                                     <span class="vkey-status"></span>
                                     <span class="vkey-legend">Middle</span>
                                 </div>
-                                <div class="vkey vkey-mouse-btn vkey-mouse-wheel" data-vkey="MouseWheelDown" title="Mouse Scroll Down">
+                                <div class="vkey vkey-mouse-btn vkey-mouse-wheel" data-vkey="MouseWheelDown"
+                                    title="Mouse Scroll Down">
                                     <span class="vkey-status"></span>
                                     <span class="vkey-legend">Wheel ▼</span>
                                 </div>
-                                <div class="vkey vkey-mouse-btn vkey-mouse-right" data-vkey="MouseRight" title="Right Click (M2)">
+                                <div class="vkey vkey-mouse-btn vkey-mouse-right" data-vkey="MouseRight"
+                                    title="Right Click (M2)">
                                     <span class="vkey-status"></span>
                                     <span class="vkey-legend">Right Click</span>
                                 </div>
-                                <div class="vkey vkey-mouse-btn vkey-mouse-side" data-vkey="MouseBack" title="Back Button (M4)">
+                                <div class="vkey vkey-mouse-btn vkey-mouse-side" data-vkey="MouseBack"
+                                    title="Back Button (M4)">
                                     <span class="vkey-status"></span>
                                     <span class="vkey-legend">Back</span>
                                 </div>
-                                <div class="vkey vkey-mouse-btn vkey-mouse-side" data-vkey="MouseForward" title="Forward Button (M5)">
+                                <div class="vkey vkey-mouse-btn vkey-mouse-side" data-vkey="MouseForward"
+                                    title="Forward Button (M5)">
                                     <span class="vkey-status"></span>
                                     <span class="vkey-legend">Forward</span>
                                 </div>

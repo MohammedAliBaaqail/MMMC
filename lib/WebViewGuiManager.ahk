@@ -843,17 +843,23 @@ class WebViewGuiManager {
                 ))
 
             case "loadAllLogitechProfiles":
-                profiles := LogitechHID.ReadAllProfiles()
-                force := req.Has("forceRefresh") ? (req["forceRefresh"] ? true : false) : false
-                profiles := LogitechHID.ReadAllProfiles(force)
-                this.PostMessage(Map(
-                    "type", "logitechAllProfilesLoaded",
-                    "connected", true,
-                    "name", LogitechHID.productName,
-                    "activeProfileId", LogitechHID.activeProfileId,
-                    "selectedProfileId", LogitechHID.selectedProfileId,
-                    "profiles", profiles
-                ))
+                try {
+                    force := req.Has("forceRefresh") ? (req["forceRefresh"] ? true : false) : false
+                    profiles := LogitechHID.ReadAllProfiles(force)
+                    this.PostMessage(Map(
+                        "type", "logitechAllProfilesLoaded",
+                        "connected", true,
+                        "name", LogitechHID.productName,
+                        "activeProfileId", LogitechHID.activeProfileId,
+                        "selectedProfileId", LogitechHID.selectedProfileId,
+                        "profiles", profiles
+                    ))
+                } catch as err {
+                    this.PostMessage(Map(
+                        "type", "logitechError",
+                        "message", "Failed to read profiles: " . err.Message
+                    ))
+                }
 
             case "switchLogitechProfile":
                 pId := req.Has("profileId") ? Integer(req["profileId"]) : 1

@@ -207,10 +207,9 @@ class LogitechHID {
     /**
      * Send HID++ 20-byte Report and receive response via Overlapped I/O
      */
-    static SendRawCmd(pkt, timeoutMs := 200) {
-        static SendRawCmd(pkt, timeoutMs := 60) {
-            if (!this.hFile || this.hFile == -1)
-                return Buffer(20, 0)
+    static SendRawCmd(pkt, timeoutMs := 60) {
+        if (!this.hFile || this.hFile == -1)
+            return Buffer(20, 0)
 
             DllCall("hid\HidD_SetOutputReport", "ptr", this.hFile, "ptr", pkt, "uint", 20)
             DllCall("kernel32\ResetEvent", "ptr", this.hEvent)
@@ -285,7 +284,7 @@ class LogitechHID {
                 resp := this.ReadSectorChunk(sector, off)
                 DllCall("ntdll\RtlCopyMemory", "ptr", sectorBuf.Ptr + off, "ptr", resp.Ptr + 4, "uptr", 16)
                 off += 16
-                Sleep(-1)
+                Sleep(1)
             }
             respLast := this.ReadSectorChunk(sector, 239)
             DllCall("ntdll\RtlCopyMemory", "ptr", sectorBuf.Ptr + 239, "ptr", respLast.Ptr + 4, "uptr", 16)
@@ -507,6 +506,10 @@ class LogitechHID {
                 "END", 0x4D,
                 "PAGEUP", 0x4B, "PGUP", 0x4B,
                 "PAGEDOWN", 0x4E, "PGDN", 0x4E,
+                "PRINTSCREEN", 0x46, "PRTSCN", 0x46,
+                "SCROLLLOCK", 0x47, "SCRLK", 0x47,
+                "PAUSE", 0x48, "BREAK", 0x48,
+                "NUMLOCK", 0x53,
                 "UP", 0x52, "DOWN", 0x51, "LEFT", 0x50, "RIGHT", 0x4F
             )
             if keyMap.Has(upper) {
@@ -673,231 +676,228 @@ class LogitechHID {
         /**
          * Read a specific onboard profile from mouse hardware memory (1..5)
          */
-        static ReadProfile(profId) {
-            static ReadProfile(profId, forceRefresh := false) {
-                if (!forceRefresh && this.profileCache.Has(profId))
-                    return this.profileCache[profId]
+        static ReadProfile(profId, forceRefresh := false) {
+            if (!forceRefresh && this.profileCache.Has(profId))
+                return this.profileCache[profId]
 
-                secNum := this.GetProfileSector(profId)
+            secNum := this.GetProfileSector(profId)
+            this.GetActiveProfileId()
+            if (this.activeProfileId == 0)
                 this.GetActiveProfileId()
-                if (this.activeProfileId == 0)
-                    this.GetActiveProfileId()
-                profObj := Map(
-                    "id", profId,
-                    "name", "Profile " . profId,
-                    "isActive", (profId == this.activeProfileId),
-                    "sector", secNum,
-                    "buttons", Map(),
-                    "dpis", [800, 1200, 1600, 2400, 3200],
-                    "activeDpiIndex", 2,
-                    "defaultDpiIndex", 0
-                )
+            profObj := Map(
+                "id", profId,
+                "name", "Profile " . profId,
+                "isActive", (profId == this.activeProfileId),
+                "sector", secNum,
+                "buttons", Map(),
+                "dpis", [800, 1200, 1600, 2400, 3200],
+                "activeDpiIndex", 2,
+                "defaultDpiIndex", 0
+            )
 
-                if (this.Connect()) {
-                    try {
-                        sec := this.ReadSector(secNum)
-                        isFormatted := (NumGet(sec, 0, "uchar") == 0x01)
+            if (this.Connect()) {
+                try {
+                    sec := this.ReadSector(secNum)
+                    isFormatted := (NumGet(sec, 0, "uchar") == 0x01)
 
-                        ; 1. Buttons
-                        btns := Map()
-                        for btnId, off in this.BUTTON_OFFSETS {
-                            defVal := this.FACTORY_DEFAULTS.Has(btnId) ? this.FACTORY_DEFAULTS[btnId] : "Disabled"
-                            if (isFormatted) {
-                                effOff := this.GetButtonEffectiveOffset(sec, btnId)
-                                btns[btnId] := this.DecodeButton(sec, effOff, defVal)
-                            } else {
-                                btns[btnId] := defVal
-                            }
-                        }
-                        profObj["buttons"] := btns
-
-                        ; 2. DPI Slot Index & DPI Values
+                    ; 1. Buttons
+                    btns := Map()
+                    for btnId, off in this.BUTTON_OFFSETS {
+                        defVal := this.FACTORY_DEFAULTS.Has(btnId) ? this.FACTORY_DEFAULTS[btnId] : "Disabled"
                         if (isFormatted) {
-                            profObj["activeDpiIndex"] := NumGet(sec, 1, "uchar")
-                            profObj["defaultDpiIndex"] := NumGet(sec, 2, "uchar")
-
-                            dpis := []
-                            loop 5 {
-                                val := NumGet(sec, 3 + (A_Index - 1) * 2, "ushort")
-                                if (val > 0 && val <= 40000)
-                                    dpis.Push(val)
-                            }
-                            if (dpis.Length > 0)
-                                profObj["dpis"] := dpis
+                            effOff := this.GetButtonEffectiveOffset(sec, btnId)
+                            btns[btnId] := this.DecodeButton(sec, effOff, defVal)
+                        } else {
+                            btns[btnId] := defVal
                         }
-
-                        this.profileCache[profId] := profObj
-                        return profObj
                     }
-                }
+                    profObj["buttons"] := btns
 
-                ; Fallback to factory defaults if offline
-                btns := Map()
-                for btnId, defVal in this.FACTORY_DEFAULTS {
-                    btns[btnId] := defVal
+                    ; 2. DPI Slot Index & DPI Values
+                    if (isFormatted) {
+                        profObj["activeDpiIndex"] := NumGet(sec, 1, "uchar")
+                        profObj["defaultDpiIndex"] := NumGet(sec, 2, "uchar")
+
+                        dpis := []
+                        loop 5 {
+                            val := NumGet(sec, 3 + (A_Index - 1) * 2, "ushort")
+                            if (val > 0 && val <= 40000)
+                                dpis.Push(val)
+                        }
+                        if (dpis.Length > 0)
+                            profObj["dpis"] := dpis
+                    }
+
+                    this.profileCache[profId] := profObj
+                    return profObj
                 }
-                profObj["buttons"] := btns
-                this.profileCache[profId] := profObj
-                return profObj
             }
 
-            /**
-             * Read all 5 onboard memory profiles from mouse hardware
-             */
-            static ReadAllProfiles() {
-                static ReadAllProfiles(forceRefresh := false) {
-                    this.GetActiveProfileId()
-                    profilesList := []
-                    loop 5 {
-                        pId := A_Index
-                        profObj := this.ReadProfile(pId)
-                        profObj := this.ReadProfile(pId, forceRefresh)
-                        profObj["isActive"] := (pId == this.activeProfileId)
-                        profilesList.Push(profObj)
-                        Sleep(-1)
-                    }
-                    return profilesList
-                }
+            ; Fallback to factory defaults if offline
+            btns := Map()
+            for btnId, defVal in this.FACTORY_DEFAULTS {
+                btns[btnId] := defVal
+            }
+            profObj["buttons"] := btns
+            this.profileCache[profId] := profObj
+            return profObj
+        }
 
-                /**
-                 * Read all physical button bindings directly from mouse hardware memory
-                 */
-                static ReadAllButtons(profId := 0) {
-                    if (profId < 1 || profId > 5) {
-                        this.GetActiveProfileId()
-                        targetProf := this.activeProfileId
-                    } else {
-                        targetProf := profId
-                    }
-                    targetSec := this.GetProfileSector(targetProf)
+        /**
+         * Read all 5 onboard memory profiles from mouse hardware
+         */
+        static ReadAllProfiles(forceRefresh := false) {
+            this.GetActiveProfileId()
+            profilesList := []
+            loop 5 {
+                pId := A_Index
+                profObj := this.ReadProfile(pId, forceRefresh)
+                profObj["isActive"] := (pId == this.activeProfileId)
+                profilesList.Push(profObj)
+                Sleep(5)
+            }
+            return profilesList
+        }
 
-                    if (this.Connect()) {
-                        try {
-                            sec := this.ReadSector(targetSec)
-                            isFormatted := (NumGet(sec, 0, "uchar") == 0x01)
-                            res := Map()
-                            for btnId, off in this.BUTTON_OFFSETS {
-                                defVal := this.FACTORY_DEFAULTS.Has(btnId) ? this.FACTORY_DEFAULTS[btnId] : "Disabled"
-                                if (isFormatted) {
-                                    effOff := this.GetButtonEffectiveOffset(sec, btnId)
-                                    res[btnId] := this.DecodeButton(sec, effOff, defVal)
-                                } else {
-                                    res[btnId] := defVal
-                                }
-                                this.cachedButtons[btnId] := res[btnId]
-                            }
-                            return res
-                        }
-                    }
+        /**
+         * Read all physical button bindings directly from mouse hardware memory
+         */
+        static ReadAllButtons(profId := 0) {
+            if (profId < 1 || profId > 5) {
+                this.GetActiveProfileId()
+                targetProf := this.activeProfileId
+            } else {
+                targetProf := profId
+            }
+            targetSec := this.GetProfileSector(targetProf)
+
+            if (this.Connect()) {
+                try {
+                    sec := this.ReadSector(targetSec)
+                    isFormatted := (NumGet(sec, 0, "uchar") == 0x01)
                     res := Map()
-                    for btnId, defVal in this.FACTORY_DEFAULTS {
-                        res[btnId] := defVal
-                        this.cachedButtons[btnId] := defVal
+                    for btnId, off in this.BUTTON_OFFSETS {
+                        defVal := this.FACTORY_DEFAULTS.Has(btnId) ? this.FACTORY_DEFAULTS[btnId] : "Disabled"
+                        if (isFormatted) {
+                            effOff := this.GetButtonEffectiveOffset(sec, btnId)
+                            res[btnId] := this.DecodeButton(sec, effOff, defVal)
+                        } else {
+                            res[btnId] := defVal
+                        }
+                        this.cachedButtons[btnId] := res[btnId]
                     }
                     return res
                 }
+            }
+            res := Map()
+            for btnId, defVal in this.FACTORY_DEFAULTS {
+                res[btnId] := defVal
+                this.cachedButtons[btnId] := defVal
+            }
+            return res
+        }
 
-                /**
-                 * Safe hardware key binding update (updates settings.ini & in-memory map without writing raw flash)
-                 */
-                static UpdateHardwareKey(btnId, targetVal) {
-                    this.cachedButtons[btnId] := targetVal
-                    try IniWrite(targetVal, A_ScriptDir . "\settings.ini", "HardwareFKeys", btnId)
-                    try IniWrite(targetVal, A_ScriptDir . "\settings.ini", "Button_" . btnId, "Key")
-                    try {
-                        if (HasProp(ProfileEngine, "SetHardwareFKey")) {
-                            ProfileEngine.SetHardwareFKey(btnId, targetVal)
-                        }
-                    }
-                    return true
-                }
-
-                /**
-                 * Safe batch hardware key binding update
-                 */
-                static UpdateAllHardwareKeys(mappingsMap) {
-                    iter := (mappingsMap is Map) ? mappingsMap : (mappingsMap is Object ? mappingsMap.OwnProps() : Map())
-                    for btnId, targetVal in iter {
-                        this.cachedButtons[btnId] := targetVal
-                        try IniWrite(targetVal, A_ScriptDir . "\settings.ini", "HardwareFKeys", btnId)
-                        try IniWrite(targetVal, A_ScriptDir . "\settings.ini", "Button_" . btnId, "Key")
-                        try {
-                            if (HasProp(ProfileEngine, "SetHardwareFKey")) {
-                                ProfileEngine.SetHardwareFKey(btnId, targetVal)
-                            }
-                        }
-                    }
-                    return true
-                }
-
-                /**
-                 * Flash all factory defaults directly into physical mouse memory
-                 */
-                static ResetToFactoryDefaults(profId := 0) {
-                    return this.FlashAll(this.FACTORY_DEFAULTS, profId)
-                }
-
-                /**
-                 * Flash a single button mapping directly into physical mouse memory via USB HID++
-                 */
-                static FlashSingleButton(btnId, targetVal, profId := 0) {
-                    targetProf := (profId >= 1 && profId <= 5) ? profId : this.selectedProfileId
-                    targetSec := this.GetProfileSector(targetProf)
-
-                    ; Update local settings if writing to active profile
-                    if (targetProf == this.activeProfileId)
-                        this.UpdateHardwareKey(btnId, targetVal)
-
-                    ; Write directly to mouse hardware chip over USB
-                    if (this.Connect()) {
-                        try {
-                            sec := this.ReadSector(targetSec)
-                            ; Ensure sector has a valid profile header & DPI table (prevent 0xFF corruption)
-                            if (NumGet(sec, 0, "uchar") != 0x01) {
-                                sec := this.ReadSector(1)
-                            }
-                            this.ApplyButtonMappingToSector(sec, btnId, targetVal)
-                            ok := this.WriteSector(targetSec, sec)
-                            if (ok && this.profileCache.Has(targetProf)) {
-                                this.profileCache[targetProf]["buttons"][btnId] := targetVal
-                            }
-                            return ok
-                        }
-                    }
-                    return true
-                }
-
-                /**
-                 * Flash all button mappings directly into physical mouse memory via USB HID++
-                 */
-                static FlashAll(mappingsMap, profId := 0) {
-                    targetProf := (profId >= 1 && profId <= 5) ? profId : this.selectedProfileId
-                    targetSec := this.GetProfileSector(targetProf)
-
-                    ; Update local settings if writing to active profile
-                    if (targetProf == this.activeProfileId)
-                        this.UpdateAllHardwareKeys(mappingsMap)
-
-                    ; Write directly to mouse hardware chip over USB
-                    if (this.Connect()) {
-                        try {
-                            sec := this.ReadSector(targetSec)
-                            ; Ensure sector has a valid profile header & DPI table (prevent 0xFF corruption)
-                            if (NumGet(sec, 0, "uchar") != 0x01) {
-                                sec := this.ReadSector(1)
-                            }
-                            iter := (mappingsMap is Map) ? mappingsMap : (mappingsMap is Object ? mappingsMap.OwnProps() :
-                                Map())
-                            for btnId, targetVal in iter {
-                                this.ApplyButtonMappingToSector(sec, btnId, targetVal)
-                            }
-                            ok := this.WriteSector(targetSec, sec)
-                            if (ok) {
-                                this.ReadProfile(targetProf)
-                            }
-                            return ok
-                        }
-                    }
-                    return true
+        /**
+         * Safe hardware key binding update (updates settings.ini & in-memory map without writing raw flash)
+         */
+        static UpdateHardwareKey(btnId, targetVal) {
+            this.cachedButtons[btnId] := targetVal
+            try IniWrite(targetVal, A_ScriptDir . "\settings.ini", "HardwareFKeys", btnId)
+            try IniWrite(targetVal, A_ScriptDir . "\settings.ini", "Button_" . btnId, "Key")
+            try {
+                if (HasProp(ProfileEngine, "SetHardwareFKey")) {
+                    ProfileEngine.SetHardwareFKey(btnId, targetVal)
                 }
             }
+            return true
+        }
+
+        /**
+         * Safe batch hardware key binding update
+         */
+        static UpdateAllHardwareKeys(mappingsMap) {
+            iter := (mappingsMap is Map) ? mappingsMap : (mappingsMap is Object ? mappingsMap.OwnProps() : Map())
+            for btnId, targetVal in iter {
+                this.cachedButtons[btnId] := targetVal
+                try IniWrite(targetVal, A_ScriptDir . "\settings.ini", "HardwareFKeys", btnId)
+                try IniWrite(targetVal, A_ScriptDir . "\settings.ini", "Button_" . btnId, "Key")
+                try {
+                    if (HasProp(ProfileEngine, "SetHardwareFKey")) {
+                        ProfileEngine.SetHardwareFKey(btnId, targetVal)
+                    }
+                }
+            }
+            return true
+        }
+
+        /**
+         * Flash all factory defaults directly into physical mouse memory
+         */
+        static ResetToFactoryDefaults(profId := 0) {
+            return this.FlashAll(this.FACTORY_DEFAULTS, profId)
+        }
+
+        /**
+         * Flash a single button mapping directly into physical mouse memory via USB HID++
+         */
+        static FlashSingleButton(btnId, targetVal, profId := 0) {
+            targetProf := (profId >= 1 && profId <= 5) ? profId : this.selectedProfileId
+            targetSec := this.GetProfileSector(targetProf)
+
+            ; Update local settings if writing to active profile
+            if (targetProf == this.activeProfileId)
+                this.UpdateHardwareKey(btnId, targetVal)
+
+            ; Write directly to mouse hardware chip over USB
+            if (this.Connect()) {
+                try {
+                    sec := this.ReadSector(targetSec)
+                    ; Ensure sector has a valid profile header & DPI table (prevent 0xFF corruption)
+                    if (NumGet(sec, 0, "uchar") != 0x01) {
+                        sec := this.ReadSector(1)
+                    }
+                    this.ApplyButtonMappingToSector(sec, btnId, targetVal)
+                    ok := this.WriteSector(targetSec, sec)
+                    if (ok && this.profileCache.Has(targetProf)) {
+                        this.profileCache[targetProf]["buttons"][btnId] := targetVal
+                    }
+                    return ok
+                }
+            }
+            return true
+        }
+
+        /**
+         * Flash all button mappings directly into physical mouse memory via USB HID++
+         */
+        static FlashAll(mappingsMap, profId := 0) {
+            targetProf := (profId >= 1 && profId <= 5) ? profId : this.selectedProfileId
+            targetSec := this.GetProfileSector(targetProf)
+
+            ; Update local settings if writing to active profile
+            if (targetProf == this.activeProfileId)
+                this.UpdateAllHardwareKeys(mappingsMap)
+
+            ; Write directly to mouse hardware chip over USB
+            if (this.Connect()) {
+                try {
+                    sec := this.ReadSector(targetSec)
+                    ; Ensure sector has a valid profile header & DPI table (prevent 0xFF corruption)
+                    if (NumGet(sec, 0, "uchar") != 0x01) {
+                        sec := this.ReadSector(1)
+                    }
+                    iter := (mappingsMap is Map) ? mappingsMap : (mappingsMap is Object ? mappingsMap.OwnProps() :
+                        Map())
+                    for btnId, targetVal in iter {
+                        this.ApplyButtonMappingToSector(sec, btnId, targetVal)
+                    }
+                    ok := this.WriteSector(targetSec, sec)
+                    if (ok) {
+                        this.ReadProfile(targetProf, true)
+                    }
+                    return ok
+                }
+            }
+            return true
+        }
+    }

@@ -256,6 +256,7 @@ const CATALOG_DATA = [
         items: [
             { name: 'File Explorer', type: 'Send', cmd: '#e', label: 'File Explorer', badge: 'Win+E' },
             { name: 'Clipboard History', type: 'Send', cmd: '#v', label: 'Clipboard History', badge: 'Win+V' },
+            { name: 'Capture Window Screenshot', type: 'Send', cmd: '#!{PrintScreen}', label: 'Screenshot (Win+Alt+PrtScn)', badge: 'Win+Alt+PrtScn' },
             { name: 'Snipping Tool (Screenshot)', type: 'Send', cmd: '#+s', label: 'Snipping Tool', badge: 'Win+Shift+S' },
             { name: 'Windows Search', type: 'Send', cmd: '#s', label: 'Windows Search', badge: 'Win+S' },
             { name: 'Task View / Timeline', type: 'Send', cmd: '#{Tab}', label: 'Task View', badge: 'Win+Tab' },
@@ -274,6 +275,24 @@ const CATALOG_DATA = [
             { name: 'Minimize Window', type: 'Send', cmd: '#{Down}', label: 'Minimize Win', badge: 'Win+Down' },
             { name: 'Snap Window Left', type: 'Send', cmd: '#{Left}', label: 'Snap Win Left', badge: 'Win+Left' },
             { name: 'Snap Window Right', type: 'Send', cmd: '#{Right}', label: 'Snap Win Right', badge: 'Win+Right' }
+        ]
+    },
+    {
+        name: 'Navigation & Extended Keys',
+        icon: getSvgIcon('keyboard'),
+        items: [
+            { name: 'Full Screenshot (Auto-Save)', type: 'Send', cmd: '#{PrintScreen}', label: 'Win+PrtScn', badge: 'Win+PrtScn' },
+            { name: 'Active Window Screenshot', type: 'Send', cmd: '#!{PrintScreen}', label: 'Win+Alt+PrtScn', badge: 'Win+Alt+PrtScn' },
+            { name: 'Print Screen Key', type: 'Send', cmd: '{PrintScreen}', label: 'Print Screen', badge: 'PrtScn' },
+            { name: 'Home Key (Top of Line/Doc)', type: 'Send', cmd: '{Home}', label: 'Home', badge: 'Home' },
+            { name: 'End Key (End of Line/Doc)', type: 'Send', cmd: '{End}', label: 'End', badge: 'End' },
+            { name: 'Insert Key', type: 'Send', cmd: '{Insert}', label: 'Insert', badge: 'Ins' },
+            { name: 'Delete Key', type: 'Send', cmd: '{Delete}', label: 'Delete', badge: 'Del' },
+            { name: 'Page Up (Scroll Up)', type: 'Send', cmd: '{PgUp}', label: 'Page Up', badge: 'PgUp' },
+            { name: 'Page Down (Scroll Down)', type: 'Send', cmd: '{PgDn}', label: 'Page Down', badge: 'PgDn' },
+            { name: 'Scroll Lock Key', type: 'Send', cmd: '{ScrollLock}', label: 'Scroll Lock', badge: 'ScrLk' },
+            { name: 'Pause / Break Key', type: 'Send', cmd: '{Pause}', label: 'Pause/Break', badge: 'Pause' },
+            { name: 'Num Lock Key', type: 'Send', cmd: '{NumLock}', label: 'Num Lock', badge: 'NumLk' }
         ]
     },
     {
@@ -339,6 +358,7 @@ const CATALOG_DATA = [
         items: [
             { name: 'Discord Mute Microphone', type: 'Send', cmd: '^+m', label: 'Discord Mute', badge: 'Ctrl+Shift+M' },
             { name: 'Discord Deafen Audio', type: 'Send', cmd: '^+d', label: 'Discord Deafen', badge: 'Ctrl+Shift+D' },
+            { name: 'Game Bar Screenshot', type: 'Send', cmd: '#!{PrintScreen}', label: 'Win+Alt+PrtScn', badge: 'Win+Alt+PrtScn' },
             { name: 'In-Game Screenshot (Steam)', type: 'Send', cmd: '{F12}', label: 'Game Screenshot', badge: 'F12' },
             { name: 'Quick Save Game', type: 'Send', cmd: '{F5}', label: 'Quick Save', badge: 'F5' },
             { name: 'Quick Load Game', type: 'Send', cmd: '{F9}', label: 'Quick Load', badge: 'F9' },
@@ -3120,6 +3140,65 @@ function initModalControls() {
         };
         updateSinglePreview();
         showToast('B-Shift Assigned', `Button mapped to ${cleanLabel}`);
+    });
+
+    const btnPresetScreenshot = document.getElementById('btnPresetWinAltPrtScn');
+    if (btnPresetScreenshot) {
+        btnPresetScreenshot.addEventListener('click', () => {
+            state.modal.singleAction = {
+                Type: 'Send',
+                Cmd: '#!{PrintScreen}',
+                Label: 'Win+Alt+PrtScn',
+                PlayType: 'NoRepeat',
+                RepeatInterval: 50
+            };
+            updateSinglePreview();
+            showToast('Preset Loaded', 'Assigned Active Window Screenshot (Win + Alt + PrtScn)', 'info');
+        });
+    }
+
+    const btnPresetWinPrtScn = document.getElementById('btnPresetWinPrtScn');
+    if (btnPresetWinPrtScn) {
+        btnPresetWinPrtScn.addEventListener('click', () => {
+            state.modal.singleAction = {
+                Type: 'Send',
+                Cmd: '#{PrintScreen}',
+                Label: 'Win+PrtScn',
+                PlayType: 'NoRepeat',
+                RepeatInterval: 50
+            };
+            updateSinglePreview();
+            showToast('Preset Loaded', 'Assigned Full Screen Auto-Save (Win + PrtScn)', 'info');
+        });
+    }
+
+    // Extended / Navigation keys deck for compact keyboard companion
+    document.querySelectorAll('.ext-key-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const rawKey = btn.getAttribute('data-key');
+            const keyLabel = btn.getAttribute('data-label') || rawKey;
+
+            let prefix = '';
+            const labelParts = [];
+            if (window.isCtrlPressed) { prefix += '^'; labelParts.push('Ctrl'); }
+            if (window.isAltPressed) { prefix += '!'; labelParts.push('Alt'); }
+            if (window.isShiftPressed) { prefix += '+'; labelParts.push('Shift'); }
+            if (window.isWinPressed) { prefix += '#'; labelParts.push('Win'); }
+
+            const finalCmd = prefix + rawKey;
+            labelParts.push(keyLabel);
+            const finalLabel = labelParts.join(' + ');
+
+            state.modal.singleAction = {
+                Type: 'Send',
+                Cmd: finalCmd,
+                Label: finalLabel,
+                PlayType: 'NoRepeat',
+                RepeatInterval: 50
+            };
+            updateSinglePreview();
+            showToast('Key Assigned', `Mapped to ${finalLabel}`, 'info');
+        });
     });
 
     // Tab 1: Mouse button injections
@@ -8547,7 +8626,8 @@ function openOmmModal() {
         modal.classList.add('open');
         modal.style.display = 'flex';
     }
-    sendToAhk({ action: 'loadAllLogitechProfiles', forceRefresh: false });
+    const needsFresh = (!state.onboardProfiles || state.onboardProfiles.length === 0);
+    sendToAhk({ action: 'loadAllLogitechProfiles', forceRefresh: needsFresh });
 }
 
 function closeOmmModal() {
@@ -8584,6 +8664,14 @@ function formatOmmBadgeLabel(val) {
         case 'DpiCycle': return 'DPI Cycle';
         case 'ProfileCycle': return 'Cycle Profiles';
         case 'Disabled': return 'Disabled';
+        case 'Home': return 'Home';
+        case 'End': return 'End';
+        case 'Insert': return 'Ins';
+        case 'PageUp': return 'PgUp';
+        case 'PageDown': return 'PgDn';
+        case 'PrintScreen': return 'PrtScn';
+        case 'ScrollLock': return 'ScrLk';
+        case 'Pause': return 'Pause';
         default:
             if (val.startsWith('Key_0x')) return val.replace('Key_0x', '0x');
             return val;
@@ -8632,7 +8720,15 @@ function renderHardwareTargetOptions(currentVal) {
         { val: 'Tab', label: 'Tab' },
         { val: 'Space', label: 'Spacebar' },
         { val: 'Backspace', label: 'Backspace' },
-        { val: 'Delete', label: 'Delete' }
+        { val: 'Delete', label: 'Delete' },
+        { val: 'Home', label: 'Home' },
+        { val: 'End', label: 'End' },
+        { val: 'Insert', label: 'Insert' },
+        { val: 'PageUp', label: 'Page Up' },
+        { val: 'PageDown', label: 'Page Down' },
+        { val: 'PrintScreen', label: 'Print Screen' },
+        { val: 'ScrollLock', label: 'Scroll Lock' },
+        { val: 'Pause', label: 'Pause / Break' }
     ];
     stdKeys.forEach(k => {
         const isSel = (cur === k.val.toUpperCase());

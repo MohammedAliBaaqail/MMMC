@@ -3535,6 +3535,57 @@ body:not(.layer-gshift1):not(.layer-gshift2) .svg-hotspot-text[data-btn="RightCl
     outline: none !important;
 }
 
+/* Extended / Navigation Keys Section (Home, End, Ins, PrtScn, ScrollLock, PgUp, PgDn) */
+.ext-keys-section {
+    background: rgba(10, 13, 22, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    margin-top: 14px;
+}
+
+.ext-keys-deck {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.ext-key-chip {
+    background: rgba(18, 22, 36, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-sm, 6px);
+    color: #e2e8f0;
+    font-family: var(--font-heading);
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 8px 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    user-select: none;
+}
+
+.ext-key-chip:hover {
+    background: rgba(0, 210, 255, 0.14);
+    border-color: rgba(0, 210, 255, 0.55);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(0, 210, 255, 0.28), 0 0 10px rgba(0, 210, 255, 0.2);
+}
+
+.ext-key-chip:active {
+    transform: scale(0.97);
+}
+
+.ext-key-chip:focus,
+.ext-key-chip:focus-visible {
+    outline: none !important;
+}
+
 /* ============================================================================
    BUTTON STUDIO: INSERT TEXT BLOCK UI
    ============================================================================ */
