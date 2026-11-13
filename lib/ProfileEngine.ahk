@@ -767,6 +767,10 @@ class ProfileEngine {
         ; Verify all buttons in ShiftHolders are actually physically held
         stuckButtons := []
         for btnId, shiftLayerNum in this.ShiftHolders {
+            ; If button is still physically held down via input hook, it is NOT stuck!
+            if (this.PhysicalButtonStates.Has(btnId) && this.PhysicalButtonStates[btnId])
+                continue
+
             hwKey := this.ButtonToFKeyMap.Has(btnId) ? this.ButtonToFKeyMap[btnId] : btnId
             if (!this.IsKeyPhysicallyDown(hwKey))
                 stuckButtons.Push(btnId)
@@ -783,18 +787,67 @@ class ProfileEngine {
         }
     }
 
+    static IsModifierHeldByActiveButton(modName) {
+        cleanMod := StrLower(Trim(modName))
+        ; 1. Check ActiveHeldButtons
+        for btnId, releaseCmd in this.ActiveHeldButtons {
+            rLower := StrLower(releaseCmd)
+            switch cleanMod {
+                case "ctrl", "control", "lctrl", "rctrl":
+                    if (InStr(rLower, "ctrl") || InStr(rLower, "control"))
+                        return true
+                case "shift", "lshift", "rshift":
+                    if (InStr(rLower, "shift"))
+                        return true
+                case "alt", "lalt", "ralt":
+                    if (InStr(rLower, "alt"))
+                        return true
+                case "lbutton", "rbutton", "mbutton":
+                    if (InStr(rLower, cleanMod))
+                        return true
+            }
+        }
+        ; 2. Check PhysicalButtonStates and active layer mappings
+        for btnId, isHeld in this.PhysicalButtonStates {
+            if (!isHeld)
+                continue
+            mapping := this.GetButtonMapping(this.CurrentProfile, btnId)
+            layer := this.ButtonDispatchedLayer.Has(btnId) ? this.ButtonDispatchedLayer[btnId] : (this.IsGShift2Active ? "GShift2" : ((this.IsGShift1Active || this.IsGShiftActive) ? "GShift" : "Normal"))
+            act := (layer = "GShift2") ? mapping.GShift2 : ((layer = "GShift" || layer = "GShift1") ? mapping.GShift : mapping.Normal)
+            if (IsObject(act) && act.HasOwnProp("Cmd")) {
+                cLower := StrLower(act.Cmd)
+                switch cleanMod {
+                    case "ctrl", "control", "lctrl", "rctrl":
+                        if (InStr(cLower, "ctrl") || InStr(cLower, "control") || InStr(cLower, "^"))
+                            return true
+                    case "shift", "lshift", "rshift":
+                        if (InStr(cLower, "shift") || InStr(cLower, "+"))
+                            return true
+                    case "alt", "lalt", "ralt":
+                        if (InStr(cLower, "alt") || InStr(cLower, "!"))
+                            return true
+                    case "lbutton", "rbutton", "mbutton":
+                        if (InStr(cLower, cleanMod))
+                            return true
+                }
+            }
+        }
+        return false
+    }
+
     static SyncActiveHeldButtons() {
         ; If any sequence macro is actively running, it manages its own held keys and must not be interrupted!
         if (this.ActiveSequences.Count > 0 || this.IsExecutingMacro)
             return
 
         if (this.ActiveHeldButtons.Count = 0) {
-            ; Check if logical Shift, Ctrl, Alt is stuck down when physically up
-            if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+            ; Check if logical Shift, Ctrl, Alt is stuck down when physically up,
+            ; but NEVER unstick if a mouse button mapping is actively holding that modifier!
+            if (!GetKeyState("Shift", "P") && GetKeyState("Shift") && !this.IsModifierHeldByActiveButton("Shift"))
                 try Send("{Blind}{Shift up}")
-            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl") && !this.IsModifierHeldByActiveButton("Ctrl"))
                 try Send("{Blind}{Ctrl up}")
-            if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+            if (!GetKeyState("Alt", "P") && GetKeyState("Alt") && !this.IsModifierHeldByActiveButton("Alt"))
                 try Send("{Blind}{Alt up}")
             return
         }
@@ -808,6 +861,10 @@ class ProfileEngine {
         ; Check if held buttons are still physically held
         stuck := []
         for btnId, releaseCmd in this.ActiveHeldButtons {
+            ; If button is still physically held down via input hook, it is NOT stuck!
+            if (this.PhysicalButtonStates.Has(btnId) && this.PhysicalButtonStates[btnId])
+                continue
+
             hwKey := this.ButtonToFKeyMap.Has(btnId) ? this.ButtonToFKeyMap[btnId] : btnId
             if (!this.IsKeyPhysicallyDown(hwKey))
                 stuck.Push(btnId)
@@ -2157,16 +2214,17 @@ class ProfileEngine {
         }
 
         ; 5. Failsafe modifier unstick: if Shift, Ctrl, or Alt is logically down but physically not held on keyboard
+        ; NEVER release modifiers that are actively held by a mouse button mapping!
         if (!this.IsExecutingMacro) {
-            if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+            if (!GetKeyState("Shift", "P") && GetKeyState("Shift") && !this.IsModifierHeldByActiveButton("Shift"))
                 try Send("{Blind}{Shift up}")
-            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl") && !this.IsModifierHeldByActiveButton("Ctrl"))
                 try Send("{Blind}{Ctrl up}")
-            if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+            if (!GetKeyState("Alt", "P") && GetKeyState("Alt") && !this.IsModifierHeldByActiveButton("Alt"))
                 try Send("{Blind}{Alt up}")
-            if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+            if (!GetKeyState("LButton", "P") && GetKeyState("LButton") && !this.IsModifierHeldByActiveButton("LButton"))
                 try Send("{Blind}{LButton up}")
-            if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+            if (!GetKeyState("RButton", "P") && GetKeyState("RButton") && !this.IsModifierHeldByActiveButton("RButton"))
                 try Send("{Blind}{RButton up}")
         }
     }
@@ -2609,17 +2667,17 @@ class ProfileEngine {
         }
 
         ; 4. Failsafe modifier cleanup: if any modifier was logically stuck down by an interrupted macro
-        ; but is physically not held on the keyboard, release it now.
+        ; but is physically not held on the keyboard, release it now (never if held by an active mouse button).
         if (!this.IsExecutingMacro) {
-            if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+            if (!GetKeyState("Shift", "P") && GetKeyState("Shift") && !this.IsModifierHeldByActiveButton("Shift"))
                 try Send("{Blind}{Shift up}")
-            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl") && !this.IsModifierHeldByActiveButton("Ctrl"))
                 try Send("{Blind}{Ctrl up}")
-            if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+            if (!GetKeyState("Alt", "P") && GetKeyState("Alt") && !this.IsModifierHeldByActiveButton("Alt"))
                 try Send("{Blind}{Alt up}")
-            if (btnId != "LeftClick" && !GetKeyState("LButton", "P") && GetKeyState("LButton"))
+            if (btnId != "LeftClick" && !GetKeyState("LButton", "P") && GetKeyState("LButton") && !this.IsModifierHeldByActiveButton("LButton"))
                 try Send("{Blind}{LButton up}")
-            if (btnId != "RightClick" && !GetKeyState("RButton", "P") && GetKeyState("RButton"))
+            if (btnId != "RightClick" && !GetKeyState("RButton", "P") && GetKeyState("RButton") && !this.IsModifierHeldByActiveButton("RButton"))
                 try Send("{Blind}{RButton up}")
         }
     }
@@ -2715,14 +2773,6 @@ class ProfileEngine {
     }
 
     static HandleFKey(fKey, isDown) {
-        if (this.IsMasterSuspended)
-            return
-        ; Decouple execution from OS low-level hook (WH_KEYBOARD_LL / WH_MOUSE_LL)
-        ; Returns to Windows immediately in < 0.05ms to prevent cursor micro-stutter & hook timeouts
-        SetTimer(() => ProfileEngine._DoHandleFKey(fKey, isDown), -1)
-    }
-
-    static _DoHandleFKey(fKey, isDown) {
         if (this.IsMasterSuspended)
             return
         btnId := this.ResolveButtonId(fKey)
