@@ -22,6 +22,7 @@ class ProfileEngine {
     static ProfileMetadata := Map(
         "Desktop",      { TargetExe: "", Icon: "desktop", IsDefault: true, SwitchOnHover: false, FocusOnHover: false, OsdIconOnly: false, Desc: "Default System & Desktop Profile" }
     )
+    static ProfileIconCache := Map()
 
     static IsGShiftActive := false
     static IsGShift1Active := false
@@ -1175,6 +1176,8 @@ class ProfileEngine {
         
         if (this.ProfileMetadata.Has(name))
             this.ProfileMetadata.Delete(name)
+        if (this.ProfileIconCache.Has(name))
+            this.ProfileIconCache.Delete(name)
             
         if (this.ActiveMappings.Has(name))
             this.ActiveMappings.Delete(name)
@@ -1207,6 +1210,11 @@ class ProfileEngine {
             return false
         if (this.HasProfile(newName))
             return false
+
+        if (this.ProfileIconCache.Has(oldName))
+            this.ProfileIconCache.Delete(oldName)
+        if (this.ProfileIconCache.Has(newName))
+            this.ProfileIconCache.Delete(newName)
 
         ; 1. Update this.Profiles array in place to preserve user ordering
         for idx, p in this.Profiles {
@@ -1616,6 +1624,8 @@ class ProfileEngine {
     static EnsureProfileIcon(profName, targetExe) {
         if (profName = "Desktop")
             return
+        if (this.ProfileIconCache.Has(profName))
+            this.ProfileIconCache.Delete(profName)
         outDir := A_ScriptDir . "\web\icons"
         if (!DirExist(outDir)) {
             try DirCreate(outDir)
@@ -1635,10 +1645,15 @@ class ProfileEngine {
     }
 
     static GetProfileIconPath(p) {
+        if (this.ProfileIconCache.Has(p))
+            return this.ProfileIconCache[p]
+
         outDir := A_ScriptDir . "\web\icons"
         profPng := outDir . "\" . p . ".png"
-        if (FileExist(profPng))
+        if (FileExist(profPng)) {
+            this.ProfileIconCache[p] := profPng
             return profPng
+        }
 
         if (this.ProfileMetadata.Has(p)) {
             meta := this.ProfileMetadata[p]
@@ -1647,8 +1662,10 @@ class ProfileEngine {
             iconVal := meta.HasOwnProp("Icon") ? meta.Icon : ""
             if (iconVal != "" && iconVal != "generic" && iconVal != "auto" && iconVal != "desktop") {
                 customPng := outDir . "\" . iconVal . ".png"
-                if (FileExist(customPng))
+                if (FileExist(customPng)) {
+                    this.ProfileIconCache[p] := customPng
                     return customPng
+                }
             }
 
             ; 2. Target executable icon
@@ -1660,16 +1677,23 @@ class ProfileEngine {
                         continue
                     SplitPath(clean, &cFile, , , &cName)
                     cleanPng := outDir . "\" . cName . ".png"
-                    if (FileExist(cleanPng))
+                    if (FileExist(cleanPng)) {
+                        this.ProfileIconCache[p] := cleanPng
                         return cleanPng
+                    }
 
                     resolved := this.ResolveExePath(clean)
                     if (resolved != "" && FileExist(resolved)) {
                         this.EnsureProfileIcon(p, resolved)
-                        if (FileExist(profPng))
+                        if (FileExist(profPng)) {
+                            this.ProfileIconCache[p] := profPng
                             return profPng
-                        if (FileExist(cleanPng))
+                        }
+                        if (FileExist(cleanPng)) {
+                            this.ProfileIconCache[p] := cleanPng
                             return cleanPng
+                        }
+                        this.ProfileIconCache[p] := resolved
                         return resolved
                     }
                 }
@@ -1677,10 +1701,17 @@ class ProfileEngine {
         }
 
         ; 3. Fallbacks
-        if (FileExist(A_ScriptDir . "\assets\app.png"))
-            return A_ScriptDir . "\assets\app.png"
-        if (FileExist(A_ScriptDir . "\assets\app.ico"))
-            return A_ScriptDir . "\assets\app.ico"
+        appPng := A_ScriptDir . "\assets\app.png"
+        if (FileExist(appPng)) {
+            this.ProfileIconCache[p] := appPng
+            return appPng
+        }
+        appIco := A_ScriptDir . "\assets\app.ico"
+        if (FileExist(appIco)) {
+            this.ProfileIconCache[p] := appIco
+            return appIco
+        }
+        this.ProfileIconCache[p] := ""
         return ""
     }
 
