@@ -59,6 +59,7 @@ class ProfileEngine {
     static PhysicalButtonStates := Map()
     static ActiveHeldButtons := Map()
     static ActiveHeldPressTimes := Map()
+    static ActiveKeyRepeatTimers := Map()
     static GameKeyDelay := 20
     static ExecutingMacroCount := 0
     static IsExecutingMacro := false
@@ -595,17 +596,21 @@ class ProfileEngine {
             }
             this.WheelHoldStates.Clear()
         }
-        if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+        for btnId, fn in this.ActiveKeyRepeatTimers {
+            SetTimer(fn, 0)
+        }
+        this.ActiveKeyRepeatTimers.Clear()
+        if (!GetKeyState("LButton", "P") && GetKeyState("LButton") && !this.IsModifierHeldByActiveButton("LButton"))
             try Send("{Blind}{LButton up}")
-        if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+        if (!GetKeyState("RButton", "P") && GetKeyState("RButton") && !this.IsModifierHeldByActiveButton("RButton"))
             try Send("{Blind}{RButton up}")
-        if (!GetKeyState("MButton", "P") && GetKeyState("MButton"))
+        if (!GetKeyState("MButton", "P") && GetKeyState("MButton") && !this.IsModifierHeldByActiveButton("MButton"))
             try Send("{Blind}{MButton up}")
-        if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+        if (!GetKeyState("Shift", "P") && GetKeyState("Shift") && !this.IsModifierHeldByActiveButton("Shift"))
             try Send("{Blind}{Shift up}")
-        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl") && !this.IsModifierHeldByActiveButton("Ctrl"))
             try Send("{Blind}{Ctrl up}")
-        if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+        if (!GetKeyState("Alt", "P") && GetKeyState("Alt") && !this.IsModifierHeldByActiveButton("Alt"))
             try Send("{Blind}{Alt up}")
         this.PhysicalButtonStates.Clear()
         this.ShiftHolders.Clear()
@@ -635,17 +640,21 @@ class ProfileEngine {
         }
         this.ActiveHeldButtons.Clear()
         this.ActiveHeldPressTimes.Clear()
-        if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+        for btnId, fn in this.ActiveKeyRepeatTimers {
+            SetTimer(fn, 0)
+        }
+        this.ActiveKeyRepeatTimers.Clear()
+        if (!GetKeyState("LButton", "P") && GetKeyState("LButton") && !this.IsModifierHeldByActiveButton("LButton"))
             try Send("{Blind}{LButton up}")
-        if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+        if (!GetKeyState("RButton", "P") && GetKeyState("RButton") && !this.IsModifierHeldByActiveButton("RButton"))
             try Send("{Blind}{RButton up}")
-        if (!GetKeyState("MButton", "P") && GetKeyState("MButton"))
+        if (!GetKeyState("MButton", "P") && GetKeyState("MButton") && !this.IsModifierHeldByActiveButton("MButton"))
             try Send("{Blind}{MButton up}")
-        if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+        if (!GetKeyState("Shift", "P") && GetKeyState("Shift") && !this.IsModifierHeldByActiveButton("Shift"))
             try Send("{Blind}{Shift up}")
-        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl") && !this.IsModifierHeldByActiveButton("Ctrl"))
             try Send("{Blind}{Ctrl up}")
-        if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+        if (!GetKeyState("Alt", "P") && GetKeyState("Alt") && !this.IsModifierHeldByActiveButton("Alt"))
             try Send("{Blind}{Alt up}")
     }
 
@@ -803,6 +812,9 @@ class ProfileEngine {
                 case "alt", "lalt", "ralt":
                     if (InStr(rLower, "alt"))
                         return true
+                case "win", "lwin", "rwin":
+                    if (InStr(rLower, "win"))
+                        return true
                 case "lbutton", "rbutton", "mbutton":
                     if (InStr(rLower, cleanMod))
                         return true
@@ -826,6 +838,9 @@ class ProfileEngine {
                             return true
                     case "alt", "lalt", "ralt":
                         if (InStr(cLower, "alt") || InStr(cLower, "!"))
+                            return true
+                    case "win", "lwin", "rwin":
+                        if (InStr(cLower, "win") || InStr(cLower, "#"))
                             return true
                     case "lbutton", "rbutton", "mbutton":
                         if (InStr(cLower, cleanMod))
@@ -990,6 +1005,10 @@ class ProfileEngine {
 
     static CheckActiveWindow() {
         if (!this.AutoSwitchEnabled || this.LockedProfile != "")
+            return
+
+        ; Never auto-switch profiles while the user is actively holding down any mouse button or macro!
+        if (this.ActiveHeldButtons.Count > 0 || this.PhysicalButtonStates.Count > 0 || this.ActiveSequences.Count > 0 || this.IsExecutingMacro)
             return
             
         try {
@@ -2301,27 +2320,60 @@ class ProfileEngine {
         }
     }
 
+    static StartKeyRepeat(btnId, holdKey) {
+        this.StopKeyRepeat(btnId)
+        ; Mouse clicks do not have typematic repeat in Windows
+        if (RegExMatch(holdKey, "i)^(LButton|RButton|MButton|XButton1|XButton2)$"))
+            return
+
+        repeatFn() {
+            if (!ProfileEngine.ActiveHeldButtons.Has(btnId)) {
+                ProfileEngine.StopKeyRepeat(btnId)
+                return
+            }
+            Send("{Blind}{" . holdKey . " down}")
+            if (ProfileEngine.ActiveHeldButtons.Has(btnId))
+                SetTimer(repeatFn, -35)
+        }
+        this.ActiveKeyRepeatTimers[btnId] := repeatFn
+        ; Standard Windows initial delay before repeat begins is ~400ms
+        SetTimer(repeatFn, -400)
+    }
+
+    static StopKeyRepeat(btnId) {
+        if (this.ActiveKeyRepeatTimers.Has(btnId)) {
+            fn := this.ActiveKeyRepeatTimers[btnId]
+            this.ActiveKeyRepeatTimers.Delete(btnId)
+            SetTimer(fn, 0)
+        }
+    }
+
     static GetHoldableKey(cmd) {
         if (cmd == "")
             return ""
         
-        ; Mouse buttons: LButton, RButton, MButton, XButton1, XButton2
-        if (RegExMatch(cmd, "i)^\{(LButton|RButton|MButton|XButton1|XButton2)\}$", &m))
-            return m[1]
+        clean := RegExReplace(Trim(cmd), "^\{|\}$", "")
+        if (clean == "")
+            return ""
             
-        ; Standard single brace keys: {Space}, {Enter}, {Tab}, {Escape}, {Delete}, {F1}-{F24}, etc.
-        ; (Exclude scroll wheel, double/triple clicks, or multi-count like {Volume_Down 2})
-        if (RegExMatch(cmd, "i)^\{([A-Za-z0-9_]+)\}$", &m)) {
-            k := m[1]
-            if (k != "WheelUp" && k != "WheelDown" && k != "WheelLeft" && k != "WheelRight"
-                && k != "DoubleClick" && k != "TripleClick"
-                && !InStr(k, "Volume_") && !InStr(k, "Media_"))
-                return k
-        }
-        
+        ; Exclude scroll wheel, double/triple clicks, media/volume, or multi-count like {Volume_Down 2}
+        if (clean = "WheelUp" || clean = "WheelDown" || clean = "WheelLeft" || clean = "WheelRight"
+            || clean = "DoubleClick" || clean = "TripleClick"
+            || InStr(clean, "Volume_") || InStr(clean, "Media_") || InStr(clean, " "))
+            return ""
+            
+        ; Mouse buttons
+        if (RegExMatch(clean, "i)^(LButton|RButton|MButton|XButton1|XButton2)$"))
+            return clean
+            
         ; Single character: e.g. "d", "a", "1"
-        if (StrLen(cmd) = 1)
-            return StrLower(cmd)
+        if (StrLen(clean) = 1)
+            return StrLower(clean)
+            
+        ; Standard keys: Ctrl, Control, LCtrl, RCtrl, Shift, LShift, RShift, Alt, LAlt, RAlt, Win, LWin, RWin,
+        ; Space, Enter, Tab, Escape, Delete, Backspace, CapsLock, F1-F24, etc.
+        if (RegExMatch(clean, "i)^[A-Za-z0-9_]+$"))
+            return clean
             
         return ""
     }
@@ -2347,6 +2399,7 @@ class ProfileEngine {
                         return
                 }
                 Send("{Blind}{" . holdKey . " down}")
+                this.StartKeyRepeat(btnId, holdKey)
                 return
             }
             ; Modifier + Key/Mouse button hold support (e.g. ^{LButton}, +{w}, !{Space}, ^{c}, etc.)
@@ -2424,6 +2477,7 @@ class ProfileEngine {
     }
 
     static ExecuteActionUp(act, btnId) {
+        this.StopKeyRepeat(btnId)
         if (this.ActiveHeldButtons.Has(btnId)) {
             releaseCmd := this.ActiveHeldButtons[btnId]
             this.ActiveHeldButtons.Delete(btnId)

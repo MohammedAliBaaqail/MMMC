@@ -2,6 +2,25 @@
 #Warn All, Off
 #SingleInstance Force
 
+; Prevent duplicate instances across compiled exe and script forms
+try {
+    myPid := DllCall("GetCurrentProcessId")
+    if (A_IsCompiled) {
+        for p in ComObjGet("winmgmts:").ExecQuery("Select ProcessId, CommandLine from Win32_Process where Name = 'AutoHotkey64.exe'") {
+            if (p.ProcessId != myPid && InStr(p.CommandLine, "MyMouseMyChoice.ahk")) {
+                try ProcessClose(p.ProcessId)
+            }
+        }
+    } else {
+        while (otherPid := ProcessExist("MyMouseMyChoice.exe")) {
+            if (otherPid == myPid)
+                break
+            try ProcessClose(otherPid)
+            Sleep(50)
+        }
+    }
+}
+
 ; Ensure settings.ini exists
 ConfigFile := A_ScriptDir . "\settings.ini"
 if (!FileExist(ConfigFile) && FileExist(A_ScriptDir . "\settings.default.ini")) {
