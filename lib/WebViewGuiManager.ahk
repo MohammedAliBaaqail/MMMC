@@ -20,6 +20,9 @@ class WebViewGuiManager {
     static IsNavigated := false
     static PendingMessages := []
     static IsWindowShown := false
+    static PendingProfileUpdate := ""
+    static FlushTimerFn := ""
+    static IsFlushing := false
 
     static Show() {
         this.IsWindowShown := true
@@ -36,6 +39,11 @@ class WebViewGuiManager {
             }
             this.ApplyThemeToTitleBar(this.MainGui.Hwnd)
             this.SetWindowIcon(this.MainGui.Hwnd)
+            if (this.PendingProfileUpdate != "") {
+                pendingP := this.PendingProfileUpdate
+                this.PendingProfileUpdate := ""
+                this.OnProfileChangedHandler(pendingP)
+            }
             return
         }
 
@@ -213,7 +221,7 @@ class WebViewGuiManager {
 
         this.Log("Init: GUI created, HWND=" . g.Hwnd . ", calling CreateControllerAsync with PID=" . currentPid)
 
-        webHidOptions := { AdditionalBrowserArguments: "--enable-features=WebHID" }
+        webHidOptions := { AdditionalBrowserArguments: "--enable-features=WebHID --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows" }
         WebView2.CreateControllerAsync(g.Hwnd, webHidOptions, userData, "", dllPath).then(
             this.OnControllerCreated.Bind(this),
             this.OnControllerError.Bind(this)
@@ -373,6 +381,11 @@ class WebViewGuiManager {
         ; Restored or Maximized: resume and restore visibility
         if (this.wv != "") {
             try this.wv.Resume()
+        }
+        if (this.PendingProfileUpdate != "") {
+            pendingP := this.PendingProfileUpdate
+            this.PendingProfileUpdate := ""
+            this.OnProfileChangedHandler(pendingP)
         }
         if (this.wvc != "") {
             try {
@@ -2675,14 +2688,20 @@ class WebViewGuiManager {
     ; =========================================================================
     ; DATA NORMALIZATION & SERIALIZATION
     ; =========================================================================
-    static ExportAllMappings() {
-        out := Map()
-        for profile, btnMap in ProfileEngine.ActiveMappings {
-            profOut := Map()
-            for btnId, mapping in btnMap {
+    static ExportProfileMappings(profileName) {
+        profOut := Map()
+        if (ProfileEngine.ActiveMappings.Has(profileName)) {
+            for btnId, mapping in ProfileEngine.ActiveMappings[profileName] {
                 profOut[btnId] := this.ExportButtonMapping(mapping)
             }
-            out[profile] := profOut
+        }
+        return profOut
+    }
+
+    static ExportAllMappings() {
+        out := Map()
+        for profile, _ in ProfileEngine.ActiveMappings {
+            out[profile] := this.ExportProfileMappings(profile)
         }
         return out
     }
@@ -2821,37 +2840,60 @@ class WebViewGuiManager {
 
     static PostMessage(obj) {
         try {
-            ; Guard: drop high-frequency live rendering/logging events if visuals shouldn't be dispatched
-            if (!this.ShouldDispatchVisuals() && obj.Has("type")) {
-                t := obj["type"]
-                if (t == "activityLog" || t == "buttonStateChanged" || t == "shiftStateChanged" || t ==
-                    "liveKeyPreview" || t == "singleKeyRecorded" || t == "macroStepRecorded")
-                    return
-            }
-            if (!this.IsStudioVisible() && obj.Has("type")) {
-                t := obj["type"]
-                if (t == "activityLog" || t == "buttonStateChanged" || t == "shiftStateChanged")
-                    return
-            }
-            jsonStr := JSON.stringify(obj)
-            if (this.wv != "") {
-                this.wv.PostWebMessageAsString(jsonStr)
+            if (!IsObject(obj))
+                return
+
+            msgType := obj.Has("type") ? obj["type"] : ""
+
+            ; 1. If Studio window is hidden or minimized, NEVER send visual updates or wake WebView2
+            if (!this.IsStudioVisible()) {
+                if (msgType == "profileChanged") {
+                    this.PendingProfileUpdate := obj.Has("profile") ? obj["profile"] : ""
+                }
                 return
             }
+
+            ; 2. If Studio is visible on screen, but unfocused and visuals shouldn't be dispatched
+            if (!this.ShouldDispatchVisuals()) {
+                if (msgType == "activityLog" || msgType == "buttonStateChanged" || msgType == "shiftStateChanged" || msgType == "liveKeyPreview" || msgType == "singleKeyRecorded" || msgType == "macroStepRecorded")
+                    return
+            }
+
+            ; 3. Encode message to JSON
+            jsonStr := JSON.stringify(obj)
+
+            ; 4. Always queue messages and flush asynchronously to prevent blocking the OS input hook thread
             this.PendingMessages.Push(jsonStr)
+
+            ; Guard against queue bloat if WebView2 is unresponsive (cap at 40)
+            if (this.PendingMessages.Length > 40) {
+                this.PendingMessages.RemoveAt(1)
+            }
+
+            if (!this.FlushTimerFn) {
+                this.FlushTimerFn := ObjBindMethod(WebViewGuiManager, "FlushPendingMessages")
+            }
+            SetTimer(this.FlushTimerFn, -1)
         } catch as err {
             this.Log("Error in PostMessage: " . err.Message)
         }
     }
 
     static FlushPendingMessages() {
-        if (this.wv == "")
+        if (this.wv == "" || this.IsFlushing)
             return
-        while (this.PendingMessages.Length > 0) {
-            msg := this.PendingMessages.RemoveAt(1)
-            try {
-                this.wv.PostWebMessageAsString(msg)
+        this.IsFlushing := true
+        try {
+            while (this.PendingMessages.Length > 0) {
+                msg := this.PendingMessages.RemoveAt(1)
+                try {
+                    this.wv.PostWebMessageAsString(msg)
+                } catch {
+                    break
+                }
             }
+        } finally {
+            this.IsFlushing := false
         }
     }
 
@@ -2859,10 +2901,14 @@ class WebViewGuiManager {
     ; HARDWARE & ENGINE EVENT HANDLERS
     ; =========================================================================
     static OnProfileChangedHandler(profileName) {
+        if (!this.IsStudioVisible()) {
+            this.PendingProfileUpdate := profileName
+            return
+        }
         this.PostMessage(Map(
             "type", "profileChanged",
             "profile", profileName,
-            "mappings", this.ExportAllMappings().Get(profileName, Map())
+            "mappings", this.ExportProfileMappings(profileName)
         ))
     }
 

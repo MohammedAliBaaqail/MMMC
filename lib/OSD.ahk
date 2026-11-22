@@ -47,7 +47,19 @@ class OSD {
         this.guiObj := Gui("+AlwaysOnTop -Caption +ToolWindow -DPIScale +E0x08000000 +E0x00000020 +E0x00080000")
     }
 
+    static Show(title, subtitle := "", durationMs := 1200) {
+        if (!this.Enabled)
+            return
+        SetTimer(() => OSD._DoShow(title, subtitle, durationMs), -1)
+    }
+
     static ShowIcon(iconPath := "", durationMs := 1200) {
+        if (!this.Enabled)
+            return
+        SetTimer(() => OSD._DoShowIcon(iconPath, durationMs), -1)
+    }
+
+    static _DoShowIcon(iconPath := "", durationMs := 1200) {
         if (!this.Enabled)
             return
 
@@ -204,7 +216,7 @@ class OSD {
         SetTimer(this.hideFn, -durationMs)
     }
 
-    static Show(title, subtitle := "", durationMs := 1200) {
+    static _DoShow(title, subtitle := "", durationMs := 1200) {
         if (!this.Enabled)
             return
 

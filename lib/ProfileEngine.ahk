@@ -23,6 +23,7 @@ class ProfileEngine {
     static ProfileMetadata := Map(
         "Desktop",      { TargetExe: "", Icon: "desktop", IsDefault: true, SwitchOnHover: false, FocusOnHover: false, OsdIconOnly: false, Desc: "Default System & Desktop Profile" }
     )
+    static ProfileIconCache := Map()
 
     static IsGShiftActive := false
     static IsGShift1Active := false
@@ -59,6 +60,7 @@ class ProfileEngine {
     static PhysicalButtonStates := Map()
     static ActiveHeldButtons := Map()
     static ActiveHeldPressTimes := Map()
+    static ActiveKeyRepeatTimers := Map()
     static GameKeyDelay := 20
     static ExecutingMacroCount := 0
     static IsExecutingMacro := false
@@ -600,17 +602,21 @@ class ProfileEngine {
             }
             this.WheelHoldStates.Clear()
         }
-        if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+        for btnId, fn in this.ActiveKeyRepeatTimers {
+            SetTimer(fn, 0)
+        }
+        this.ActiveKeyRepeatTimers.Clear()
+        if (!GetKeyState("LButton", "P") && GetKeyState("LButton") && !this.IsModifierHeldByActiveButton("LButton"))
             try Send("{Blind}{LButton up}")
-        if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+        if (!GetKeyState("RButton", "P") && GetKeyState("RButton") && !this.IsModifierHeldByActiveButton("RButton"))
             try Send("{Blind}{RButton up}")
-        if (!GetKeyState("MButton", "P") && GetKeyState("MButton"))
+        if (!GetKeyState("MButton", "P") && GetKeyState("MButton") && !this.IsModifierHeldByActiveButton("MButton"))
             try Send("{Blind}{MButton up}")
-        if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+        if (!GetKeyState("Shift", "P") && GetKeyState("Shift") && !this.IsModifierHeldByActiveButton("Shift"))
             try Send("{Blind}{Shift up}")
-        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl") && !this.IsModifierHeldByActiveButton("Ctrl"))
             try Send("{Blind}{Ctrl up}")
-        if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+        if (!GetKeyState("Alt", "P") && GetKeyState("Alt") && !this.IsModifierHeldByActiveButton("Alt"))
             try Send("{Blind}{Alt up}")
         this.PhysicalButtonStates.Clear()
         this.ShiftHolders.Clear()
@@ -640,17 +646,21 @@ class ProfileEngine {
         }
         this.ActiveHeldButtons.Clear()
         this.ActiveHeldPressTimes.Clear()
-        if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+        for btnId, fn in this.ActiveKeyRepeatTimers {
+            SetTimer(fn, 0)
+        }
+        this.ActiveKeyRepeatTimers.Clear()
+        if (!GetKeyState("LButton", "P") && GetKeyState("LButton") && !this.IsModifierHeldByActiveButton("LButton"))
             try Send("{Blind}{LButton up}")
-        if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+        if (!GetKeyState("RButton", "P") && GetKeyState("RButton") && !this.IsModifierHeldByActiveButton("RButton"))
             try Send("{Blind}{RButton up}")
-        if (!GetKeyState("MButton", "P") && GetKeyState("MButton"))
+        if (!GetKeyState("MButton", "P") && GetKeyState("MButton") && !this.IsModifierHeldByActiveButton("MButton"))
             try Send("{Blind}{MButton up}")
-        if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+        if (!GetKeyState("Shift", "P") && GetKeyState("Shift") && !this.IsModifierHeldByActiveButton("Shift"))
             try Send("{Blind}{Shift up}")
-        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+        if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl") && !this.IsModifierHeldByActiveButton("Ctrl"))
             try Send("{Blind}{Ctrl up}")
-        if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+        if (!GetKeyState("Alt", "P") && GetKeyState("Alt") && !this.IsModifierHeldByActiveButton("Alt"))
             try Send("{Blind}{Alt up}")
     }
 
@@ -773,6 +783,10 @@ class ProfileEngine {
         ; Verify all buttons in ShiftHolders are actually physically held
         stuckButtons := []
         for btnId, shiftLayerNum in this.ShiftHolders {
+            ; If button is still physically held down via input hook, it is NOT stuck!
+            if (this.PhysicalButtonStates.Has(btnId) && this.PhysicalButtonStates[btnId])
+                continue
+
             hwKey := this.ButtonToFKeyMap.Has(btnId) ? this.ButtonToFKeyMap[btnId] : btnId
             if (!this.IsKeyPhysicallyDown(hwKey))
                 stuckButtons.Push(btnId)
@@ -789,18 +803,73 @@ class ProfileEngine {
         }
     }
 
+    static IsModifierHeldByActiveButton(modName) {
+        cleanMod := StrLower(Trim(modName))
+        ; 1. Check ActiveHeldButtons
+        for btnId, releaseCmd in this.ActiveHeldButtons {
+            rLower := StrLower(releaseCmd)
+            switch cleanMod {
+                case "ctrl", "control", "lctrl", "rctrl":
+                    if (InStr(rLower, "ctrl") || InStr(rLower, "control"))
+                        return true
+                case "shift", "lshift", "rshift":
+                    if (InStr(rLower, "shift"))
+                        return true
+                case "alt", "lalt", "ralt":
+                    if (InStr(rLower, "alt"))
+                        return true
+                case "win", "lwin", "rwin":
+                    if (InStr(rLower, "win"))
+                        return true
+                case "lbutton", "rbutton", "mbutton":
+                    if (InStr(rLower, cleanMod))
+                        return true
+            }
+        }
+        ; 2. Check PhysicalButtonStates and active layer mappings
+        for btnId, isHeld in this.PhysicalButtonStates {
+            if (!isHeld)
+                continue
+            mapping := this.GetButtonMapping(this.CurrentProfile, btnId)
+            layer := this.ButtonDispatchedLayer.Has(btnId) ? this.ButtonDispatchedLayer[btnId] : (this.IsGShift2Active ? "GShift2" : ((this.IsGShift1Active || this.IsGShiftActive) ? "GShift" : "Normal"))
+            act := (layer = "GShift2") ? mapping.GShift2 : ((layer = "GShift" || layer = "GShift1") ? mapping.GShift : mapping.Normal)
+            if (IsObject(act) && act.HasOwnProp("Cmd")) {
+                cLower := StrLower(act.Cmd)
+                switch cleanMod {
+                    case "ctrl", "control", "lctrl", "rctrl":
+                        if (InStr(cLower, "ctrl") || InStr(cLower, "control") || InStr(cLower, "^"))
+                            return true
+                    case "shift", "lshift", "rshift":
+                        if (InStr(cLower, "shift") || InStr(cLower, "+"))
+                            return true
+                    case "alt", "lalt", "ralt":
+                        if (InStr(cLower, "alt") || InStr(cLower, "!"))
+                            return true
+                    case "win", "lwin", "rwin":
+                        if (InStr(cLower, "win") || InStr(cLower, "#"))
+                            return true
+                    case "lbutton", "rbutton", "mbutton":
+                        if (InStr(cLower, cleanMod))
+                            return true
+                }
+            }
+        }
+        return false
+    }
+
     static SyncActiveHeldButtons() {
         ; If any sequence macro is actively running, it manages its own held keys and must not be interrupted!
         if (this.ActiveSequences.Count > 0 || this.IsExecutingMacro)
             return
 
         if (this.ActiveHeldButtons.Count = 0) {
-            ; Check if logical Shift, Ctrl, Alt is stuck down when physically up
-            if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+            ; Check if logical Shift, Ctrl, Alt is stuck down when physically up,
+            ; but NEVER unstick if a mouse button mapping is actively holding that modifier!
+            if (!GetKeyState("Shift", "P") && GetKeyState("Shift") && !this.IsModifierHeldByActiveButton("Shift"))
                 try Send("{Blind}{Shift up}")
-            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl") && !this.IsModifierHeldByActiveButton("Ctrl"))
                 try Send("{Blind}{Ctrl up}")
-            if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+            if (!GetKeyState("Alt", "P") && GetKeyState("Alt") && !this.IsModifierHeldByActiveButton("Alt"))
                 try Send("{Blind}{Alt up}")
             return
         }
@@ -814,6 +883,10 @@ class ProfileEngine {
         ; Check if held buttons are still physically held
         stuck := []
         for btnId, releaseCmd in this.ActiveHeldButtons {
+            ; If button is still physically held down via input hook, it is NOT stuck!
+            if (this.PhysicalButtonStates.Has(btnId) && this.PhysicalButtonStates[btnId])
+                continue
+
             hwKey := this.ButtonToFKeyMap.Has(btnId) ? this.ButtonToFKeyMap[btnId] : btnId
             if (!this.IsKeyPhysicallyDown(hwKey))
                 stuck.Push(btnId)
@@ -938,6 +1011,10 @@ class ProfileEngine {
 
     static CheckActiveWindow() {
         if (!this.AutoSwitchEnabled || this.LockedProfile != "")
+            return
+
+        ; Never auto-switch profiles while the user is actively holding down any mouse button or macro!
+        if (this.ActiveHeldButtons.Count > 0 || this.PhysicalButtonStates.Count > 0 || this.ActiveSequences.Count > 0 || this.IsExecutingMacro)
             return
             
         try {
@@ -1124,6 +1201,8 @@ class ProfileEngine {
         
         if (this.ProfileMetadata.Has(name))
             this.ProfileMetadata.Delete(name)
+        if (this.ProfileIconCache.Has(name))
+            this.ProfileIconCache.Delete(name)
             
         if (this.ActiveMappings.Has(name))
             this.ActiveMappings.Delete(name)
@@ -1156,6 +1235,11 @@ class ProfileEngine {
             return false
         if (this.HasProfile(newName))
             return false
+
+        if (this.ProfileIconCache.Has(oldName))
+            this.ProfileIconCache.Delete(oldName)
+        if (this.ProfileIconCache.Has(newName))
+            this.ProfileIconCache.Delete(newName)
 
         ; 1. Update this.Profiles array in place to preserve user ordering
         for idx, p in this.Profiles {
@@ -1565,6 +1649,8 @@ class ProfileEngine {
     static EnsureProfileIcon(profName, targetExe) {
         if (profName = "Desktop")
             return
+        if (this.ProfileIconCache.Has(profName))
+            this.ProfileIconCache.Delete(profName)
         outDir := A_ScriptDir . "\web\icons"
         if (!DirExist(outDir)) {
             try DirCreate(outDir)
@@ -1584,10 +1670,15 @@ class ProfileEngine {
     }
 
     static GetProfileIconPath(p) {
+        if (this.ProfileIconCache.Has(p))
+            return this.ProfileIconCache[p]
+
         outDir := A_ScriptDir . "\web\icons"
         profPng := outDir . "\" . p . ".png"
-        if (FileExist(profPng))
+        if (FileExist(profPng)) {
+            this.ProfileIconCache[p] := profPng
             return profPng
+        }
 
         if (this.ProfileMetadata.Has(p)) {
             meta := this.ProfileMetadata[p]
@@ -1596,8 +1687,10 @@ class ProfileEngine {
             iconVal := meta.HasOwnProp("Icon") ? meta.Icon : ""
             if (iconVal != "" && iconVal != "generic" && iconVal != "auto" && iconVal != "desktop") {
                 customPng := outDir . "\" . iconVal . ".png"
-                if (FileExist(customPng))
+                if (FileExist(customPng)) {
+                    this.ProfileIconCache[p] := customPng
                     return customPng
+                }
             }
 
             ; 2. Target executable icon
@@ -1609,16 +1702,23 @@ class ProfileEngine {
                         continue
                     SplitPath(clean, &cFile, , , &cName)
                     cleanPng := outDir . "\" . cName . ".png"
-                    if (FileExist(cleanPng))
+                    if (FileExist(cleanPng)) {
+                        this.ProfileIconCache[p] := cleanPng
                         return cleanPng
+                    }
 
                     resolved := this.ResolveExePath(clean)
                     if (resolved != "" && FileExist(resolved)) {
                         this.EnsureProfileIcon(p, resolved)
-                        if (FileExist(profPng))
+                        if (FileExist(profPng)) {
+                            this.ProfileIconCache[p] := profPng
                             return profPng
-                        if (FileExist(cleanPng))
+                        }
+                        if (FileExist(cleanPng)) {
+                            this.ProfileIconCache[p] := cleanPng
                             return cleanPng
+                        }
+                        this.ProfileIconCache[p] := resolved
                         return resolved
                     }
                 }
@@ -1626,10 +1726,17 @@ class ProfileEngine {
         }
 
         ; 3. Fallbacks
-        if (FileExist(A_ScriptDir . "\assets\app.png"))
-            return A_ScriptDir . "\assets\app.png"
-        if (FileExist(A_ScriptDir . "\assets\app.ico"))
-            return A_ScriptDir . "\assets\app.ico"
+        appPng := A_ScriptDir . "\assets\app.png"
+        if (FileExist(appPng)) {
+            this.ProfileIconCache[p] := appPng
+            return appPng
+        }
+        appIco := A_ScriptDir . "\assets\app.ico"
+        if (FileExist(appIco)) {
+            this.ProfileIconCache[p] := appIco
+            return appIco
+        }
+        this.ProfileIconCache[p] := ""
         return ""
     }
 
@@ -2163,16 +2270,17 @@ class ProfileEngine {
         }
 
         ; 5. Failsafe modifier unstick: if Shift, Ctrl, or Alt is logically down but physically not held on keyboard
+        ; NEVER release modifiers that are actively held by a mouse button mapping!
         if (!this.IsExecutingMacro) {
-            if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+            if (!GetKeyState("Shift", "P") && GetKeyState("Shift") && !this.IsModifierHeldByActiveButton("Shift"))
                 try Send("{Blind}{Shift up}")
-            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl") && !this.IsModifierHeldByActiveButton("Ctrl"))
                 try Send("{Blind}{Ctrl up}")
-            if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+            if (!GetKeyState("Alt", "P") && GetKeyState("Alt") && !this.IsModifierHeldByActiveButton("Alt"))
                 try Send("{Blind}{Alt up}")
-            if (!GetKeyState("LButton", "P") && GetKeyState("LButton"))
+            if (!GetKeyState("LButton", "P") && GetKeyState("LButton") && !this.IsModifierHeldByActiveButton("LButton"))
                 try Send("{Blind}{LButton up}")
-            if (!GetKeyState("RButton", "P") && GetKeyState("RButton"))
+            if (!GetKeyState("RButton", "P") && GetKeyState("RButton") && !this.IsModifierHeldByActiveButton("RButton"))
                 try Send("{Blind}{RButton up}")
         }
     }
@@ -2218,27 +2326,60 @@ class ProfileEngine {
         }
     }
 
+    static StartKeyRepeat(btnId, holdKey) {
+        this.StopKeyRepeat(btnId)
+        ; Mouse clicks do not have typematic repeat in Windows
+        if (RegExMatch(holdKey, "i)^(LButton|RButton|MButton|XButton1|XButton2)$"))
+            return
+
+        repeatFn() {
+            if (!ProfileEngine.ActiveHeldButtons.Has(btnId)) {
+                ProfileEngine.StopKeyRepeat(btnId)
+                return
+            }
+            Send("{Blind}{" . holdKey . " down}")
+            if (ProfileEngine.ActiveHeldButtons.Has(btnId))
+                SetTimer(repeatFn, -35)
+        }
+        this.ActiveKeyRepeatTimers[btnId] := repeatFn
+        ; Standard Windows initial delay before repeat begins is ~400ms
+        SetTimer(repeatFn, -400)
+    }
+
+    static StopKeyRepeat(btnId) {
+        if (this.ActiveKeyRepeatTimers.Has(btnId)) {
+            fn := this.ActiveKeyRepeatTimers[btnId]
+            this.ActiveKeyRepeatTimers.Delete(btnId)
+            SetTimer(fn, 0)
+        }
+    }
+
     static GetHoldableKey(cmd) {
         if (cmd == "")
             return ""
         
-        ; Mouse buttons: LButton, RButton, MButton, XButton1, XButton2
-        if (RegExMatch(cmd, "i)^\{(LButton|RButton|MButton|XButton1|XButton2)\}$", &m))
-            return m[1]
+        clean := RegExReplace(Trim(cmd), "^\{|\}$", "")
+        if (clean == "")
+            return ""
             
-        ; Standard single brace keys: {Space}, {Enter}, {Tab}, {Escape}, {Delete}, {F1}-{F24}, etc.
-        ; (Exclude scroll wheel, double/triple clicks, or multi-count like {Volume_Down 2})
-        if (RegExMatch(cmd, "i)^\{([A-Za-z0-9_]+)\}$", &m)) {
-            k := m[1]
-            if (k != "WheelUp" && k != "WheelDown" && k != "WheelLeft" && k != "WheelRight"
-                && k != "DoubleClick" && k != "TripleClick"
-                && !InStr(k, "Volume_") && !InStr(k, "Media_"))
-                return k
-        }
-        
+        ; Exclude scroll wheel, double/triple clicks, media/volume, or multi-count like {Volume_Down 2}
+        if (clean = "WheelUp" || clean = "WheelDown" || clean = "WheelLeft" || clean = "WheelRight"
+            || clean = "DoubleClick" || clean = "TripleClick"
+            || InStr(clean, "Volume_") || InStr(clean, "Media_") || InStr(clean, " "))
+            return ""
+            
+        ; Mouse buttons
+        if (RegExMatch(clean, "i)^(LButton|RButton|MButton|XButton1|XButton2)$"))
+            return clean
+            
         ; Single character: e.g. "d", "a", "1"
-        if (StrLen(cmd) = 1)
-            return StrLower(cmd)
+        if (StrLen(clean) = 1)
+            return StrLower(clean)
+            
+        ; Standard keys: Ctrl, Control, LCtrl, RCtrl, Shift, LShift, RShift, Alt, LAlt, RAlt, Win, LWin, RWin,
+        ; Space, Enter, Tab, Escape, Delete, Backspace, CapsLock, F1-F24, etc.
+        if (RegExMatch(clean, "i)^[A-Za-z0-9_]+$"))
+            return clean
             
         return ""
     }
@@ -2264,6 +2405,7 @@ class ProfileEngine {
                         return
                 }
                 Send("{Blind}{" . holdKey . " down}")
+                this.StartKeyRepeat(btnId, holdKey)
                 return
             }
             ; Modifier + Key/Mouse button hold support (e.g. ^{LButton}, +{w}, !{Space}, ^{c}, etc.)
@@ -2341,6 +2483,7 @@ class ProfileEngine {
     }
 
     static ExecuteActionUp(act, btnId) {
+        this.StopKeyRepeat(btnId)
         if (this.ActiveHeldButtons.Has(btnId)) {
             releaseCmd := this.ActiveHeldButtons[btnId]
             this.ActiveHeldButtons.Delete(btnId)
@@ -2615,17 +2758,17 @@ class ProfileEngine {
         }
 
         ; 4. Failsafe modifier cleanup: if any modifier was logically stuck down by an interrupted macro
-        ; but is physically not held on the keyboard, release it now.
+        ; but is physically not held on the keyboard, release it now (never if held by an active mouse button).
         if (!this.IsExecutingMacro) {
-            if (!GetKeyState("Shift", "P") && GetKeyState("Shift"))
+            if (!GetKeyState("Shift", "P") && GetKeyState("Shift") && !this.IsModifierHeldByActiveButton("Shift"))
                 try Send("{Blind}{Shift up}")
-            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl"))
+            if (!GetKeyState("Ctrl", "P") && GetKeyState("Ctrl") && !this.IsModifierHeldByActiveButton("Ctrl"))
                 try Send("{Blind}{Ctrl up}")
-            if (!GetKeyState("Alt", "P") && GetKeyState("Alt"))
+            if (!GetKeyState("Alt", "P") && GetKeyState("Alt") && !this.IsModifierHeldByActiveButton("Alt"))
                 try Send("{Blind}{Alt up}")
-            if (btnId != "LeftClick" && !GetKeyState("LButton", "P") && GetKeyState("LButton"))
+            if (btnId != "LeftClick" && !GetKeyState("LButton", "P") && GetKeyState("LButton") && !this.IsModifierHeldByActiveButton("LButton"))
                 try Send("{Blind}{LButton up}")
-            if (btnId != "RightClick" && !GetKeyState("RButton", "P") && GetKeyState("RButton"))
+            if (btnId != "RightClick" && !GetKeyState("RButton", "P") && GetKeyState("RButton") && !this.IsModifierHeldByActiveButton("RButton"))
                 try Send("{Blind}{RButton up}")
         }
     }
@@ -2721,14 +2864,6 @@ class ProfileEngine {
     }
 
     static HandleFKey(fKey, isDown) {
-        if (this.IsMasterSuspended)
-            return
-        ; Decouple execution from OS low-level hook (WH_KEYBOARD_LL / WH_MOUSE_LL)
-        ; Returns to Windows immediately in < 0.05ms to prevent cursor micro-stutter & hook timeouts
-        SetTimer(() => ProfileEngine._DoHandleFKey(fKey, isDown), -1)
-    }
-
-    static _DoHandleFKey(fKey, isDown) {
         if (this.IsMasterSuspended)
             return
         btnId := this.ResolveButtonId(fKey)
