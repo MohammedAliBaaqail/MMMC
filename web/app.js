@@ -78,6 +78,8 @@ const state = {
     isAdmin: false,
     runAtStartup: false,
     reactWhenUnfocused: false,
+    notificationMode: 'text', // 'text' | 'icon' | 'disabled'
+    hasLoadedRealHardwareProfiles: false,
 
     // Pointer & Card Calibration Mode State
     isCalibrating: false,
@@ -257,6 +259,7 @@ const CATALOG_DATA = [
             { name: 'File Explorer', type: 'Send', cmd: '#e', label: 'File Explorer', badge: 'Win+E' },
             { name: 'Clipboard History', type: 'Send', cmd: '#v', label: 'Clipboard History', badge: 'Win+V' },
             { name: 'Capture Window Screenshot', type: 'Send', cmd: '#!{PrintScreen}', label: 'Screenshot (Win+Alt+PrtScn)', badge: 'Win+Alt+PrtScn' },
+            { name: 'Full Screenshot (Auto-Save)', type: 'Send', cmd: '#{PrintScreen}', label: 'Screenshot (Win+PrtScn)', badge: 'Win+PrtScn' },
             { name: 'Snipping Tool (Screenshot)', type: 'Send', cmd: '#+s', label: 'Snipping Tool', badge: 'Win+Shift+S' },
             { name: 'Windows Search', type: 'Send', cmd: '#s', label: 'Windows Search', badge: 'Win+S' },
             { name: 'Task View / Timeline', type: 'Send', cmd: '#{Tab}', label: 'Task View', badge: 'Win+Tab' },
@@ -714,10 +717,13 @@ function handleEngineMessage(msg) {
             if (document.getElementById('chkAlwaysOnTop')) {
                 document.getElementById('chkAlwaysOnTop').checked = state.isAlwaysOnTop;
             }
-            if (msg.showOSD !== undefined) {
-                const chkOSD = document.getElementById('chkShowOSD');
-                if (chkOSD) chkOSD.checked = !!msg.showOSD;
+            if (msg.notificationMode) {
+                state.notificationMode = msg.notificationMode;
+            } else if (msg.showOSD !== undefined) {
+                state.notificationMode = msg.showOSD ? 'text' : 'disabled';
             }
+            state.showOSD = (state.notificationMode !== 'disabled');
+            updateNotificationModeUI();
             if (msg.muteWhenFocused !== undefined) {
                 state.muteWhenFocused = !!msg.muteWhenFocused;
                 const chkMute = document.getElementById('chkMuteWhenFocused');
@@ -1003,9 +1009,12 @@ function handleEngineMessage(msg) {
             break;
 
         case 'logitechAllProfilesLoaded':
+            state.hasLoadedRealHardwareProfiles = true;
             state.activeOnboardProfileId = msg.activeProfileId || 1;
             state.selectedOnboardProfileId = state.selectedOnboardProfileId || msg.selectedProfileId || state.activeOnboardProfileId;
-            state.onboardProfiles = (msg.profiles && msg.profiles.length > 0) ? msg.profiles : state.onboardProfiles;
+            if (msg.profiles && msg.profiles.length > 0) {
+                state.onboardProfiles = msg.profiles;
+            }
             if (state.onboardProfiles && state.onboardProfiles[state.activeOnboardProfileId - 1]) {
                 const activeProf = state.onboardProfiles[state.activeOnboardProfileId - 1];
                 if (activeProf.buttons) {
@@ -1022,6 +1031,19 @@ function handleEngineMessage(msg) {
             renderOmmDpiStrip();
             renderOmmGrid();
             refreshCardsAndStage();
+            showToast('Hardware Memory Loaded', 'Live onboard profiles loaded from mouse hardware!', 'success');
+            break;
+
+        case 'logitechProfileLoaded':
+            if (msg.profile) {
+                const p = msg.profile;
+                if (!state.onboardProfiles) state.onboardProfiles = [];
+                state.onboardProfiles[p.id - 1] = p;
+                if (p.id === (state.selectedOnboardProfileId || 1)) {
+                    renderOmmDpiStrip();
+                    renderOmmGrid();
+                }
+            }
             break;
 
         case 'logitechProfileSwitched':
@@ -1103,11 +1125,20 @@ function handleEngineMessage(msg) {
             }
             break;
 
+        case 'notificationModeChanged':
+            if (msg.mode) {
+                state.notificationMode = msg.mode;
+                state.showOSD = (msg.mode !== 'disabled');
+                updateNotificationModeUI();
+                showToast('Notification Mode', msg.mode === 'disabled' ? 'Profile notifications disabled' : (msg.mode === 'icon' ? 'Icon-only HUD notification enabled' : 'Full text & details notification enabled'));
+            }
+            break;
+
         case 'osdStateChanged':
             if (typeof msg.enabled === 'boolean') {
-                const chkOSD = document.getElementById('chkShowOSD');
-                if (chkOSD) chkOSD.checked = msg.enabled;
-                updateHeaderTogglesUI();
+                state.showOSD = msg.enabled;
+                state.notificationMode = msg.enabled ? (state.notificationMode === 'disabled' ? 'text' : state.notificationMode) : 'disabled';
+                updateNotificationModeUI();
                 showToast('Notifications', msg.enabled ? 'On-screen notifications enabled' : 'On-screen notifications disabled');
             }
             break;
@@ -1437,18 +1468,46 @@ function initHeaderControls() {
     updateBShiftVisibility();
 }
 
+function updateNotificationModeUI() {
+    const mode = state.notificationMode || 'text';
+    const group = document.getElementById('notificationModeGroup');
+    if (group) {
+        group.querySelectorAll('.settings-seg-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+    }
+    const chkOSD = document.getElementById('chkSettingsOSD');
+    if (chkOSD) {
+        chkOSD.checked = (mode !== 'disabled');
+    }
+    const mainChk = document.getElementById('chkShowOSD');
+    if (mainChk) {
+        mainChk.checked = (mode !== 'disabled');
+    }
+    const btnOSD = document.getElementById('btnToggleOSD');
+    if (btnOSD) {
+        btnOSD.classList.toggle('active', mode !== 'disabled');
+        const icon = btnOSD.querySelector('use');
+        if (icon) {
+            icon.setAttribute('href', mode === 'disabled' ? '#icon-bell-off' : '#icon-bell');
+        }
+        if (mode === 'disabled') {
+            btnOSD.setAttribute('title', 'Profile Notifications: Disabled (Click to Enable)');
+        } else if (mode === 'icon') {
+            btnOSD.setAttribute('title', 'Profile Notifications: Icon-Only HUD (Click to Change)');
+        } else {
+            btnOSD.setAttribute('title', 'Profile Notifications: Text & Details (Click to Disable)');
+        }
+    }
+}
+
 function updateHeaderTogglesUI() {
     const btnTop = document.getElementById('btnToggleAlwaysOnTop');
     if (btnTop) {
         btnTop.classList.toggle('active', !!state.isAlwaysOnTop);
         btnTop.setAttribute('title', state.isAlwaysOnTop ? 'Always on Top: Active (Window pinned above others)' : 'Always on Top: Inactive (Click to pin window)');
     }
-    const btnOSD = document.getElementById('btnToggleOSD');
-    if (btnOSD) {
-        const isOsd = (document.getElementById('chkShowOSD')?.checked ?? true);
-        btnOSD.classList.toggle('active', !!isOsd);
-        btnOSD.setAttribute('title', isOsd ? 'On-Screen Notifications (OSD): Enabled' : 'On-Screen Notifications (OSD): Muted');
-    }
+    updateNotificationModeUI();
     const btnMute = document.getElementById('btnToggleMuteWhenFocused');
     if (btnMute) {
         btnMute.classList.toggle('active', !!state.muteWhenFocused);
@@ -7330,24 +7389,6 @@ function initProfileModalControls() {
         });
     }
 
-    const inputOsdIconOnly = document.getElementById('profInputOsdIconOnly');
-    if (inputOsdIconOnly) {
-        inputOsdIconOnly.addEventListener('change', () => {
-            const curProfName = state.editingProfileOldName || state.currentProfile;
-            if (curProfName && state.profileModalMode === 'edit') {
-                const targetProf = state.profiles.find(p => p.name.toLowerCase() === curProfName.toLowerCase());
-                if (targetProf) {
-                    targetProf.osdIconOnly = inputOsdIconOnly.checked;
-                }
-                sendToAhk({
-                    action: 'updateProfileOsdIconOnly',
-                    name: curProfName,
-                    osdIconOnly: inputOsdIconOnly.checked
-                });
-            }
-        });
-    }
-
     if (btnBrowse) {
         btnBrowse.addEventListener('click', () => {
             sendToAhk({ action: 'browseAppExe' });
@@ -8597,12 +8638,6 @@ function initLogitechTelemetry() {
         }
     };
 
-    if (badgeBtn) {
-        badgeBtn.addEventListener('click', () => {
-            openOmmModal();
-        });
-    }
-
     // Attempt automatic background reconnection to previously authorized devices
     setTimeout(() => {
         window.logitechDevice.autoConnect().catch(() => { });
@@ -8626,7 +8661,7 @@ function openOmmModal() {
         modal.classList.add('open');
         modal.style.display = 'flex';
     }
-    const needsFresh = (!state.onboardProfiles || state.onboardProfiles.length === 0);
+    const needsFresh = !state.hasLoadedRealHardwareProfiles;
     sendToAhk({ action: 'loadAllLogitechProfiles', forceRefresh: needsFresh });
 }
 
@@ -10670,6 +10705,7 @@ function openStudioSettingsModal() {
     updateGameKeyDelayUI();
     updateHoverFocusUI();
     updateInterceptionDriverUI();
+    updateNotificationModeUI();
 
     modal.style.display = 'flex';
 }
@@ -10737,6 +10773,22 @@ function initStudioSettingsModal() {
         }
     });
 
+    // Wire up Global Profile Switch Notification mode buttons
+    const notifGroup = document.getElementById('notificationModeGroup');
+    if (notifGroup) {
+        notifGroup.querySelectorAll('.settings-seg-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const mode = btn.getAttribute('data-mode');
+                if (!mode) return;
+                state.notificationMode = mode;
+                state.showOSD = (mode !== 'disabled');
+                updateNotificationModeUI();
+                sendToAhk({ action: 'setNotificationMode', mode: mode });
+            });
+        });
+    }
+
     // Wire up quick toggles inside settings modal to mirror main checkboxes
     const chkSettingsMute = document.getElementById('chkSettingsMute');
     if (chkSettingsMute) {
@@ -10754,7 +10806,11 @@ function initStudioSettingsModal() {
         chkSettingsOSD.addEventListener('change', (e) => {
             const mainChk = document.getElementById('chkShowOSD');
             if (mainChk) mainChk.checked = e.target.checked;
-            sendToAhk({ action: 'toggleOSD', enabled: e.target.checked });
+            const newMode = e.target.checked ? (state.notificationMode === 'disabled' ? 'text' : state.notificationMode) : 'disabled';
+            state.notificationMode = newMode;
+            state.showOSD = e.target.checked;
+            updateNotificationModeUI();
+            sendToAhk({ action: 'setNotificationMode', mode: newMode });
             updateHeaderTogglesUI();
         });
     }

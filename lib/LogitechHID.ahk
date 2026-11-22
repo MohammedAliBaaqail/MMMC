@@ -207,28 +207,44 @@ class LogitechHID {
     /**
      * Send HID++ 20-byte Report and receive response via Overlapped I/O
      */
-    static SendRawCmd(pkt, timeoutMs := 60) {
+    static SendRawCmd(pkt, timeoutMs := 40) {
         if (!this.hFile || this.hFile == -1)
             return Buffer(20, 0)
 
-            DllCall("hid\HidD_SetOutputReport", "ptr", this.hFile, "ptr", pkt, "uint", 20)
+        ; Flush any stale reports from previous commands
+        DllCall("hid\HidD_FlushQueue", "ptr", this.hFile)
+        DllCall("hid\HidD_SetOutputReport", "ptr", this.hFile, "ptr", pkt, "uint", 20)
+
+        targetFeat := NumGet(pkt, 2, "uchar")
+        readBuf := Buffer(20, 0)
+        startTime := A_TickCount
+
+        while ((A_TickCount - startTime) < timeoutMs) {
             DllCall("kernel32\ResetEvent", "ptr", this.hEvent)
             ov := Buffer(A_PtrSize == 8 ? 32 : 20, 0)
             NumPut("ptr", this.hEvent, ov, A_PtrSize == 8 ? 24 : 16)
-            readBuf := Buffer(20, 0)
             bytesRead := 0
             readOk := DllCall("kernel32\ReadFile", "ptr", this.hFile, "ptr", readBuf, "uint", 20, "uint*", &bytesRead,
                 "ptr", ov)
             if (!readOk && DllCall("kernel32\GetLastError") == 997) {
-                if (DllCall("kernel32\WaitForSingleObject", "ptr", this.hEvent, "uint", timeoutMs) == 0) {
-                    DllCall("kernel32\GetOverlappedResult", "ptr", this.hFile, "ptr", ov, "uint*", &bytesRead, "int", 0
-                    )
+                remTime := Max(1, timeoutMs - (A_TickCount - startTime))
+                if (DllCall("kernel32\WaitForSingleObject", "ptr", this.hEvent, "uint", remTime) == 0) {
+                    DllCall("kernel32\GetOverlappedResult", "ptr", this.hFile, "ptr", ov, "uint*", &bytesRead, "int", 0)
                 } else {
                     DllCall("kernel32\CancelIo", "ptr", this.hFile)
+                    break
                 }
             }
-            return readBuf
+            rId := NumGet(readBuf, 0, "uchar")
+            rFeat := NumGet(readBuf, 2, "uchar")
+            if (rId == 0x11 || rId == 0x10) {
+                if (targetFeat == 0x00 || rFeat == targetFeat || rFeat == 0x8F || rFeat == 0xFF)
+                    return readBuf
+            }
+            Sleep(-1)
         }
+        return readBuf
+    }
 
         /**
          * Query feature index from Root Feature 0x0000
@@ -271,7 +287,12 @@ class LogitechHID {
             NumPut("uchar", 0x51, pkt, 3)
             NumPut("uchar", (sector >> 8) & 0xFF, pkt, 4), NumPut("uchar", sector & 0xFF, pkt, 5)
             NumPut("uchar", (offset >> 8) & 0xFF, pkt, 6), NumPut("uchar", offset & 0xFF, pkt, 7)
-            return this.SendRawCmd(pkt)
+            resp := this.SendRawCmd(pkt, 40)
+            if (NumGet(resp, 0, "uchar") != 0x11) {
+                Sleep(-1)
+                resp := this.SendRawCmd(pkt, 50)
+            }
+            return resp
         }
 
         /**
@@ -284,7 +305,7 @@ class LogitechHID {
                 resp := this.ReadSectorChunk(sector, off)
                 DllCall("ntdll\RtlCopyMemory", "ptr", sectorBuf.Ptr + off, "ptr", resp.Ptr + 4, "uptr", 16)
                 off += 16
-                Sleep(1)
+                Sleep(-1)
             }
             respLast := this.ReadSectorChunk(sector, 239)
             DllCall("ntdll\RtlCopyMemory", "ptr", sectorBuf.Ptr + 239, "ptr", respLast.Ptr + 4, "uptr", 16)
@@ -754,7 +775,7 @@ class LogitechHID {
                 profObj := this.ReadProfile(pId, forceRefresh)
                 profObj["isActive"] := (pId == this.activeProfileId)
                 profilesList.Push(profObj)
-                Sleep(5)
+                Sleep(-1)
             }
             return profilesList
         }

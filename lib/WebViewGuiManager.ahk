@@ -596,12 +596,35 @@ class WebViewGuiManager {
                         "stay on this profile" : "follow active window"))
 
             case "toggleOSD":
-                enabled := req.Has("enabled") ? req["enabled"] : !OSD.Enabled
-                OSD.Enabled := enabled ? true : false
+                if (ProfileEngine.NotificationMode == "disabled") {
+                    ProfileEngine.NotificationMode := "text"
+                    OSD.Enabled := true
+                } else {
+                    ProfileEngine.NotificationMode := "disabled"
+                    OSD.Enabled := false
+                }
+                IniWrite(ProfileEngine.NotificationMode, ProfileEngine.ConfigPath, "Settings", "NotificationMode")
                 IniWrite(OSD.Enabled ? "1" : "0", ProfileEngine.ConfigPath, "Settings", "ShowOSD")
-                this.PostMessage(Map("type", "osdStateChanged", "enabled", OSD.Enabled ? true : false))
+                this.PostMessage(Map("type", "notificationModeChanged", "mode", ProfileEngine.NotificationMode, "showOSD", OSD.Enabled ? true : false))
                 if (OSD.Enabled)
-                    OSD.Show("Notifications: Enabled")
+                    OSD.Show("Notifications: Enabled", "Mode: " . ProfileEngine.NotificationMode)
+
+            case "setNotificationMode":
+                if (req.Has("mode")) {
+                    nMode := req["mode"]
+                    if (nMode == "text" || nMode == "icon" || nMode == "disabled") {
+                        ProfileEngine.NotificationMode := nMode
+                        OSD.Enabled := (nMode != "disabled")
+                        IniWrite(nMode, ProfileEngine.ConfigPath, "Settings", "NotificationMode")
+                        IniWrite(OSD.Enabled ? "1" : "0", ProfileEngine.ConfigPath, "Settings", "ShowOSD")
+                        this.PostMessage(Map("type", "notificationModeChanged", "mode", nMode, "showOSD", OSD.Enabled ? true : false))
+                        if (nMode == "icon") {
+                            OSD.ShowIcon(ProfileEngine.GetProfileIconPath(ProfileEngine.CurrentProfile), 1500)
+                        } else if (nMode == "text") {
+                            OSD.Show("Notifications: Text & Details", "Profile title & active window info enabled")
+                        }
+                    }
+                }
 
             case "toggleMuteWhenFocused":
                 enabled := req.Has("enabled") ? req["enabled"] : !ProfileEngine.MuteWhenStudioFocused
@@ -858,6 +881,24 @@ class WebViewGuiManager {
                     this.PostMessage(Map(
                         "type", "logitechError",
                         "message", "Failed to read profiles: " . err.Message
+                    ))
+                }
+
+            case "loadLogitechProfile":
+                try {
+                    pId := req.Has("profileId") ? Integer(req["profileId"]) : LogitechHID.selectedProfileId
+                    force := req.Has("forceRefresh") ? (req["forceRefresh"] ? true : false) : true
+                    profObj := LogitechHID.ReadProfile(pId, force)
+                    this.PostMessage(Map(
+                        "type", "logitechProfileLoaded",
+                        "connected", true,
+                        "name", LogitechHID.productName,
+                        "profile", profObj
+                    ))
+                } catch as err {
+                    this.PostMessage(Map(
+                        "type", "logitechError",
+                        "message", "Failed to read profile: " . err.Message
                     ))
                 }
 
@@ -1276,6 +1317,7 @@ class WebViewGuiManager {
                 "rapidFire", ProfileEngine.RapidFireEnabled ? true : false,
                 "alwaysOnTop", this.IsAlwaysOnTop ? true : false,
                 "showOSD", OSD.Enabled ? true : false,
+                "notificationMode", ProfileEngine.NotificationMode,
                 "muteWhenFocused", ProfileEngine.MuteWhenStudioFocused ? true : false,
                 "reactWhenUnfocused", this.ReactWhenUnfocused ? true : false,
                 "gameKeyDelay", ProfileEngine.GameKeyDelay,

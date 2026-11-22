@@ -17,6 +17,7 @@ class ProfileEngine {
     static AutoSwitchTimerFn := ""
     static IsMasterSuspended := false
     static OnMasterSuspensionChanged := ""
+    static NotificationMode := "text" ; "text" | "icon" | "disabled"
 
     ; Profile Metadata: Map(profileName, { TargetExe: "...", Icon: "...", IsDefault: bool, SwitchOnHover: bool, FocusOnHover: bool, OsdIconOnly: bool, Desc: "..." })
     static ProfileMetadata := Map(
@@ -112,7 +113,12 @@ class ProfileEngine {
             }
             this.AutoSwitchEnabled := (IniRead(this.ConfigPath, "Profiles", "AutoSwitchEnabled", "1") = "1")
             this.LockedProfile := IniRead(this.ConfigPath, "Profiles", "LockedProfile", "")
-            OSD.Enabled := (IniRead(this.ConfigPath, "Settings", "ShowOSD", "1") = "1")
+            this.NotificationMode := IniRead(this.ConfigPath, "Settings", "NotificationMode", "")
+            if (this.NotificationMode == "") {
+                legacyOSD := IniRead(this.ConfigPath, "Settings", "ShowOSD", "1")
+                this.NotificationMode := (legacyOSD = "0") ? "disabled" : "text"
+            }
+            OSD.Enabled := (this.NotificationMode != "disabled")
             this.MuteWhenStudioFocused := (IniRead(this.ConfigPath, "Settings", "MuteWhenFocused", "1") = "1")
             this.GameKeyDelay := Integer(IniRead(this.ConfigPath, "General", "GameKeyDelay", "20"))
         }
@@ -517,12 +523,12 @@ class ProfileEngine {
                 if (IsSet(SnapTap))
                     SnapTap.Reset()
                 this.CurrentProfile := p
-                meta := this.ProfileMetadata.Has(p) ? this.ProfileMetadata[p] : ""
-                isIconOnly := (meta && meta.HasOwnProp("OsdIconOnly") && (meta.OsdIconOnly = 1 || meta.OsdIconOnly = true || meta.OsdIconOnly = "1" || meta.OsdIconOnly = "true"))
-                if (isIconOnly) {
-                    OSD.ShowIcon(this.GetProfileIconPath(p))
-                } else {
-                    OSD.Show("Profile: " . p, this.GetProfileDescription(p))
+                if (OSD.Enabled && this.NotificationMode != "disabled") {
+                    if (this.NotificationMode == "icon") {
+                        OSD.ShowIcon(this.GetProfileIconPath(p))
+                    } else {
+                        OSD.Show("Profile: " . p, this.GetProfileDescription(p))
+                    }
                 }
                 fn := this.OnProfileChanged
                 if (fn)

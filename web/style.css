@@ -8408,6 +8408,51 @@ body:not(.layer-gshift1):not(.layer-gshift2) .svg-hotspot-text[data-btn="RightCl
     border: 1px solid rgba(245, 158, 11, 0.45);
 }
 
+.settings-card-icon.notif-icon {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(59, 130, 246, 0.25));
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    color: var(--accent-purple, #a855f7);
+}
+
+.settings-segmented-group {
+    display: flex;
+    gap: 8px;
+    background: rgba(12, 16, 28, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-sm, 8px);
+    padding: 4px;
+    margin-top: 4px;
+}
+
+.settings-seg-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary, #94a3b8);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.settings-seg-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.settings-seg-btn.active {
+    background: linear-gradient(135deg, rgba(0, 210, 255, 0.25), rgba(59, 130, 246, 0.25));
+    border-color: rgba(0, 210, 255, 0.5);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(0, 210, 255, 0.25);
+}
+
 .settings-card-content {
     flex: 1;
 }
