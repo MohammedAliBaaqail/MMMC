@@ -52,7 +52,8 @@ SetKeyDelay(-1, -1)
 SetMouseDelay(-1)
 SetDefaultMouseSpeed(0)
 InstallKeybdHook()
-InstallMouseHook()
+; Note: InstallMouseHook is intentionally omitted so WH_MOUSE_LL is only dynamically
+; engaged when custom mouse hotkeys are needed, eliminating idle wake-up cursor lag
 Persistent(true)
 ; Elevate Windows system timer resolution to 1ms for ultra-responsive macro execution
 DllCall("winmm\timeBeginPeriod", "uint", 1)
@@ -482,7 +483,7 @@ OnResetMouseVisual() {
 ; Passes native clicks/scrolls directly to Windows while
 ; highlighting the buttons in the Studio hardware diagram
 ; ========================================================
-#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsLeftClickIntercept() && !ProfileEngine.RapidFireEnabled
+#HotIf WebViewGuiManager.IsStudioVisible() && !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsLeftClickIntercept() && !ProfileEngine.RapidFireEnabled
 
 ~*LButton::
 {
@@ -495,7 +496,7 @@ OnResetMouseVisual() {
         ProfileEngine.NotifyButton("LeftClick", false)
 }
 
-#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsRightClickIntercept()
+#HotIf WebViewGuiManager.IsStudioVisible() && !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsRightClickIntercept()
 
 ~*RButton::
 {
@@ -508,7 +509,7 @@ OnResetMouseVisual() {
         ProfileEngine.NotifyButton("RightClick", false)
 }
 
-#HotIf !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsWheelIntercept()
+#HotIf WebViewGuiManager.IsStudioVisible() && !GuiManager.IsRecording() && !WebViewGuiManager.IsRecording() && !QuickRemap.IsActive && !ProfileEngine.NeedsWheelIntercept()
 
 ~*WheelUp::ProfileEngine.NotifyWheel("WheelUp")
 ~*WheelDown::ProfileEngine.NotifyWheel("WheelDown")

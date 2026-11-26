@@ -100,7 +100,7 @@ if not defined ISCC (
 )
 
 if "%USE_STAGING%"=="1" (
-    "%ISCC%" /DAppSourceDir="%STAGING_DIR%" /Q "%~dp0installer.iss"
+    "%ISCC%" "/DAppSourceDir=%STAGING_DIR%" /Q "%~dp0installer.iss"
 ) else (
     "%ISCC%" /Q "%~dp0installer.iss"
 )

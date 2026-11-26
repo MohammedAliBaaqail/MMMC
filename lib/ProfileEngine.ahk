@@ -13,6 +13,7 @@ class ProfileEngine {
     static LockedProfile := ""
     static LastActiveProcess := ""
     static LastActiveHwnd := 0
+    static LastIdleCheckTick := 0
     static HasAnyHoverProfile := false
     static AutoSwitchTimerFn := ""
     static IsMasterSuspended := false
@@ -911,6 +912,15 @@ class ProfileEngine {
     static PeriodicMaintenance() {
         if (this.IsExecutingMacro || this.ActiveSequences.Count > 0)
             return
+
+        ; If user has been physically idle for more than 2.5 seconds, throttle maintenance checks
+        ; to prevent wake-up contention, CPU core thrashing, and low-level hook latency spikes
+        if (A_TimeIdlePhysical > 2500) {
+            if (A_TickCount - this.LastIdleCheckTick < 1000)
+                return
+            this.LastIdleCheckTick := A_TickCount
+        }
+
         this.SyncShiftState()
         this.SyncActiveHeldButtons()
         this.KeepMemoryWarm()
